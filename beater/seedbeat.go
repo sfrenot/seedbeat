@@ -100,7 +100,6 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 					logp.Info("Deja vu : " + newPeer + " : " + lastAnnonce.Format("15:04:05") + ":->" + strconv.Itoa(idx))
 					for i:=idx; i < len(timeEvents)-1; i++ {
 						logp.Info("\tEvent" + newPeer + " : " + strconv.Itoa(i) + " : " +timeEvents[i].Format("15:04:05"))
-
 						event := beat.Event{
 							Timestamp: timeEvents[i],
 							Fields: common.MapStr{
@@ -108,7 +107,6 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 							},
 						}
 						bt.client.Publish(event)
-
 					}
 				}
 				ongoingPeers[newPeer] = now
