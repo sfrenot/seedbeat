@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"time"
 	"strings"
-	"io"
+	"strconv"
+	// "io"
 	"os"
 
 	"github.com/elastic/beats/libbeat/beat"
@@ -58,8 +59,11 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 	checkErr(err)
 	defer addLog.Close()
 
-	ongoingPeers := make(map[string]peerInfo)
-	targets := [1]string{bt.config.Seed}
+	ongoingPeers := make(map[string]time.Time)
+  timeEvents := make([]time.Time, 0)
+	timeEventsIdx := make(map[time.Time]int)
+
+	// targets := [1]string{bt.config.Seed}
 
 
 	bt.client, err = b.Publisher.Connect()
@@ -81,42 +85,46 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 			return err
 		}
 
+		now := time.Now()
+		timeEvents = append(timeEvents, now)
+
+		timeEventsIdx[now] = len(timeEvents)-1
+
 		for _, newPeer := range peers {
 			if newPeer != "" {
-				now := time.Now()
-				pastPeer, ok := ongoingPeers[newPeer]
-				seen := -1
-				if !ok {
-					seen = 1
-				} else {
-					seen = pastPeer.numberSeen + 1
+
+				lastAnnonce, found := ongoingPeers[newPeer]
+
+				if found {
+					idx := timeEventsIdx[lastAnnonce]
+					logp.Info("Deja vu : " + newPeer + " : " + lastAnnonce.Format("15:04:05") + ":->" + strconv.Itoa(idx))
+					for i:=idx; i < len(timeEvents)-1; i++ {
+						logp.Info("\tEvent" + newPeer + " : " + strconv.Itoa(i) + " : " +timeEvents[i].Format("15:04:05"))
+
+						event := beat.Event{
+							Timestamp: timeEvents[i],
+							Fields: common.MapStr{
+								"peer": newPeer,
+							},
+						}
+						bt.client.Publish(event)
+
+					}
 				}
-				ongoingPeers[newPeer] = peerInfo{address: newPeer, lastSeen: now, numberSeen: seen}
-				logp.Info("Seen : "+newPeer+ " : " + string(seen) + "\n")
+				ongoingPeers[newPeer] = now
+
 				// res := strings.NewReader(newPeer+"\t"+targets[counter%len(targets)]+"\t"+fmt.Sprintf("%d", seen)+"\t"+string(now.Format(time.RFC3339))+"\n")
 				// logp.Info("--->" + res)
-				_, err := io.Copy(addLog, strings.NewReader(newPeer+"\t"+targets[counter%len(targets)]+"\t1\t"+string(now.Format(time.RFC3339))+"\n"))
-				checkErr(err)
-				event := beat.Event{
-					Timestamp: time.Now(),
-					Fields: common.MapStr{
-            "type": b.Info.Name,
-						"time": string(now.Format(time.RFC3339)),
-						"seed": targets[counter%len(targets)],
-						"peer": newPeer,
-						"times": seen,
-					},
-				}
-				bt.client.Publish(event)
+				// _, err := io.Copy(addLog, strings.NewReader(newPeer+"\t"+targets[counter%len(targets)]+"\t"+fmt.Sprintf("%d", seen)+"\t"+string(now.Format(time.RFC3339))+"\n"))
+				// checkErr(err)
+
 			}
 
 		}
 
-		// logp.Info("--->" + strings.Join(peers, ", "))
+		logp.Info("=>" + timeEvents[len(timeEvents)-1].Format("15:04:05") + " -> " + strconv.Itoa(timeEventsIdx[timeEvents[len(timeEvents)-1]]))
 
-
-
-		logp.Info("Event sent")
+		// logp.Info("Event sent")
 		counter++
 	}
 }
