@@ -7,6 +7,7 @@ import "time"
 
 type Config struct {
 	Period time.Duration `config:"period"`
+	Seed string `config:"seed"`
 }
 
 var DefaultConfig = Config{
