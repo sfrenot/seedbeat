@@ -12,4 +12,5 @@ type Config struct {
 
 var DefaultConfig = Config{
 	Period: 1 * time.Second,
+  Seed: "seed.bitcoin.sipa.be"
 }

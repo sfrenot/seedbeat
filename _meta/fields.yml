@@ -2,8 +2,8 @@
   title: seedbeat
   description:
   fields:
-    - name: counter
-      type: long
+    - name: peer
+      type: ip
       required: true
       description: >
         PLEASE UPDATE DOCUMENTATION

@@ -7,5 +7,5 @@
   description:
   fields:
     - name: peer
-      type: string
+      type: ip
       require: true
