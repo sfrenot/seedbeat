@@ -103,7 +103,7 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 						event := beat.Event{
 							Timestamp: timeEvents[i],
 							Fields: common.MapStr{
-								"peer": newPeer,
+								"peer.ip": newPeer,
 							},
 						}
 						bt.client.Publish(event)

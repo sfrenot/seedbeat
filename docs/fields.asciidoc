@@ -3679,7 +3679,7 @@ alias to: process.executable
 None
 
 
-*`peer`*::
+*`peer.ip`*::
 +
 --
 type: ip

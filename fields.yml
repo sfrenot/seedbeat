@@ -2415,7 +2415,7 @@
   title: seedbeat
   description:
   fields:
-    - name: peer
+    - name: peer.ip
       type: ip
       required: true
       description: >
