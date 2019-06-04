@@ -3674,21 +3674,11 @@ alias to: process.executable
 --
 
 [[exported-fields-seedbeat]]
-== seedbeat fields
 
-None
-
-
-
-*`peer.ip`*::
+*`peer`*::
 +
 --
 type: ip
-
-required: True
-
-PLEASE UPDATE DOCUMENTATION
-
 
 --
 

@@ -2413,14 +2413,7 @@
         Whether the agent was configured for authentication or not.
 - key: seedbeat
   title: seedbeat
-  description:
   fields:
     - name: peer
       title: Peer
-      type: group
-      fields:
-      - name: ip
-        type: ip
-        required: true
-        description: >
-          PLEASE UPDATE DOCUMENTATION
+      type: ip
