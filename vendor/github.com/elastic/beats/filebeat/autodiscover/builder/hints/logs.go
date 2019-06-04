@@ -88,10 +88,8 @@ func (l *logHints) CreateConfig(event bus.Event) []*common.Config {
 		return []*common.Config{}
 	}
 
-	// Clone original config, enable it if disabled
+	// Clone original config
 	config, _ := common.NewConfigFrom(l.config.DefaultConfig)
-	config.Remove("enabled", -1)
-
 	host, _ := event["host"].(string)
 	if host == "" {
 		return []*common.Config{}

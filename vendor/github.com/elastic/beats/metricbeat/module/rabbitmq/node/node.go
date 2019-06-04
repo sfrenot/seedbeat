@@ -89,36 +89,35 @@ func (m *MetricSet) fetchOverview() (*apiOverview, error) {
 }
 
 // Fetch metrics from rabbitmq node
-func (m *MetricSet) Fetch(r mb.ReporterV2) error {
+func (m *MetricSet) Fetch(r mb.ReporterV2) {
 	o, err := m.fetchOverview()
 	if err != nil {
-		return errors.Wrap(err, "error in fetch")
+		r.Error(err)
+		return
 	}
 
 	node, err := rabbitmq.NewMetricSet(m.BaseMetricSet, rabbitmq.NodesPath+"/"+o.Node)
 	if err != nil {
-		return errors.Wrap(err, "error creating new metricset")
+		r.Error(err)
+		return
 	}
 
 	content, err := node.HTTP.FetchJSON()
 	if err != nil {
-		return errors.Wrap(err, "error in fetch")
+		r.Error(err)
+		return
 	}
 
-	evt, err := eventMapping(content)
-	if err != nil {
-		return errors.Wrap(err, "error in mapping")
-	}
-	r.Event(evt)
-	return nil
+	eventMapping(r, content)
 }
 
 // Fetch metrics from all rabbitmq nodes in the cluster
-func (m *ClusterMetricSet) Fetch(r mb.ReporterV2) error {
+func (m *ClusterMetricSet) Fetch(r mb.ReporterV2) {
 	content, err := m.HTTP.FetchContent()
 	if err != nil {
-		return errors.Wrap(err, "error in fetch")
+		r.Error(err)
+		return
 	}
 
-	return eventsMapping(r, content, m)
+	eventsMapping(r, content)
 }

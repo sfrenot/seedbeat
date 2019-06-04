@@ -20,8 +20,6 @@ package node
 import (
 	"encoding/json"
 
-	"github.com/pkg/errors"
-
 	s "github.com/elastic/beats/libbeat/common/schema"
 	c "github.com/elastic/beats/libbeat/common/schema/mapstriface"
 	"github.com/elastic/beats/metricbeat/mb"
@@ -147,34 +145,26 @@ var (
 	}
 )
 
-func eventsMapping(r mb.ReporterV2, content []byte, m *ClusterMetricSet) error {
+func eventsMapping(r mb.ReporterV2, content []byte) {
 	var nodes []map[string]interface{}
 	err := json.Unmarshal(content, &nodes)
 	if err != nil {
-		return errors.Wrap(err, "error in Unmarshal")
+		r.Error(err)
+		return
 	}
 
 	for _, node := range nodes {
-		evt, err := eventMapping(node)
-		if err != nil {
-			m.Logger().Errorf("error in mapping: %s", err)
-			r.Error(err)
-			continue
-		}
-		if !r.Event(evt) {
-			return nil
-		}
+		eventMapping(r, node)
 	}
-	return nil
 }
 
-func eventMapping(node map[string]interface{}) (mb.Event, error) {
+func eventMapping(r mb.ReporterV2, node map[string]interface{}) {
 	event, err := schema.Apply(node)
 	if err != nil {
-		return mb.Event{}, errors.Wrap(err, "error applying schema")
+		r.Error(err)
+		return
 	}
-	return mb.Event{
+	r.Event(mb.Event{
 		MetricSetFields: event,
-	}, nil
-
+	})
 }

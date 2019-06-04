@@ -27,10 +27,12 @@ type config struct {
 func defaultConfig() config {
 	defaultCfgRaw := map[string]interface{}{
 		"type": "container",
-		"paths": []string{
-			// To be able to use this builder with CRI-O replace paths with:
-			// /var/log/pods/${data.kubernetes.pod.uid}/${data.kubernetes.container.name}/*.log
-			"/var/lib/docker/containers/${data.container.id}/*-json.log",
+		"containers": map[string]interface{}{
+			"paths": []string{
+				// To be able to use this builder with CRI-O replace paths with:
+				// /var/log/pods/${data.kubernetes.pod.uid}/${data.kubernetes.container.name}/*.log
+				"/var/lib/docker/containers/${data.container.id}/*-json.log",
+			},
 		},
 	}
 	defaultCfg, _ := common.NewConfigFrom(defaultCfgRaw)
@@ -51,16 +53,7 @@ func (c *config) Unpack(from *common.Config) error {
 	}
 
 	if config, err := from.Child("default_config", -1); err == nil {
-		fields := config.GetFields()
-		if len(fields) == 1 && fields[0] == "enabled" {
-			// only enabling/disabling default config:
-			if err := c.DefaultConfig.Merge(config); err != nil {
-				return nil
-			}
-		} else {
-			// full config provided, discard default
-			c.DefaultConfig = config
-		}
+		c.DefaultConfig = config
 	}
 
 	c.Key = tmpConfig.Key
