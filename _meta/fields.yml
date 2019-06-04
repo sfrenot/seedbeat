@@ -2,8 +2,12 @@
   title: seedbeat
   description:
   fields:
-    - name: peer.ip
-      type: ip
-      required: true
-      description: >
-        PLEASE UPDATE DOCUMENTATION
+    - name: peer
+      title: Peer
+      type: group
+      fields:
+      - name: ip
+        type: ip
+        required: true
+        description: >
+          PLEASE UPDATE DOCUMENTATION

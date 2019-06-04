@@ -1096,8 +1096,12 @@
           }
         },
         "peer" : {
-          "type" : "keyword",
-          "ignore_above" : 1024
+          "properties" : {
+            "ip" : {
+              "type" : "keyword",
+              "ignore_above" : 1024
+            }
+          }
         },
         "process" : {
           "properties" : {
