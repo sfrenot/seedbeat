@@ -5,7 +5,7 @@
 seedbeat:
   # Defines how often an event is sent to the output
   period: 1s
-  seed: "seed.bitcoin.sipa.be"
+  seed: &seed "seed.bitcoin.sipa.be"
 
 #================================ General =====================================
 
@@ -21,7 +21,8 @@ seedbeat:
 # output.
 #fields:
 #  env: staging
-
+fields:
+  seed: *seed
 
 #============================== Dashboards =====================================
 # These settings control loading the sample dashboards to the Kibana index. Loading
