@@ -55,16 +55,7 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 	logp.Info("seedbeat is running! Hit CTRL-C to stop it.")
 	var err error
 
-	addLog, err := os.Create("./toto.log")
-	checkErr(err)
-	defer addLog.Close()
-
-	ongoingPeers := make(map[string]time.Time)
-  timeEvents := make([]time.Time, 0)
-	timeEventsIdx := make(map[time.Time]int)
-
-	// targets := [1]string{bt.config.Seed}
-
+	ongoingPeers := make(map[string]boolean)
 
 	bt.client, err = b.Publisher.Connect()
 	if err != nil {
@@ -72,7 +63,7 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 	}
 
 	ticker := time.NewTicker(bt.config.Period)
-	counter := 1
+
 	for {
 		select {
 		case <-bt.done:
@@ -86,44 +77,33 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 		}
 
 		now := time.Now()
-		timeEvents = append(timeEvents, now)
 
-		timeEventsIdx[now] = len(timeEvents)-1
+    total = 0
+		counter = 0
+		present = 0
+		fraction = 100
 
 		for _, newPeer := range peers {
 			if newPeer != "" {
-
+				counter++
 				lastAnnonce, found := ongoingPeers[newPeer]
-
 				if found {
-					idx := timeEventsIdx[lastAnnonce]
-					logp.Info("Deja vu : " + newPeer + " : " + lastAnnonce.Format("15:04:05") + ":->" + strconv.Itoa(idx))
-					for i:=idx; i < len(timeEvents)-1; i++ {
-						logp.Info("\tEvent" + newPeer + " : " + strconv.Itoa(i) + " : " +timeEvents[i].Format("15:04:05"))
-						event := beat.Event{
-							Timestamp: timeEvents[i],
-							Fields: common.MapStr{
-								"peer": newPeer,
-							},
-						}
-						bt.client.Publish(event)
-					}
+					present++
+				} else {
+					ongoinPeers[newPeer] = true
 				}
-				ongoingPeers[newPeer] = now
-
-				// res := strings.NewReader(newPeer+"\t"+targets[counter%len(targets)]+"\t"+fmt.Sprintf("%d", seen)+"\t"+string(now.Format(time.RFC3339))+"\n")
-				// logp.Info("--->" + res)
-				// _, err := io.Copy(addLog, strings.NewReader(newPeer+"\t"+targets[counter%len(targets)]+"\t"+fmt.Sprintf("%d", seen)+"\t"+string(now.Format(time.RFC3339))+"\n"))
-				// checkErr(err)
-
-			}
-
 		}
 
-		logp.Info("=>" + timeEvents[len(timeEvents)-1].Format("15:04:05") + " -> " + strconv.Itoa(timeEventsIdx[timeEvents[len(timeEvents)-1]]))
+		total += counter
 
-		// logp.Info("Event sent")
-		counter++
+		event := beat.Event{
+			Timestamp: timeEvents[i],
+			Fields: common.MapStr{
+				"total": total,
+				"present": present,
+				"fraction": 100,
+			},
+		}
 	}
 }
 
