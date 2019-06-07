@@ -1,4 +1,7 @@
 # Seedbeat
+networksetup -setdnsservers Wi-Fi 8.8.8.8
+networksetup -listallnetworkservices
+networksetup -setdnsservers 'Display Ethernet' 8.8.8.8
 
 Welcome to Seedbeat.
 
