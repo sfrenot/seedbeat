@@ -1,5 +1,5 @@
-BEAT_NAME=seedbeat2
-BEAT_PATH=github.com/sfrenot/seedbeat/seedbeat2
+BEAT_NAME=seedbeat
+BEAT_PATH=github.com/sfrenot/seedbeat
 BEAT_GOPATH=$(firstword $(subst :, ,${GOPATH}))
 SYSTEM_TESTS=false
 TEST_ENVIRONMENT=false
@@ -15,9 +15,9 @@ NO_COLLECT=true
 
 # Initial beat setup
 .PHONY: setup
-setup: pre-setup 
+setup: pre-setup git-add
 
-pre-setup: copy-vendor 
+pre-setup: copy-vendor git-init
 	$(MAKE) -f $(LIBBEAT_MAKEFILE) mage ES_BEATS=$(ES_BEATS)
 	$(MAKE) -f $(LIBBEAT_MAKEFILE) update BEAT_NAME=$(BEAT_NAME) ES_BEATS=$(ES_BEATS) NO_COLLECT=$(NO_COLLECT)
 
@@ -37,4 +37,4 @@ git-init:
 .PHONY: git-add
 git-add:
 	git add -A
-	git commit -m "Add generated seedbeat2 files"
+	git commit -m "Add generated seedbeat files"

@@ -1,5 +1,5 @@
-= Seedbeat2 Docs
+= Seedbeat Docs
 
-Welcome to the Seedbeat2 documentation.
+Welcome to the Seedbeat documentation.
 
 

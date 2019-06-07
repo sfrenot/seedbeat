@@ -6,6 +6,6 @@ REM
 REM After running this once you may invoke mage.exe directly.
 
 WHERE mage
-IF %ERRORLEVEL% NEQ 0 go install github.com/sfrenot/seedbeat/seedbeat2/vendor/github.com/magefile/mage
+IF %ERRORLEVEL% NEQ 0 go install github.com/sfrenot/seedbeat/vendor/github.com/magefile/mage
 
 mage %*

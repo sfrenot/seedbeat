@@ -1,9 +1,6 @@
-- key: seedbeat2
-  title: seedbeat2
-  description:
+- key: seedbeat
+  title: seedbeat
   fields:
-    - name: counter
-      type: long
-      required: true
-      description: >
-        PLEASE UPDATE DOCUMENTATION
+    - name: peer
+      title: Peer
+      type: ip

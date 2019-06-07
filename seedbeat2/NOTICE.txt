@@ -1,4 +1,4 @@
-seedbeat2
+seedbeat
 Copyright 2019 Stephane Frenot
 
 This product includes software developed by The Apache Software

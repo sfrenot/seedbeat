@@ -1,7 +1,8 @@
-################### Seedbeat2 Configuration Example #########################
+################### Seedbeat Configuration Example #########################
 
-############################# Seedbeat2 ######################################
+############################# Seedbeat ######################################
 
-seedbeat2:
+seedbeat:
   # Defines how often an event is sent to the output
   period: 1s
+  seed: "seed.bitcoin.sipa.be"

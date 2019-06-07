@@ -1,18 +1,18 @@
-# Seedbeat2
+# Seedbeat
 
-Welcome to Seedbeat2.
+Welcome to Seedbeat.
 
 Ensure that this folder is at the following location:
-`${GOPATH}/src/github.com/sfrenot/seedbeat/seedbeat2`
+`${GOPATH}/src/github.com/sfrenot/seedbeat`
 
-## Getting Started with Seedbeat2
+## Getting Started with Seedbeat
 
 ### Requirements
 
 * [Golang](https://golang.org/dl/) 1.7
 
 ### Init Project
-To get running with Seedbeat2 and also install the
+To get running with Seedbeat and also install the
 dependencies, run the following command:
 
 ```
@@ -21,10 +21,10 @@ make setup
 
 It will create a clean git history for each major step. Note that you can always rewrite the history if you wish before pushing your changes.
 
-To push Seedbeat2 in the git repository, run the following commands:
+To push Seedbeat in the git repository, run the following commands:
 
 ```
-git remote set-url origin https://github.com/sfrenot/seedbeat/seedbeat2
+git remote set-url origin https://github.com/sfrenot/seedbeat
 git push origin master
 ```
 
@@ -32,8 +32,8 @@ For further development, check out the [beat developer guide](https://www.elasti
 
 ### Build
 
-To build the binary for Seedbeat2 run the command below. This will generate a binary
-in the same directory with the name seedbeat2.
+To build the binary for Seedbeat run the command below. This will generate a binary
+in the same directory with the name seedbeat.
 
 ```
 make
@@ -42,16 +42,16 @@ make
 
 ### Run
 
-To run Seedbeat2 with debugging output enabled, run:
+To run Seedbeat with debugging output enabled, run:
 
 ```
-./seedbeat2 -c seedbeat2.yml -e -d "*"
+./seedbeat -c seedbeat.yml -e -d "*"
 ```
 
 
 ### Test
 
-To test Seedbeat2, run the following command:
+To test Seedbeat, run the following command:
 
 ```
 make testsuite
@@ -79,7 +79,7 @@ make update
 
 ### Cleanup
 
-To clean  Seedbeat2 source code, run the following command:
+To clean  Seedbeat source code, run the following command:
 
 ```
 make fmt
@@ -94,11 +94,11 @@ make clean
 
 ### Clone
 
-To clone Seedbeat2 from the git repository, run the following commands:
+To clone Seedbeat from the git repository, run the following commands:
 
 ```
-mkdir -p ${GOPATH}/src/github.com/sfrenot/seedbeat/seedbeat2
-git clone https://github.com/sfrenot/seedbeat/seedbeat2 ${GOPATH}/src/github.com/sfrenot/seedbeat/seedbeat2
+mkdir -p ${GOPATH}/src/github.com/sfrenot/seedbeat
+git clone https://github.com/sfrenot/seedbeat ${GOPATH}/src/github.com/sfrenot/seedbeat
 ```
 
 

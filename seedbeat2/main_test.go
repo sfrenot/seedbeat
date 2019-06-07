@@ -1,12 +1,12 @@
 package main
 
-// This file is mandatory as otherwise the seedbeat2.test binary is not generated correctly.
+// This file is mandatory as otherwise the seedbeat.test binary is not generated correctly.
 
 import (
 	"flag"
 	"testing"
 
-	"github.com/sfrenot/seedbeat/seedbeat2/cmd"
+	"github.com/sfrenot/seedbeat/cmd"
 )
 
 var systemTest *bool

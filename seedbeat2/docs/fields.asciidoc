@@ -9,7 +9,7 @@ This file is generated! See _meta/fields.yml and scripts/generate_field_docs.py
 [partintro]
 
 --
-This document describes the fields that are exported by Seedbeat2. They are
+This document describes the fields that are exported by Seedbeat. They are
 grouped in the following categories:
 
 * <<exported-fields-beat>>
@@ -20,7 +20,7 @@ grouped in the following categories:
 * <<exported-fields-jolokia-autodiscover>>
 * <<exported-fields-kubernetes-processor>>
 * <<exported-fields-process>>
-* <<exported-fields-seedbeat2>>
+* <<exported-fields-seedbeat>>
 
 --
 [[exported-fields-beat]]
@@ -3673,21 +3673,12 @@ alias to: process.executable
 
 --
 
-[[exported-fields-seedbeat2]]
-== seedbeat2 fields
+[[exported-fields-seedbeat]]
 
-None
-
-
-*`counter`*::
+*`peer`*::
 +
 --
-type: long
-
-required: True
-
-PLEASE UPDATE DOCUMENTATION
-
+type: ip
 
 --
 
