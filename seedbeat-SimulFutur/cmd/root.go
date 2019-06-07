@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/sfrenot/seedbeat/beater"
+	"github.com/sfrenot/seedbeat/seedbeat-SimulFutur/beater"
 
 	cmd "github.com/elastic/beats/libbeat/cmd"
 	"github.com/elastic/beats/libbeat/cmd/instance"

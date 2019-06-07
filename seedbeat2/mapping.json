@@ -1,4 +1,4 @@
-curl -XPUT wired.citi.insa-lyon.fr:9200/seedbeat-8.0.0 -H 'Content-Type: application/json' -d '
+curl -XPUT wired.citi.insa-lyon.fr:9200/seedbeat2-8.0.0 -H 'Content-Type: application/json' -d '
 {
   "mappings" : {
     "_meta" : {

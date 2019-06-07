@@ -1,5 +1,5 @@
-- key: seedbeat
-  title: seedbeat
+- key: seedbeat2
+  title: seedbeat2
   fields:
     - name: peer
       title: Peer

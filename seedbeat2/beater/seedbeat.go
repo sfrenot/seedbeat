@@ -13,7 +13,7 @@ import (
 	"github.com/elastic/beats/libbeat/logp"
   "os/exec"
 
-	"github.com/sfrenot/seedbeat/config"
+	"github.com/sfrenot/seedbeat/seedbeat2/config"
 )
 
 // Seedbeat configuration.

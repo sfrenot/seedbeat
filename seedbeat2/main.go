@@ -3,9 +3,9 @@ package main
 import (
 	"os"
 
-	"github.com/sfrenot/seedbeat/cmd"
+	"github.com/sfrenot/seedbeat/seedbeat2/cmd"
 
-	_ "github.com/sfrenot/seedbeat/include"
+	_ "github.com/sfrenot/seedbeat/seedbeat2/include"
 )
 
 func main() {
