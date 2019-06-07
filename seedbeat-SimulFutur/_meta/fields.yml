@@ -1,0 +1,6 @@
+- key: seedbeat
+  title: seedbeat
+  fields:
+    - name: peer
+      title: Peer
+      type: ip
