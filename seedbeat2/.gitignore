@@ -1,0 +1,7 @@
+/.idea
+/build
+
+.DS_Store
+/seedbeat2
+/seedbeat2.test
+*.pyc

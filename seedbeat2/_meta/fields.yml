@@ -1,0 +1,9 @@
+- key: seedbeat2
+  title: seedbeat2
+  description:
+  fields:
+    - name: counter
+      type: long
+      required: true
+      description: >
+        PLEASE UPDATE DOCUMENTATION

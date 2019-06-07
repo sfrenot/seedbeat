@@ -1,0 +1,7 @@
+################### Seedbeat2 Configuration Example #########################
+
+############################# Seedbeat2 ######################################
+
+seedbeat2:
+  # Defines how often an event is sent to the output
+  period: 1s
