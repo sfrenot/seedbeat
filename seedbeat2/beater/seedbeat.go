@@ -4,9 +4,6 @@ import (
 	"fmt"
 	"time"
 	"strings"
-	"strconv"
-	// "io"
-	"os"
 
 	"github.com/elastic/beats/libbeat/beat"
 	"github.com/elastic/beats/libbeat/common"
@@ -21,18 +18,6 @@ type Seedbeat struct {
 	done   chan struct{}
 	config config.Config
 	client beat.Client
-}
-
-type peerInfo struct {
-	address    string
-	lastSeen   time.Time
-	numberSeen int
-}
-
-func checkErr(e error) {
-	if e != nil {
-		panic(e)
-	}
 }
 
 // New creates an instance of seedbeat.
@@ -55,7 +40,7 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 	logp.Info("seedbeat is running! Hit CTRL-C to stop it.")
 	var err error
 
-	ongoingPeers := make(map[string]boolean)
+	ongoingPeers := make(map[string]bool)
 
 	bt.client, err = b.Publisher.Connect()
 	if err != nil {
@@ -63,6 +48,7 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 	}
 
 	ticker := time.NewTicker(bt.config.Period)
+	total := 0
 
 	for {
 		select {
@@ -78,33 +64,38 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 
 		now := time.Now()
 
-    total = 0
-		counter = 0
-		present = 0
-		fraction = 100
+    elems := 0
+		nouveaux := 0
+		fraction := 100
 
 		for _, newPeer := range peers {
 			if newPeer != "" {
-				counter++
-				lastAnnonce, found := ongoingPeers[newPeer]
-				if found {
-					present++
-				} else {
-					ongoinPeers[newPeer] = true
+				elems++
+				_, found := ongoingPeers[newPeer]
+				logp.Info("Peer " + newPeer + " : ")
+				
+				if !found {
+					nouveaux++
+					ongoingPeers[newPeer] = true
 				}
+			}
 		}
 
-		total += counter
+		total += nouveaux
 
 		event := beat.Event{
-			Timestamp: timeEvents[i],
+			Timestamp: now,
 			Fields: common.MapStr{
 				"total": total,
-				"present": present,
-				"fraction": 100,
+				"tailleReponse": elems,
+				"nouveaux": nouveaux,
+				"fraction": fraction,
 			},
 		}
+		bt.client.Publish(event)
+
 	}
+
 }
 
 // Stop stops seedbeat.

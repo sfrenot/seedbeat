@@ -3675,10 +3675,24 @@ alias to: process.executable
 
 [[exported-fields-seedbeat2]]
 
-*`peer`*::
+*`total`*::
 +
 --
-type: ip
+type: long
+
+--
+
+*`nouveaux`*::
++
+--
+type: long
+
+--
+
+*`fraction`*::
++
+--
+type: long
 
 --
 

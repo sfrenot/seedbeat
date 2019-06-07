@@ -1,6 +1,15 @@
 - key: seedbeat2
   title: seedbeat2
   fields:
-    - name: peer
-      title: Peer
-      type: ip
+    - name: total
+      title: Total
+      type: long
+    - name: nouveaux
+      title: Nouveaux
+      type: long
+    - name: fraction
+      title: Fraction
+      type: long
+    - name: tailleReponse
+      title: TailleReponse
+      type: long
