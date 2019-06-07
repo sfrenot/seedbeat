@@ -1,5 +1,0 @@
-= Seedbeat Docs
-
-Welcome to the Seedbeat documentation.
-
-
