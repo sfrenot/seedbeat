@@ -2,7 +2,7 @@
 
 ############################# Seedbeat ######################################
 
-seedbeat:
+seedbeat2:
   period: 1s
   seed: &seed "seed.bitcoin.sipa.be"
   
@@ -73,7 +73,7 @@ setup.kibana:
 #-------------------------- Elasticsearch output ------------------------------
 output.elasticsearch:
   # Array of hosts to connect to.
-  hosts: ["wired:9200"]
+  hosts: ["localhost:9200"]
 
   # Optional protocol and basic auth credentials.
   #protocol: "https"
