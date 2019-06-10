@@ -116,7 +116,7 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 			Fields: common.MapStr{
 				"seed": "all",
 				"total": total["all"],
-				"tailleReponses": allElems,
+				"tailleReponse": allElems,
 				"nouveaux": allNouveaux,
 			},
 		}
