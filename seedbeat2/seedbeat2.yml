@@ -4,7 +4,7 @@
 
 seedbeat2:
   period: 1s
-  seed: &seed "seed.bitcoin.sipa.be"
+  seed: ["seed.bitcoin.sipa.be", "seed.bitcoin.jonasschnelli.ch"]
   
 
 #================================ General =====================================
@@ -21,8 +21,8 @@ seedbeat2:
 # output.
 #fields:
 #  env: staging
-fields:
-  seed: *seed
+#fields:
+#  seed: *seed
 
 #============================== Dashboards =====================================
 # These settings control loading the sample dashboards to the Kibana index. Loading

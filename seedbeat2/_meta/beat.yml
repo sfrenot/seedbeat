@@ -3,6 +3,6 @@
 ############################# Seedbeat ######################################
 
 seedbeat2:
-  # Defines how often an event is sent to the output
   period: 1s
-  seed: "seed.bitcoin.sipa.be"
+  seed: ["seed.bitcoin.sipa.be", "seed.bitcoin.jonasschnelli.ch"]
+
