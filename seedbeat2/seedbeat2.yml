@@ -4,9 +4,10 @@
 
 seedbeat2:
   period: 1s
-  seed: ["seed.bitcoin.sipa.be", "seed.bitcoin.jonasschnelli.ch"]
+  seed: ["seed.bitcoin.sipa.be", "seed.bitcoin.jonasschnelli.ch", "seed.bitcoinstats.com",
+         "seed.bitnodes.io",     "dnsseed.bluematt.me",           "dnsseed.bitcoin.dashjr.org",
+         "seed.btc.petertodd.org"]
   
-
 #================================ General =====================================
 
 # The name of the shipper that publishes the network data. It can be used to group
