@@ -67,23 +67,26 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 		time := time.Now()
 
     for i := 0; i < len(bt.config.Seed); i++ {
-			peers, err := parseSeeds(bt.config.Seed[i])
-			if err != nil {
-				return err
-			}
+			peersChan := make(chan []string)
+			// peers, err := parseSeeds(bt.config.Seed[i])
+			go parseSeeds(peersChan, bt.config.Seed[i])
+
+			peers := <-peersChan
 
 	    elems := 0
 			nouveaux := 0
 
+			seed, peers := peers[0], peers[1:]
+
 			for _, newPeer := range peers {
 				if newPeer != "" {
-					logp.Info(bt.config.Seed[i] + "Peer " + newPeer + " : ")
+					logp.Info(seed + "Peer " + newPeer + " : ")
 
 					elems++
-					_, found := ongoingPeers[bt.config.Seed[i]][newPeer]
+					_, found := ongoingPeers[seed][newPeer]
 					if !found {
 						nouveaux++
-						ongoingPeers[bt.config.Seed[i]][newPeer] = true
+						ongoingPeers[seed][newPeer] = true
 					}
 
 					allElems++
@@ -94,12 +97,12 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 					}
 				}
 			}
-			total[bt.config.Seed[i]] += nouveaux
+			total[seed] += nouveaux
 			event := beat.Event{
 				Timestamp: time,
 				Fields: common.MapStr{
-	        "seed": bt.config.Seed[i],
-					"total": total[bt.config.Seed[i]],
+	        "seed": seed,
+					"total": total[seed],
 					"tailleReponse": elems,
 					"nouveaux": nouveaux,
 				},
@@ -108,7 +111,6 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 		}
 
 		total["all"] += allNouveaux
-
 		event := beat.Event{
 			Timestamp: time,
 			Fields: common.MapStr{
@@ -128,16 +130,17 @@ func (bt *Seedbeat) Stop() {
 	close(bt.done)
 }
 
-func parseSeeds(seed string)([] string, error) {
+func parseSeeds(peerResChan chan<- []string, seed string) {
 	out, err := exec.Command("dig", seed).Output()
 	if err != nil {
-		return nil, err
+		return
 	}
 	digString := string(out)
 	digLines := strings.Split(digString, "\n")
 	//fmt.Println(len(digLines))
 
-	peerRes := make([]string, 0)
+	peerRes := make([]string, 1)
+	peerRes[0] = seed
 	cpt := 0
 	for _, line := range digLines {
 		cpt = cpt + 1
@@ -159,5 +162,5 @@ func parseSeeds(seed string)([] string, error) {
 		peerRes = append(peerRes, address)
 	}
 
-	return peerRes, nil
+	peerResChan <- peerRes
 }
