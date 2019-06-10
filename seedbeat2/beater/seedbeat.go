@@ -40,62 +40,86 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 	logp.Info("seedbeat is running! Hit CTRL-C to stop it.")
 	var err error
 
-	ongoingPeers := make(map[string]bool)
-
 	bt.client, err = b.Publisher.Connect()
 	if err != nil {
 		return err
 	}
-
 	ticker := time.NewTicker(bt.config.Period)
-	total := 0
+
+	ongoingPeers := make(map[string]map[string]bool)
+	total := make(map[string]int)
+
+  for i := 0; i < len(bt.config.Seed); i++ {
+		ongoingPeers[bt.config.Seed[i]] = make(map[string]bool)
+		total[bt.config.Seed[i]] = 0
+	}
+	ongoingPeers["all"] = make(map[string]bool)
+	total["all"] = 0
 
 	for {
 		select {
-		case <-bt.done:
-			return nil
-		case <-ticker.C:
+			case <-bt.done:
+				return nil
+			case <-ticker.C:
 		}
+		allElems := 0
+		allNouveaux := 0
+		time := time.Now()
 
-		peers, err := parseSeeds(bt.config.Seed)
-		if err != nil {
-			return err
-		}
+    for i := 0; i < len(bt.config.Seed); i++ {
+			peers, err := parseSeeds(bt.config.Seed[i])
+			if err != nil {
+				return err
+			}
 
-		now := time.Now()
+	    elems := 0
+			nouveaux := 0
 
-    elems := 0
-		nouveaux := 0
-		fraction := 100
+			for _, newPeer := range peers {
+				if newPeer != "" {
+					logp.Info(bt.config.Seed[i] + "Peer " + newPeer + " : ")
 
-		for _, newPeer := range peers {
-			if newPeer != "" {
-				elems++
-				_, found := ongoingPeers[newPeer]
-				logp.Info("Peer " + newPeer + " : ")
-				
-				if !found {
-					nouveaux++
-					ongoingPeers[newPeer] = true
+					elems++
+					_, found := ongoingPeers[bt.config.Seed[i]][newPeer]
+					if !found {
+						nouveaux++
+						ongoingPeers[bt.config.Seed[i]][newPeer] = true
+					}
+
+					allElems++
+					_, found = ongoingPeers["all"][newPeer]
+					if !found {
+						allNouveaux++
+						ongoingPeers["all"][newPeer] = true
+					}
 				}
 			}
+			total[bt.config.Seed[i]] += nouveaux
+			event := beat.Event{
+				Timestamp: time,
+				Fields: common.MapStr{
+	        "seed": bt.config.Seed[i],
+					"total": total[bt.config.Seed[i]],
+					"tailleReponse": elems,
+					"nouveaux": nouveaux,
+				},
+			}
+			bt.client.Publish(event)
 		}
 
-		total += nouveaux
+		total["all"] += allNouveaux
 
 		event := beat.Event{
-			Timestamp: now,
+			Timestamp: time,
 			Fields: common.MapStr{
-				"total": total,
-				"tailleReponse": elems,
-				"nouveaux": nouveaux,
-				"fraction": fraction,
+				"seed": "all",
+				"total": total["all"],
+				"tailleReponses": allElems,
+				"nouveaux": allNouveaux,
 			},
 		}
 		bt.client.Publish(event)
-
 	}
-
 }
 
 // Stop stops seedbeat.
