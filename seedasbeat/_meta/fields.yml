@@ -1,0 +1,17 @@
+- key: seedasbeat
+  title: seedasbeat
+  description:
+  fields:
+    - name: total
+      title: Total
+      type: long
+    - name: nouveaux
+      title: Nouveaux
+      type: long
+    - name: fraction
+      title: Fraction
+      type: long
+    - name: tailleReponse
+      title: tailleReponse
+      type: long
+

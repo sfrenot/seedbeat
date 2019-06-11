@@ -1,0 +1,9 @@
+################### Seedasbeat Configuration Example #########################
+
+############################# Seedasbeat ######################################
+
+seedasbeat:
+  # Defines how often an event is sent to the output
+  period: 1s
+  seed: ["seed.bitcoin.sipa.be", "seed.bitcoin.jonasschnelli.ch"]
+

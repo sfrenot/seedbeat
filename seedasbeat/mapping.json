@@ -1,0 +1,18 @@
+curl -XPUT wired.citi.insa-lyon.fr:9200/seedbeat2-8.0.0 -H 'Content-Type: application/json' -d '
+{
+  "mappings" : {
+    "_meta" : {
+      "beat" : "seedbeat",
+      "version" : "8.0.0"
+    },
+    "properties" : {
+      "@timestamp" : {
+        "type" : "date"
+      },
+      "peer" : {
+        "type" : "ip"
+      }
+    }
+  }
+}
+'
