@@ -87,6 +87,7 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 		// logp.Info("********************** " + strings.Join(newPeersAsn, " "))
 		out, _ := exec.Command("node", newPeersAsn...).Output()
 		// logp.Info("********************** " + string(out))
+		uniqPeers := make(map[string]bool)
 		for _, line := range strings.Split(string(out), "\n") {
 			if (line != "") {
 				record := strings.Split(line, ";")
@@ -100,19 +101,23 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 					elem.counter = 1
 				}
 				ongoingAs[record[0]] = elem
-
-				logp.Info(line)
-				event := beat.Event{
-					Timestamp: time,
-					Fields: common.MapStr{
-            "number": elem.num,
-						"name": elem.name,
-						"country": elem.country,
-						"counter": elem.counter,
-					},
-				}
-				bt.client.Publish(event)
+				uniqPeers[record[0]] = true
 			}
+		}
+
+		var value As
+		for k := range uniqPeers {
+			value = ongoingAs[k]
+			event := beat.Event{
+				Timestamp: time,
+				Fields: common.MapStr{
+          "number": value.num,
+					"name": value.name,
+					"country": value.country,
+					"counter": value.counter,
+				},
+			}
+			bt.client.Publish(event)
 		}
 	}
 }
