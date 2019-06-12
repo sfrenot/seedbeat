@@ -105,6 +105,7 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 				event := beat.Event{
 					Timestamp: time,
 					Fields: common.MapStr{
+            "number": elem.num,
 						"name": elem.name,
 						"country": elem.country,
 						"counter": elem.counter,
