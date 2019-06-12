@@ -20,6 +20,13 @@ type Seedbeat struct {
 	client beat.Client
 }
 
+type As struct {
+	num string
+	name string
+	country string
+	counter int
+}
+
 // New creates an instance of seedbeat.
 func New(b *beat.Beat, cfg *common.Config) (beat.Beater, error) {
 	c := config.DefaultConfig
@@ -45,16 +52,8 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 		return err
 	}
 	ticker := time.NewTicker(bt.config.Period)
-
-	ongoingPeers := make(map[string]map[string]bool)
-	total := make(map[string]int)
-
-  for i := 0; i < len(bt.config.Seed); i++ {
-		ongoingPeers[bt.config.Seed[i]] = make(map[string]bool)
-		total[bt.config.Seed[i]] = 0
-	}
-	ongoingPeers["all"] = make(map[string]bool)
-	total["all"] = 0
+  ongoingPeers := make(map[string]bool)
+	ongoingAs := make(map[string]As)
 
 	for {
 		select {
@@ -62,78 +61,58 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 				return nil
 			case <-ticker.C:
 		}
-		allElems := 0
-		allNouveaux := 0
 		time := time.Now()
+		newPeersAsn := make([]string, 1)
+		newPeersAsn[0] = "js/iptoasn.js"
 
     for i := 0; i < len(bt.config.Seed); i++ {
 			peersChan := make(chan []string)
-			// peers, err := parseSeeds(bt.config.Seed[i])
+
 			go parseSeeds(peersChan, bt.config.Seed[i])
 			peers := <-peersChan
 
-      params := []string{"js/iptoasn.js", "toto"}
-
-      out, _ := exec.Command("node", params...).Output()
-	    logp.Info("seedbeat " + string(out))
-
-      //digString := string(out)
-      //digLines := strings.Split(digString, "\n")
-      ////fmt.Println(len(digLines))
-
-      //peerRes := make([]string, 1)
-      //peerRes[0] = seed
-      //cpt := 0
-      //for _, line := range digLines {
-
-	    elems := 0
-			nouveaux := 0
-
-			seed, peers := peers[0], peers[1:]
+			peers = peers[1:]
 
 			for _, newPeer := range peers {
 				if newPeer != "" {
-					logp.Info(seed + "Peer " + newPeer + " : ")
-
-					elems++
-					_, found := ongoingPeers[seed][newPeer]
+					_, found := ongoingPeers[newPeer]
 					if !found {
-						nouveaux++
-						ongoingPeers[seed][newPeer] = true
-					}
-
-					allElems++
-					_, found = ongoingPeers["all"][newPeer]
-					if !found {
-						allNouveaux++
-						ongoingPeers["all"][newPeer] = true
+						ongoingPeers[newPeer] = true
+						newPeersAsn = append(newPeersAsn, newPeer)
 					}
 				}
 			}
-			total[seed] += nouveaux
-			event := beat.Event{
-				Timestamp: time,
-				Fields: common.MapStr{
-	        "seed": seed,
-					"total": total[seed],
-					"tailleReponse": elems,
-					"nouveaux": nouveaux,
-				},
-			}
-			bt.client.Publish(event)
 		}
 
-		total["all"] += allNouveaux
-		event := beat.Event{
-			Timestamp: time,
-			Fields: common.MapStr{
-				"seed": "all",
-				"total": total["all"],
-				"tailleReponse": allElems,
-				"nouveaux": allNouveaux,
-			},
+		// logp.Info("********************** " + strings.Join(newPeersAsn, " "))
+		out, _ := exec.Command("node", newPeersAsn...).Output()
+		// logp.Info("********************** " + string(out))
+		for _, line := range strings.Split(string(out), "\n") {
+			if (line != "") {
+				record := strings.Split(line, ";")
+				elem, found := ongoingAs[record[0]] // AS Number
+				if found {
+					elem.counter++
+				} else {
+					elem.num = record[0]
+					elem.name = record[1]
+					elem.country = record[2]
+					elem.counter = 1
+				}
+				ongoingAs[record[0]] = elem
+
+				logp.Info(line)
+				event := beat.Event{
+					Timestamp: time,
+					Fields: common.MapStr{
+						"name": elem.name,
+						"country": elem.country,
+						"counter": elem.counter,
+					},
+				}
+				bt.client.Publish(event)
+			}
 		}
-		bt.client.Publish(event)
 	}
 }
 
