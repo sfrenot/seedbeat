@@ -4,30 +4,29 @@
 
 seedallbeat:
   period: 1s
-  seed: ["seed2.bitcoin.sipa.be", "seed.bitcoin.jonasschnelli.ch"]
   cryptos:
-    - seed: ["seed.bitcoin.jonasschnelli.ch",
-            "seed.bitcoinstats.com",
-            "seed.bitnodes.io",
-            "dnsseed.bluematt.me",
-            "dnsseed.bitcoin.dashjr.org",
-            "seed.btc.petertodd.org"]
-      name: "BTC"
-    - seed: ["dnsseed.dash.org",
+    - name: "BTC"
+      seed: ["seed.bitcoin.jonasschnelli.ch",
+           "seed.bitcoinstats.com",
+           "seed.bitnodes.io",
+           "dnsseed.bluematt.me",
+           "dnsseed.bitcoin.dashjr.org",
+           "seed.btc.petertodd.org"]
+    - name: "DASH"
+      seed: ["2dnsseed.dash.org",
             "dnsseed.dashdot.io",
-            "dnsseed.masternode.io"]
-      name: "DASH"
-    - seed: ["seed.bitcore.biz",
-            "37.120.190.76",
-            "37.120.186.85",
-            "185.194.140.60",
-            "188.71.223.206",
-            "185.194.142.122"]
-      name: "BTX"
+           "dnsseed.masternode.io"]
+    - name: "BTX"
+      seed: ["seed.bitcore.biz",
+          "37.120.190.76",
+          "37.120.186.85",
+          "185.194.140.60",
+          "188.71.223.206",
+          "185.194.142.122"]
+  seed: ["seed.bitcoin.sipa.be", "seed.bitcoin.jonasschnelli.ch"]
 
 
 #================================ General =====================================
-
 # The name of the shipper that publishes the network data. It can be used to group
 # all the transactions sent by a single shipper in the web interface.
 #name:
