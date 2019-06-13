@@ -23,6 +23,9 @@ curl -XPUT wired.citi.insa-lyon.fr:9200/seedasbeat-8.0.0 -H 'Content-Type: appli
       },
       "counter": {
         "type": "long"
+      },
+      "total": {
+        "type": "long"
       }
     }
   }
