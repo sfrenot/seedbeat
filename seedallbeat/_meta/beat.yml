@@ -1,0 +1,16 @@
+################### Seedbeat Configuration Example #########################
+
+############################# Seedbeat ######################################
+
+seedbeat2:
+  period: 1s
+  seed: ["seed.bitcoin.sipa.be", "seed.bitcoin.jonasschnelli.ch"]
+  cryptos:
+    BTC: 
+      seed: ["seed.bitcoin.sipa.be", "seed.bitcoin.jonasschnelli.ch"]
+      name: "BTC"
+    DASH:
+      seed: [ "dnsseed.dash.org", "dnsseed.dashdot.io", "dnsseed.masternode.io" ]
+      name: "DASH"
+
+
