@@ -2,14 +2,29 @@
 
 ############################# Seedbeat ######################################
 
-seedbeat2:
+seedallbeat:
   period: 1s
-  seed: ["seed.bitcoin.sipa.be", "seed.bitcoin.jonasschnelli.ch"]
+  seed: ["seed2.bitcoin.sipa.be", "seed.bitcoin.jonasschnelli.ch"]
   cryptos:
-    - seed: ["seed.bitcoin.sipa.be", "seed.bitcoin.jonasschnelli.ch"]
+    - seed: ["seed.bitcoin.jonasschnelli.ch",
+            "seed.bitcoinstats.com",
+            "seed.bitnodes.io",
+            "dnsseed.bluematt.me",
+            "dnsseed.bitcoin.dashjr.org",
+            "seed.btc.petertodd.org"]
       name: "BTC"
-    - seed: ["dnsseed.dash.org", "dnsseed.dashdot.io", "dnsseed.masternode.io" ]
+    - seed: ["dnsseed.dash.org",
+            "dnsseed.dashdot.io",
+            "dnsseed.masternode.io"]
       name: "DASH"
+    - seed: ["seed.bitcore.biz",
+            "37.120.190.76",
+            "37.120.186.85",
+            "185.194.140.60",
+            "188.71.223.206",
+            "185.194.142.122"]
+      name: "BTX"
+
 
 #================================ General =====================================
 
