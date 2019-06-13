@@ -2,7 +2,7 @@ curl -XPUT wired.citi.insa-lyon.fr:9200/seedasbeat-8.0.0 -H 'Content-Type: appli
 {
   "mappings" : {
     "_meta" : {
-      "beat" : "seedbeatas",
+      "beat" : "seedasbeat",
       "version" : "8.0.0"
     },
     "properties" : {
