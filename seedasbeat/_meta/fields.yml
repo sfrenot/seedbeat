@@ -12,6 +12,8 @@
       title: Fraction
       type: long
     - name: tailleReponse
-      title: tailleReponse
+      title: TailleReponse
       type: long
-
+    - name: total
+      title: Total
+      type: long

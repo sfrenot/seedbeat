@@ -115,6 +115,7 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 					"name": value.name,
 					"country": value.country,
 					"counter": value.counter,
+					"total": len(ongoingPeers),
 				},
 			}
 			bt.client.Publish(event)
