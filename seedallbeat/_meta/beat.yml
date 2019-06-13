@@ -2,7 +2,7 @@
 
 ############################# Seedbeat ######################################
 
-seedbeat2:
+seedallbeat:
   period: 1s
   seed: ["seed.bitcoin.sipa.be", "seed.bitcoin.jonasschnelli.ch"]
   cryptos:

@@ -1,5 +1,5 @@
-- key: seedbeat2
-  title: seedbeat2
+- key: seedallbeat
+  title: seedallbeat
   fields:
     - name: total
       title: Total

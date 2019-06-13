@@ -14,8 +14,8 @@ import (
 	"github.com/sfrenot/seedbeat/seedallbeat/config"
 )
 
-// Seedbeat configuration.
-type Seedbeat struct {
+// Seedallbeat configuration.
+type Seedallbeat struct {
 	done   chan struct{}
 	config config.Config
 	client beat.Client
@@ -28,7 +28,7 @@ func New(b *beat.Beat, cfg *common.Config) (beat.Beater, error) {
 		return nil, fmt.Errorf("Error reading config file: %v", err)
 	}
 
-	bt := &Seedbeat{
+	bt := &Seedallbeat{
 		done:   make(chan struct{}),
 		config: c,
 	}
@@ -37,7 +37,7 @@ func New(b *beat.Beat, cfg *common.Config) (beat.Beater, error) {
 }
 
 // Run starts seedbeat.
-func (bt *Seedbeat) Run(b *beat.Beat) error {
+func (bt *Seedallbeat) Run(b *beat.Beat) error {
 	logp.Info("seedbeat is running! Hit CTRL-C to stop it.")
 	var err error
 
@@ -144,7 +144,7 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 }
 
 // Stop stops seedbeat.
-func (bt *Seedbeat) Stop() {
+func (bt *Seedallbeat) Stop() {
 	bt.client.Close()
 	close(bt.done)
 }
