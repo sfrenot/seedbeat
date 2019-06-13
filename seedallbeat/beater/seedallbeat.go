@@ -116,7 +116,7 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 					Fields: common.MapStr{
 						"crypto": crypto.Code,
 		        "seed": seed,
-						"total": total[seed],
+						"total": total[crypto.Code][seed],
 						"tailleReponse": elems,
 						"nouveaux": nouveaux,
 					},
@@ -130,7 +130,7 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 				Fields: common.MapStr{
 					"crypto": crypto.Code,
 					"seed": "all",
-					"total": total["all"],
+					"total": total[crypto.Code]["all"],
 					"tailleReponse": allElems,
 					"nouveaux": allNouveaux,
 				},
