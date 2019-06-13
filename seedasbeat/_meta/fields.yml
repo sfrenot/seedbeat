@@ -2,17 +2,14 @@
   title: seedasbeat
   description:
   fields:
-    - name: total
-      title: Total
-      type: long
-    - name: nouveaux
-      title: Nouveaux
-      type: long
-    - name: fraction
-      title: Fraction
-      type: long
-    - name: tailleReponse
-      title: TailleReponse
+    - name: name
+      title: Name
+      type: string
+    - name: country
+      title: Country
+      type: string
+    - name: counter
+      title: Counter
       type: long
     - name: total
       title: Total
