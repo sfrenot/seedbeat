@@ -1,8 +1,8 @@
-curl -XPUT wired.citi.insa-lyon.fr:9200/seedllbeat-8.0.0 -H 'Content-Type: application/json' -d '
+curl -XPUT wired.citi.insa-lyon.fr:9200/seedallbeat-8.0.0 -H 'Content-Type: application/json' -d '
 {
   "mappings" : {
     "_meta" : {
-      "beat" : "seedllbeat",
+      "beat" : "seedallbeat",
       "version" : "8.0.0"
     },
     "properties" : {
