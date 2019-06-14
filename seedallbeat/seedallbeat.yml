@@ -1,29 +1,88 @@
 ################### Seedbeat Configuration Example #########################
 
-############################# Seedbeat ######################################
-
 seedallbeat:
   period: 1s
   cryptos:
     - name: "BTC"
-      seed: ["seed.bitcoin.jonasschnelli.ch",
+      dns-seeders: ["seed.bitcoin.jonasschnelli.ch",
            "seed.bitcoinstats.com",
            "seed.bitnodes.io",
            "dnsseed.bluematt.me",
            "dnsseed.bitcoin.dashjr.org",
            "seed.btc.petertodd.org"]
     - name: "DASH"
-      seed: ["2dnsseed.dash.org",
+      seed: ["dnsseed.dash.org",
             "dnsseed.dashdot.io",
            "dnsseed.masternode.io"]
+    - name: "BCH"
+    - dns-seeders: ["seed.bitcoinabc.org",
+            "seed-abc.bitcoinforks.org",
+            "btccash-seeder.bitcoinunlimited.info",
+            "seed.bitprim.org",
+            "seed.deadalnix.me",
+            "seeder.criptolayer.net"
+        ]
+    - name: "BSV"
+    - dns-seeders: [
+            "seed.bitcoinsv.io",
+            "seed.cascharia.com",
+            "seed.satoshisvision.network"
+                  ]
+    - name: "BCD"
+    - dns-seeders: [
+            "seed1.dns.btcd.io",
+            "seed2.dns.btcd.io",
+            "seed3.dns.btcd.io",
+            "seed4.dns.btcd.io",
+            "seed5.dns.btcd.io",
+            "seed6.dns.btcd.io"
+    ]
+    - name: "BCX"
+    - dns-seeders: [
+            "seed.bcx.org",
+            "iseed.bcx.info"
+    ]
+    - name: "MBC"
+    - dns-seeders: [
+            "seed.sman.pw",
+            "seed.microbitcoin.org"
+    ]
+    - name: "CLAM"
+    - dns-seeders: [
+            "clam.just-dice.com"
+    ]
     - name: "BTX"
-      seed: ["seed.bitcore.biz",
+    - dns-seeders: ["seed.bitcore.biz",
           "37.120.190.76",
           "37.120.186.85",
           "185.194.140.60",
           "188.71.223.206",
           "185.194.142.122"]
-  seed: ["seed.bitcoin.sipa.be", "seed.bitcoin.jonasschnelli.ch"]
+    - name: "BCI"
+    - dns-seeders: [
+            "seeder1.bci-server.com",
+            "seeder2.bci-server.com",
+            "seeder3.bci-server.com",
+            "37.16.104.241"
+    ]
+    - name: "BCA"
+    - dns-seeders: [
+            "seed.bitcoinatom.io",
+            "seed.bitcoin-atom.org",
+            "seed.bitcoinatom.net"
+    ]
+    - name: "B2X"
+    - dns-seeders: [
+            "node1.b2x-segwit.io",
+            "node2.b2x-segwit.io",
+            "node3.b2x-segwit.io"
+    ]
+    - name: "BTCC"
+    - dns-seeders: [
+            "seeder.clashic.cash",
+            "seeder.bitcoincore.zone",
+            "seeder-mainnet.clashic.org"
+    ]
 
 
 #================================ General =====================================
