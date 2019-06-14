@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 	"strings"
-  //"os"
+  // "os"
 
 	"github.com/elastic/beats/libbeat/beat"
 	"github.com/elastic/beats/libbeat/common"
@@ -41,10 +41,10 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 	logp.Info("seedbeat is running! Hit CTRL-C to stop it.")
 	var err error
 
-	//for _, crypto := range bt.config.Cryptos {
+	// for _, crypto := range bt.config.Cryptos {
 	// 	logp.Info(crypto.Code +" -> "+ strings.Join(crypto.Seeds, ","))
-	//}
-  //os.Exit(0)
+	// }
+  // os.Exit(0)
 
 	bt.client, err = b.Publisher.Connect()
 	if err != nil {
@@ -101,6 +101,7 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 						_, found := ongoingPeers[crypto.Code][seed][newPeer]
 						if !found {
 							nouveaux++
+							// logp.Info("==>"+crypto.Code+ " : "+ seed)
 							ongoingPeers[crypto.Code][seed][newPeer] = true
 						}
 

@@ -11,11 +11,11 @@ seedallbeat:
            "dnsseed.bitcoin.dashjr.org",
            "seed.btc.petertodd.org"]
     - name: "DASH"
-      seed: ["dnsseed.dash.org",
+      dns-seeders: ["dnsseed.dash.org",
             "dnsseed.dashdot.io",
            "dnsseed.masternode.io"]
     - name: "BCH"
-    - dns-seeders: ["seed.bitcoinabc.org",
+      dns-seeders: ["seed.bitcoinabc.org",
             "seed-abc.bitcoinforks.org",
             "btccash-seeder.bitcoinunlimited.info",
             "seed.bitprim.org",
@@ -23,13 +23,13 @@ seedallbeat:
             "seeder.criptolayer.net"
         ]
     - name: "BSV"
-    - dns-seeders: [
+      dns-seeders: [
             "seed.bitcoinsv.io",
             "seed.cascharia.com",
             "seed.satoshisvision.network"
                   ]
     - name: "BCD"
-    - dns-seeders: [
+      dns-seeders: [
             "seed1.dns.btcd.io",
             "seed2.dns.btcd.io",
             "seed3.dns.btcd.io",
@@ -38,47 +38,47 @@ seedallbeat:
             "seed6.dns.btcd.io"
     ]
     - name: "BCX"
-    - dns-seeders: [
+      dns-seeders: [
             "seed.bcx.org",
             "iseed.bcx.info"
     ]
     - name: "MBC"
-    - dns-seeders: [
+      dns-seeders: [
             "seed.sman.pw",
             "seed.microbitcoin.org"
     ]
     - name: "CLAM"
-    - dns-seeders: [
+      dns-seeders: [
             "clam.just-dice.com"
     ]
     - name: "BTX"
-    - dns-seeders: ["seed.bitcore.biz",
+      dns-seeders: ["seed.bitcore.biz",
           "37.120.190.76",
           "37.120.186.85",
           "185.194.140.60",
           "188.71.223.206",
           "185.194.142.122"]
     - name: "BCI"
-    - dns-seeders: [
+      dns-seeders: [
             "seeder1.bci-server.com",
             "seeder2.bci-server.com",
             "seeder3.bci-server.com",
             "37.16.104.241"
     ]
     - name: "BCA"
-    - dns-seeders: [
+      dns-seeders: [
             "seed.bitcoinatom.io",
             "seed.bitcoin-atom.org",
             "seed.bitcoinatom.net"
     ]
     - name: "B2X"
-    - dns-seeders: [
+      dns-seeders: [
             "node1.b2x-segwit.io",
             "node2.b2x-segwit.io",
             "node3.b2x-segwit.io"
     ]
     - name: "BTCC"
-    - dns-seeders: [
+      dns-seeders: [
             "seeder.clashic.cash",
             "seeder.bitcoincore.zone",
             "seeder-mainnet.clashic.org"
