@@ -1,7 +1,5 @@
 ################### Seedbeat Configuration Example #########################
 
-############################# Seedbeat ######################################
-
 seedallbeat:
   period: 1s
   cryptos:
@@ -13,7 +11,7 @@ seedallbeat:
            "dnsseed.bitcoin.dashjr.org",
            "seed.btc.petertodd.org"]
     - name: "DASH"
-      seed: ["2dnsseed.dash.org",
+      seed: ["dnsseed.dash.org",
             "dnsseed.dashdot.io",
            "dnsseed.masternode.io"]
     - name: "BTX"
