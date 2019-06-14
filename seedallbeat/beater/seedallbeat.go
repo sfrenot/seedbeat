@@ -43,7 +43,6 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 
 	//for _, crypto := range bt.config.Cryptos {
 	// 	logp.Info(crypto.Code +" -> "+ strings.Join(crypto.Seeds, ","))
-	// 	logp.Info(strings.Join(bt.config.Seed, ","))
 	//}
   //os.Exit(0)
 
