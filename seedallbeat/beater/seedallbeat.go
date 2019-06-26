@@ -75,51 +75,55 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 			case <-ticker.C:
 		}
 
+		peersChan := make(chan []string)
     for _, crypto := range bt.config.Cryptos { // Pour toutes les cryptos observées
 
-			allElems := 0
-			allNouveaux := 0
+	    for i := 0; i < len(crypto.Seeds); i++ {
+				go parseSeeds(peersChan, crypto.Code, crypto.Seeds[i])
+			}
+		}
+
+		for _, crypto := range bt.config.Cryptos { // Pour toutes les cryptos observées
+			allElems := make(map[string]int)
+			allNouveaux := make(map[string]int)
 			time := time.Now()
 
-	    for i := 0; i < len(crypto.Seeds); i++ {
-				peersChan := make(chan []string)
-				// peers, err := parseSeeds(bt.config.Seed[i])
-				go parseSeeds(peersChan, crypto.Seeds[i])
+			for i := 0; i < len(crypto.Seeds); i++ {
 
 				peers := <-peersChan
 
 		    elems := 0
 				nouveaux := 0
 
-				seed, peers := peers[0], peers[1:]
+				cryptoName, seed, peers :=  peers[0], peers[1], peers[2:]
 
 				for _, newPeer := range peers {
 					if newPeer != "" {
 						// logp.Info(seed + "Peer " + newPeer + " : ")
 
 						elems++
-						_, found := ongoingPeers[crypto.Code][seed][newPeer]
+						_, found := ongoingPeers[cryptoName][seed][newPeer]
 						if !found {
 							nouveaux++
 							// logp.Info("==>"+crypto.Code+ " : "+ seed)
-							ongoingPeers[crypto.Code][seed][newPeer] = true
+							ongoingPeers[cryptoName][seed][newPeer] = true
 						}
 
-						allElems++
-						_, found = ongoingPeers[crypto.Code]["all"][newPeer]
+						allElems[cryptoName]++
+						_, found = ongoingPeers[cryptoName]["all"][newPeer]
 						if !found {
-							allNouveaux++
-							ongoingPeers[crypto.Code]["all"][newPeer] = true
+							allNouveaux[cryptoName]++
+							ongoingPeers[cryptoName]["all"][newPeer] = true
 						}
 					}
 				}
-				total[crypto.Code][seed] += nouveaux
+				total[cryptoName][seed] += nouveaux
 				event := beat.Event{
 					Timestamp: time,
 					Fields: common.MapStr{
-						"crypto": crypto.Code,
+						"crypto": cryptoName,
 		        "seed": seed,
-						"total": total[crypto.Code][seed],
+						"total": total[cryptoName][seed],
 						"tailleReponse": elems,
 						"nouveaux": nouveaux,
 					},
@@ -127,15 +131,15 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 				bt.client.Publish(event)
 			}
 
-			total[crypto.Code]["all"] += allNouveaux
+			total[crypto.Code]["all"] += allNouveaux[crypto.Code]
 			event := beat.Event{
 				Timestamp: time,
 				Fields: common.MapStr{
 					"crypto": crypto.Code,
 					"seed": "all",
 					"total": total[crypto.Code]["all"],
-					"tailleReponse": allElems,
-					"nouveaux": allNouveaux,
+					"tailleReponse": allElems[crypto.Code],
+					"nouveaux": allNouveaux[crypto.Code],
 				},
 			}
 			bt.client.Publish(event)
@@ -149,7 +153,7 @@ func (bt *Seedallbeat) Stop() {
 	close(bt.done)
 }
 
-func parseSeeds(peerResChan chan<- []string, seed string) {
+func parseSeeds(peerResChan chan<- []string, crypto string, seed string) {
 	out, err := exec.Command("dig", seed).Output()
 	if err != nil {
 		return
@@ -158,8 +162,10 @@ func parseSeeds(peerResChan chan<- []string, seed string) {
 	digLines := strings.Split(digString, "\n")
 	//fmt.Println(len(digLines))
 
-	peerRes := make([]string, 1)
-	peerRes[0] = seed
+	peerRes := make([]string, 2)
+	peerRes[0] = crypto
+	peerRes[1] = seed
+
 	cpt := 0
 	for _, line := range digLines {
 		cpt = cpt + 1
