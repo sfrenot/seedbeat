@@ -154,17 +154,19 @@ func (bt *Seedallbeat) Stop() {
 }
 
 func parseSeeds(peerResChan chan<- []string, crypto string, seed string) {
+	peerRes := make([]string, 2)
+	peerRes[0] = crypto
+	peerRes[1] = seed
+
 	out, err := exec.Command("dig", seed).Output()
 	if err != nil {
+		peerResChan <- peerRes
 		return
 	}
 	digString := string(out)
 	digLines := strings.Split(digString, "\n")
 	//fmt.Println(len(digLines))
 
-	peerRes := make([]string, 2)
-	peerRes[0] = crypto
-	peerRes[1] = seed
 
 	cpt := 0
 	for _, line := range digLines {
