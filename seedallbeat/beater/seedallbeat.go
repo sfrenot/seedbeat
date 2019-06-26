@@ -74,6 +74,7 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 				return nil
 			case <-ticker.C:
 		}
+    logp.Info("coucou")
 
 		peersChan := make(chan []string)
     for _, crypto := range bt.config.Cryptos { // Pour toutes les cryptos observées
