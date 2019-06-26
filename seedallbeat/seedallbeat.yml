@@ -1,4 +1,6 @@
 ################### Seedbeat Configuration Example #########################
+#setup.ilm.enabled: false
+logging.metrics.enabled: false
 
 seedallbeat:
   period: 1s
@@ -20,14 +22,15 @@ seedallbeat:
             "btccash-seeder.bitcoinunlimited.info",
             "seed.bitprim.org",
             "seed.deadalnix.me",
-            "seeder.criptolayer.net"
-        ]
+            "seeder.criptolayer.net"]
     - name: "BSV"
-      dns-seeders: [
-            "seed.bitcoinsv.io",
+      dns-seeders: ["seed.bitcoinsv.io",
             "seed.cascharia.com",
-            "seed.satoshisvision.network"
-                  ]
+            "seed.satoshisvision.network"]
+    - name: "BTG"
+      dns-seeders: ["eu-dnsseed.bitcoingold-official.org",
+            "dnsseed.bitcoingold.org",
+            "dnsseed.bitcoingold.dev"]
     - name: "BCD"
       dns-seeders: [
             "seed1.dns.btcd.io",
@@ -35,22 +38,18 @@ seedallbeat:
             "seed3.dns.btcd.io",
             "seed4.dns.btcd.io",
             "seed5.dns.btcd.io",
-            "seed6.dns.btcd.io"
-    ]
+            "seed6.dns.btcd.io"]
     - name: "BCX"
       dns-seeders: [
             "seed.bcx.org",
-            "iseed.bcx.info"
-    ]
+            "iseed.bcx.info"]
     - name: "MBC"
       dns-seeders: [
             "seed.sman.pw",
-            "seed.microbitcoin.org"
-    ]
+            "seed.microbitcoin.org"]
     - name: "CLAM"
       dns-seeders: [
-            "clam.just-dice.com"
-    ]
+            "clam.just-dice.com"]
     - name: "BTX"
       dns-seeders: ["seed.bitcore.biz",
           "37.120.190.76",
@@ -63,14 +62,12 @@ seedallbeat:
             "seeder1.bci-server.com",
             "seeder2.bci-server.com",
             "seeder3.bci-server.com",
-            "37.16.104.241"
-    ]
+            "37.16.104.241"]
     - name: "BCA"
       dns-seeders: [
             "seed.bitcoinatom.io",
             "seed.bitcoin-atom.org",
-            "seed.bitcoinatom.net"
-    ]
+            "seed.bitcoinatom.net"]
     - name: "B2X"
       dns-seeders: [
             "node1.b2x-segwit.io",
@@ -83,6 +80,45 @@ seedallbeat:
             "seeder.bitcoincore.zone",
             "seeder-mainnet.clashic.org"
     ]
+    - name: "BRECO"
+      dns-seeders: ["dnsseed.bitcoinreferenceline.com"]
+    - name: "CBTC"
+      dns-seeders: [
+            "dnsseed.classicbitcoin.info",
+            "dnsseed.dnsseed.bitclassic.info"
+      ]
+    - name: "XAP"
+      dns-seeders: [
+            "seed.BitcoinAir.io",
+            "seed.BitcoinAir.wkibbler.io",
+            "seed2.BitcoinAir.io",
+            "seed.BitcoinAir.com",
+            "seed.bitcoinair.org"
+      ]
+    - name: "BCRM"
+      dns-seeders: [
+            "dnsseed.bitcoinrm.org",
+            "dnsseedna.bitcoinrm.org",
+            "dnsseedau.bitcoinrm.org",
+            "dnsseedsg.bitcoinrm.org",
+            "dnsseed2.bitcoinrm.org"
+      ]
+    - name: "BSH"
+      dns-seeders: [
+            "dnseed.bstash.org"
+      ]
+    - name: "LTC"
+      dns-seeders: [
+            "seed-a.litecoin.loshan.co.uk",
+             "dnsseed.thrasher.io",
+             "dnsseed.litecointools.com",
+             "dnsseed.litecoinpool.org",
+             "dnsseed.koin-project.com"
+      ]
+    - name: "UBTC"
+      dns-seeders: [
+            "ip.ub.com"
+      ]
 
 
 #================================ General =====================================
@@ -149,7 +185,7 @@ setup.kibana:
 #-------------------------- Elasticsearch output ------------------------------
 output.elasticsearch:
   # Array of hosts to connect to.
-  hosts: ["localhost:9200"]
+  hosts: ["wired:9200"]
 
   # Optional protocol and basic auth credentials.
   #protocol: "https"
