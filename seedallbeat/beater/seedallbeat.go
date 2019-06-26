@@ -5,6 +5,7 @@ import (
 	"time"
 	"strings"
   // "os"
+	// "strconv"
 
 	"github.com/elastic/beats/libbeat/beat"
 	"github.com/elastic/beats/libbeat/common"
@@ -74,15 +75,14 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 				return nil
 			case <-ticker.C:
 		}
-    logp.Info("coucou")
+		// peersChan := make(chan []string)
 
-		peersChan := make(chan []string)
-    for _, crypto := range bt.config.Cryptos { // Pour toutes les cryptos observées
 
-	    for i := 0; i < len(crypto.Seeds); i++ {
-				go parseSeeds(peersChan, crypto.Code, crypto.Seeds[i])
-			}
-		}
+    // for _, crypto := range bt.config.Cryptos { // Pour toutes les cryptos observées
+	  //   for i := 0; i < len(crypto.Seeds); i++ {
+		// 		go parseSeeds(peersChan, crypto.Code, crypto.Seeds[i])
+		// 	}
+		// }
 
 		for _, crypto := range bt.config.Cryptos { // Pour toutes les cryptos observées
 			allElems := make(map[string]int)
@@ -91,14 +91,14 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 
 			for i := 0; i < len(crypto.Seeds); i++ {
 
-				peers := <-peersChan
+				peers := parseSeeds(crypto.Code, crypto.Seeds[i])
 
 		    elems := 0
 				nouveaux := 0
 
-				cryptoName, seed, peers :=  peers[0], peers[1], peers[2:]
+				cryptoName, seed, peerList :=  peers[0], peers[1], peers[2:]
 
-				for _, newPeer := range peers {
+				for _, newPeer := range peerList {
 					if newPeer != "" {
 						// logp.Info(seed + "Peer " + newPeer + " : ")
 
@@ -154,41 +154,38 @@ func (bt *Seedallbeat) Stop() {
 	close(bt.done)
 }
 
-func parseSeeds(peerResChan chan<- []string, crypto string, seed string) {
+// func parseSeeds(peerResChan chan<- []string, crypto string, seed string) {
+func parseSeeds(crypto string, seed string) []string {
 	peerRes := make([]string, 2)
 	peerRes[0] = crypto
 	peerRes[1] = seed
 
 	out, err := exec.Command("dig", seed).Output()
-	if err != nil {
-		peerResChan <- peerRes
-		return
-	}
-	digString := string(out)
-	digLines := strings.Split(digString, "\n")
-	//fmt.Println(len(digLines))
+	if err == nil {
+		digString := string(out)
+		digLines := strings.Split(digString, "\n")
+		//fmt.Println(len(digLines))
 
+		cpt := 0
+		for _, line := range digLines {
+			cpt = cpt + 1
+			if line == ";; ANSWER SECTION:" {
+				break
+			}
+		}
+		for i := cpt; i < len(digLines); i++ {
+			line := digLines[i]
+			if line == "" {
+				break
+			}
 
-	cpt := 0
-	for _, line := range digLines {
-		cpt = cpt + 1
-		if line == ";; ANSWER SECTION:" {
-			break
+			// fmt.Println("LINE:" + line)
+			record := strings.Split(line, "\t")
+			address := record[len(record)-1]
+
+			//fmt.Println("Stitching " + address+ "-")
+			peerRes = append(peerRes, address)
 		}
 	}
-	for i := cpt; i < len(digLines); i++ {
-		line := digLines[i]
-		if line == "" {
-			break
-		}
-
-		// fmt.Println("LINE:" + line)
-		record := strings.Split(line, "\t")
-		address := record[len(record)-1]
-
-		//fmt.Println("Stitching " + address+ "-")
-		peerRes = append(peerRes, address)
-	}
-
-	peerResChan <- peerRes
+	return peerRes
 }
