@@ -33,12 +33,10 @@ func New(b *beat.Beat, cfg *common.Config) (beat.Beater, error) {
 	if err := cfg.Unpack(&c); err != nil {
 		return nil, fmt.Errorf("Error reading config file: %v", err)
 	}
-
 	bt := &Seedbeat{
 		done:   make(chan struct{}),
 		config: c,
 	}
-
 	return bt, nil
 }
 
@@ -130,36 +128,36 @@ func (bt *Seedbeat) Stop() {
 }
 
 func parseSeeds(peerResChan chan<- []string, seed string) {
-	out, err := exec.Command("dig", seed).Output()
-	if err != nil {
-		return
-	}
-	digString := string(out)
-	digLines := strings.Split(digString, "\n")
-	//fmt.Println(len(digLines))
-
+	out, err := exec.Command("dig", seed).CombinedOutput()
 	peerRes := make([]string, 1)
 	peerRes[0] = seed
-	cpt := 0
-	for _, line := range digLines {
-		cpt = cpt + 1
-		if line == ";; ANSWER SECTION:" {
-			break
+	
+	if err == nil {
+		digString := string(out)
+		digLines := strings.Split(digString, "\n")
+		//fmt.Println(len(digLines))
+
+
+		cpt := 0
+		for _, line := range digLines {
+			cpt = cpt + 1
+			if line == ";; ANSWER SECTION:" {
+				break
+			}
+		}
+		for i := cpt; i < len(digLines); i++ {
+			line := digLines[i]
+			if line == "" {
+				break
+			}
+
+			// fmt.Println("LINE:" + line)
+			record := strings.Split(line, "\t")
+			address := record[len(record)-1]
+
+			//fmt.Println("Stitching " + address+ "-")
+			peerRes = append(peerRes, address)
 		}
 	}
-	for i := cpt; i < len(digLines); i++ {
-		line := digLines[i]
-		if line == "" {
-			break
-		}
-
-		// fmt.Println("LINE:" + line)
-		record := strings.Split(line, "\t")
-		address := record[len(record)-1]
-
-		//fmt.Println("Stitching " + address+ "-")
-		peerRes = append(peerRes, address)
-	}
-
 	peerResChan <- peerRes
 }
