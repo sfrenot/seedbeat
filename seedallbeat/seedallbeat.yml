@@ -3,7 +3,7 @@
 logging.metrics.enabled: false
 
 seedallbeat:
-  period: 1s
+  period: 3s
   cryptos:
     - name: "BTC"
       dns-seeders: ["seed.bitcoin.jonasschnelli.ch",
@@ -185,7 +185,7 @@ setup.kibana:
 #-------------------------- Elasticsearch output ------------------------------
 output.elasticsearch:
   # Array of hosts to connect to.
-  hosts: ["wired:9200"]
+  hosts: ["localhost:9200"]
 
   # Optional protocol and basic auth credentials.
   #protocol: "https"
