@@ -4,10 +4,19 @@
 
 seedasbeat:
   # Defines how often an event is sent to the output
-  period: 1s
-  seed: ["seed.bitcoin.sipa.be", "seed.bitcoin.jonasschnelli.ch", "seed.bitcoinstats.com",
-         "seed.bitnodes.io",     "dnsseed.bluematt.me",           "dnsseed.bitcoin.dashjr.org",
-         "seed.btc.petertodd.org"]
+  period: 3s
+  cryptos:
+    - name: "BTC"
+      dns-seeders: ["seed.bitcoin.jonasschnelli.ch",
+           "seed.bitcoinstats.com",
+           "seed.bitnodes.io",
+           "dnsseed.bluematt.me",
+           "dnsseed.bitcoin.dashjr.org",
+           "seed.btc.petertodd.org"]
+    - name: "DASH"
+      dns-seeders: ["dnsseed.dash.org",
+            "dnsseed.dashdot.io",
+           "dnsseed.masternode.io"]
 
 #================================ General =====================================
 

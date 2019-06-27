@@ -50,8 +50,14 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 		return err
 	}
 	ticker := time.NewTicker(bt.config.Period)
-  ongoingPeers := make(map[string]bool)
-	ongoingAs := make(map[string]As)
+
+  ongoingPeers := make(map[string]map[string]bool)
+	ongoingAs := make(map[string]map[string]As)
+
+	for _, crypto := range bt.config.Cryptos {
+		ongoingPeers[crypto.Code] = make(map[string]bool)
+		ongoingAs[crypto.Code] = make(map[string]As)
+	}
 
 	for {
 		select {
@@ -60,63 +66,71 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 			case <-ticker.C:
 		}
 		time := time.Now()
-		newPeersAsn := make([]string, 1)
-		newPeersAsn[0] = "js/iptoasn.js"
 
-    for i := 0; i < len(bt.config.Seed); i++ {
-			peersChan := make(chan []string)
+		peersChan := make(chan []string)
+    for _, crypto := range bt.config.Cryptos { // Pour toutes les cryptos observées
+	    for i := 0; i < len(crypto.Seeds); i++ {
+				go parseSeeds(peersChan, crypto.Code, crypto.Seeds[i])
+			}
+		}
 
-			go parseSeeds(peersChan, bt.config.Seed[i])
-			peers := <-peersChan
+		for _, crypto := range bt.config.Cryptos { // Pour toutes les cryptos observées
+	    for i := 0; i < len(crypto.Seeds); i++ {
 
-			peers = peers[1:]
+				newPeersAsn := make([]string, 1)
+				newPeersAsn[0] = "js/iptoasn.js"
 
-			for _, newPeer := range peers {
-				if newPeer != "" {
-					_, found := ongoingPeers[newPeer]
-					if !found {
-						ongoingPeers[newPeer] = true
-						newPeersAsn = append(newPeersAsn, newPeer)
+				peers := <-peersChan
+				cryptoName, _, peerList :=  peers[0], peers[1], peers[2:]
+
+				for _, newPeer := range peerList {
+					if newPeer != "" {
+						_, found := ongoingPeers[cryptoName][newPeer]
+						if !found {
+							ongoingPeers[cryptoName][newPeer] = true
+							newPeersAsn = append(newPeersAsn, newPeer)
+						}
 					}
 				}
-			}
-		}
 
-		// logp.Info("********************** " + strings.Join(newPeersAsn, " "))
-		out, _ := exec.Command("node", newPeersAsn...).Output()
-		// logp.Info("********************** " + string(out))
-		uniqPeers := make(map[string]bool)
-		for _, line := range strings.Split(string(out), "\n") {
-			if (line != "") {
-				record := strings.Split(line, ";")
-				elem, found := ongoingAs[record[0]] // AS Number
-				if found {
-					elem.counter++
-				} else {
-					elem.num = record[0]
-					elem.name = record[1]
-					elem.country = record[2]
-					elem.counter = 1
+				// logp.Info("********************** " + strings.Join(newPeersAsn, " "))
+				out, _ := exec.Command("node", newPeersAsn...).Output()
+				// logp.Info("********************** " + string(out))
+				uniqPeers := make(map[string]bool)
+				for _, line := range strings.Split(string(out), "\n") {
+					if (line != "") {
+						record := strings.Split(line, ";")
+						elem, found := ongoingAs[cryptoName][record[0]] // AS Number
+						if found {
+							elem.counter++
+						} else {
+							elem.num = record[0]
+							elem.name = record[1]
+							elem.country = record[2]
+							elem.counter = 1
+						}
+						ongoingAs[cryptoName][record[0]] = elem
+						uniqPeers[record[0]] = true
+					}
 				}
-				ongoingAs[record[0]] = elem
-				uniqPeers[record[0]] = true
-			}
-		}
 
-		var value As
-		for k := range uniqPeers {
-			value = ongoingAs[k]
-			event := beat.Event{
-				Timestamp: time,
-				Fields: common.MapStr{
-          "number": value.num,
-					"name": value.name,
-					"country": value.country,
-					"counter": value.counter,
-					"total": len(ongoingPeers),
-				},
+				var value As
+				for k := range uniqPeers {
+					value = ongoingAs[cryptoName][k]
+					event := beat.Event{
+						Timestamp: time,
+						Fields: common.MapStr{
+							"crypto": cryptoName,
+		          "number": value.num,
+							"name": value.name,
+							"country": value.country,
+							"counter": value.counter,
+							"total": len(ongoingPeers),
+						},
+					}
+					bt.client.Publish(event)
+				}
 			}
-			bt.client.Publish(event)
 		}
 	}
 }
@@ -127,11 +141,12 @@ func (bt *Seedbeat) Stop() {
 	close(bt.done)
 }
 
-func parseSeeds(peerResChan chan<- []string, seed string) {
+func parseSeeds(peerResChan chan<- []string, crypto string, seed string) {
 	out, err := exec.Command("dig", seed).CombinedOutput()
-	peerRes := make([]string, 1)
-	peerRes[0] = seed
-	
+	peerRes := make([]string, 2)
+	peerRes[0] = crypto
+	peerRes[1] = seed
+
 	if err == nil {
 		digString := string(out)
 		digLines := strings.Split(digString, "\n")
