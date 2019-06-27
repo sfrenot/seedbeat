@@ -9,6 +9,10 @@ curl -XPUT wired.citi.insa-lyon.fr:9200/seedasbeat-8.0.0 -H 'Content-Type: appli
       "@timestamp" : {
         "type" : "date"
       },
+      "crypto": {
+        "type": "keyword",
+        "ignore_above": 1024
+      },
       "number": {
         "type": "keyword",
         "ignore_above": 1024
