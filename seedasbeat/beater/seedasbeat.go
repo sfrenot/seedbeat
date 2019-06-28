@@ -94,7 +94,7 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 				}
 
 				// logp.Info("********************** " + strings.Join(newPeersAsn, " "))
-				out, _ := exec.Command("node", newPeersAsn...).Output()
+				out, _ := exec.Command("node", newPeersAsn...).CombinedOutput()
 				// logp.Info("********************** " + string(out))
 				uniqPeers := make(map[string]bool)
 				for _, line := range strings.Split(string(out), "\n") {
@@ -142,10 +142,11 @@ func (bt *Seedbeat) Stop() {
 }
 
 func parseSeeds(peerResChan chan<- []string, crypto string, seed string) {
-	out, err := exec.Command("dig", seed).CombinedOutput()
 	peerRes := make([]string, 2)
 	peerRes[0] = crypto
 	peerRes[1] = seed
+
+	out, err := exec.Command("dig", seed).CombinedOutput()
 
 	if err == nil {
 		digString := string(out)
