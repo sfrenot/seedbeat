@@ -1,6 +1,6 @@
 ################### Seedbeat Configuration Example #########################
 #setup.ilm.enabled: false
-logging.metrics.enabled: false
+#logging.metrics.enabled: false
 
 seedallbeat:
   period: 3s
