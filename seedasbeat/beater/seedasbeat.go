@@ -60,11 +60,7 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 	}
 
 	for {
-		select {
-			case <-bt.done:
-				return nil
-			case <-ticker.C:
-		}
+
 		time := time.Now()
 
 		peersChan := make(chan []string)
@@ -100,17 +96,22 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 				for _, line := range strings.Split(string(out), "\n") {
 					if (line != "") {
 						record := strings.Split(line, ";")
-						elem, found := ongoingAs[cryptoName][record[0]] // AS Number
-						if found {
-							elem.counter++
+						if len(record) > 2 {
+							elem, found := ongoingAs[cryptoName][record[0]] // AS Number
+							if found {
+								elem.counter++
+							} else {
+								elem.num = record[0]
+								elem.name = record[1]
+								elem.country = record[2]
+								elem.counter = 1
+							}
+							ongoingAs[cryptoName][record[0]] = elem
+							uniqPeers[record[0]] = true
 						} else {
-							elem.num = record[0]
-							elem.name = record[1]
-							elem.country = record[2]
-							elem.counter = 1
+							logp.Info("Enregistrement erronné : "+strings.Join(newPeersAsn,", ") + string(out))
 						}
-						ongoingAs[cryptoName][record[0]] = elem
-						uniqPeers[record[0]] = true
+
 					}
 				}
 
@@ -130,7 +131,14 @@ func (bt *Seedbeat) Run(b *beat.Beat) error {
 					}
 					bt.client.Publish(event)
 				}
+				logp.Info("Evenement "+ cryptoName + time.String())
 			}
+		}
+		select {
+			case <-bt.done:
+				return nil
+			case <-ticker.C:
+				logp.Info("Ticker")
 		}
 	}
 }

@@ -1,10 +1,12 @@
 ################### Seedasbeat Configuration Example #########################
+#setup.ilm.enabled: false
+#logging.metrics.enabled: false
 
 ############################# Seedasbeat ######################################
 
 seedasbeat:
   # Defines how often an event is sent to the output
-  period: 20s
+  period: 150s
   cryptos:
     - name: "BTC"
       dns-seeders: ["seed.bitcoin.jonasschnelli.ch",
