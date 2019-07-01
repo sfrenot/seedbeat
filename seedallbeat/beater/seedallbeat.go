@@ -71,11 +71,6 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 	}
 
 	for {
-		select {
-			case <-bt.done:
-				return nil
-			case <-ticker.C:
-		}
 
 		peersChan := make(chan []string)
     for _, crypto := range bt.config.Cryptos { // Pour toutes les cryptos observées
@@ -152,7 +147,15 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 				bt.client.Publish(event)
 			}
 		}
-		// logp.Info("Sortie Loop")
+		
+		logp.Info("Sortie Loop")
+		select {
+			case <-bt.done:
+				return nil
+			case <-ticker.C:
+				logp.Info("Ticker")
+		}
+
 	}
 }
 
