@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 	"strings"
-  // "os"
+  // "os"G
 	// "log"
 	// "strconv"
 
@@ -147,7 +147,7 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 				bt.client.Publish(event)
 			}
 		}
-		
+
 		logp.Info("Sortie Loop")
 		select {
 			case <-bt.done:
@@ -171,8 +171,15 @@ func parseSeeds(peerResChan chan <- []string, crypto string, seed string) {
 	peerRes[0] = crypto
 	peerRes[1] = seed
 
+	logp.Info("dig " + seed)
+
 	out, err := exec.Command("dig", seed).CombinedOutput()
-	if err == nil {
+	if err != nil {
+		// exit status 9
+		logp.Info(err.Error())
+	} else {
+		logp.Info("digged " + seed)
+
 		digString := string(out)
 		digLines := strings.Split(digString, "\n")
 		//fmt.Println(len(digLines))
