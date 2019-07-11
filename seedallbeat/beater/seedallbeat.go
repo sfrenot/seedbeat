@@ -133,15 +133,15 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 					bt.client.Publish(event)
 					logp.Info("Event")
 				}
-				total[crypto.Code]["all"] += allNouveaux[crypto.Code]
+				total[cryptoName]["all"] += allNouveaux[cryptoName]
 				event := beat.Event{
 					Timestamp: time,
 					Fields: common.MapStr{
-						"crypto": crypto.Code,
+						"crypto": cryptoName,
 						"seed": "all",
-						"total": total[crypto.Code]["all"],
-						"tailleReponse": allElems[crypto.Code],
-						"nouveaux": allNouveaux[crypto.Code],
+						"total": total[cryptoName]["all"],
+						"tailleReponse": allElems[cryptoName],
+						"nouveaux": allNouveaux[cryptoName],
 					},
 				}
 				bt.client.Publish(event)
