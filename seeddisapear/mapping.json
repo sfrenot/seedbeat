@@ -1,0 +1,32 @@
+curl -XPUT wired.citi.insa-lyon.fr:9200/seeddisapear-8.0.0 -H 'Content-Type: application/json' -d '
+{
+  "mappings" : {
+    "_meta" : {
+      "beat" : "seeddisapear",
+      "version" : "8.0.0"
+    },
+    "properties" : {
+      "@timestamp" : {
+        "type" : "date"
+      },
+      "crypto": {
+        "type": "keyword",
+        "ignore_above": 1024
+      },
+      "seed": {
+        "type": "keyword",
+        "ignore_above": 1024
+      },
+      "total": {
+        "type": "long"
+      },
+      "tailleReponse": {
+        "type": "long"
+      },
+      "nouveaux": {
+        "type": "long"
+      }
+    }
+  }
+}
+'
