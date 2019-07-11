@@ -1,7 +1,7 @@
 /.idea
 /build
-
 .DS_Store
 /seedbeat
 /seedbeat.test
 *.pyc
+node_modules
