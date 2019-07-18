@@ -6,7 +6,7 @@ import (
 	"strings"
   // "os"G
 	// "log"
-	// "strconv"
+	"strconv"
 
 	"github.com/elastic/beats/libbeat/beat"
 	"github.com/elastic/beats/libbeat/common"
@@ -54,24 +54,17 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 	}
 	ticker := time.NewTicker(bt.config.Period)
 
-	ongoingPeers := make(map[string]map[string]map[string]bool)
-	total := make(map[string]map[string]int)
+	allSeenPeers := make(map[string]map[string]bool)
+	activePeers2hours := make(map[string]map[string]time.Time)
+	total := make(map[string]int)
 
 	for _, crypto := range bt.config.Cryptos {    // Initialisation des structures
-    ongoingPeers[crypto.Code] = make(map[string]map[string]bool)
-		total[crypto.Code] = make(map[string]int)
-
-	  for i := 0; i < len(crypto.Seeds); i++ {
-			ongoingPeers[crypto.Code][crypto.Seeds[i]] = make(map[string]bool)
-			total[crypto.Code][crypto.Seeds[i]] = 0
-		}
-
-		ongoingPeers[crypto.Code]["all"] = make(map[string]bool)
-		total[crypto.Code]["all"] = 0
+    allSeenPeers[crypto.Code] = make(map[string]bool)
+		activePeers2hours[crypto.Code] = make(map[string]time.Time)
+		total[crypto.Code] = 0
 	}
 
 	for {
-
 		peersChan := make(chan []string)
     for _, crypto := range bt.config.Cryptos { // Pour toutes les cryptos observées
 	    for i := 0; i < len(crypto.Seeds); i++ {
@@ -83,7 +76,10 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 		for _, crypto := range bt.config.Cryptos { // Pour toutes les cryptos observées
 			allElems := make(map[string]int)
 			allNouveaux := make(map[string]int)
-			time := time.Now()
+			allRefreshed := make(map[string]int) // Refreshed into the bucket
+			allRecalled := make(map[string]int)  // Recalled from past
+			allRemoved := make(map[string]int)
+			temps := time.Now()
 
 			for i := 0; i < len(crypto.Seeds); i++ {
 
@@ -92,10 +88,7 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 				peers := <-peersChan
 				// logp.Info("chan2 <- " + strconv.Itoa(j*10+i))
 
-		    elems := 0
-				nouveaux := 0
-
-				cryptoName, seed, peerList :=  peers[0], peers[1], peers[2:]
+				cryptoName, _, peerList :=  peers[0], peers[1], peers[2:]
 
 				if len(peerList) > 0 {
 
@@ -103,57 +96,74 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 						if newPeer != "" {
 							// logp.Info(seed + "Peer " + newPeer + " : ")
 
-							elems++
-							_, found := ongoingPeers[cryptoName][seed][newPeer]
-							if !found {
-								nouveaux++
-								// logp.Info("==>"+crypto.Code+ " : "+ seed)
-								ongoingPeers[cryptoName][seed][newPeer] = true
-							}
-
 							allElems[cryptoName]++
-							_, found = ongoingPeers[cryptoName]["all"][newPeer]
-							if !found {
+
+							_, found := allSeenPeers[cryptoName][newPeer]
+							if !found { // Never Seen
 								allNouveaux[cryptoName]++
-								ongoingPeers[cryptoName]["all"][newPeer] = true
+								allSeenPeers[cryptoName][newPeer] = true
+							} else {
+								_, exists := activePeers2hours[cryptoName][newPeer]
+								if exists { // refresh buffer
+									allRefreshed[cryptoName]++
+								} else { // Recalled from past
+									allRecalled[cryptoName]++
+								}
 							}
+							activePeers2hours[cryptoName][newPeer] = temps
+
 						}
 					}
-					total[cryptoName][seed] += nouveaux
-					event := beat.Event{
-						Timestamp: time,
-						Fields: common.MapStr{
-							"crypto": cryptoName,
-			        "seed": seed,
-							"total": total[cryptoName][seed],
-							"tailleReponse": elems,
-							"nouveaux": nouveaux,
-						},
+				}
+
+        outdated := make([]string, 20)
+				for peer, evnTime := range activePeers2hours[cryptoName] {
+					threshold := temps.Add(time.Minute * time.Duration(-2))
+					if evnTime.Before(threshold) {
+						allRemoved[cryptoName]++
+						outdated = append(outdated, peer)
 					}
-					bt.client.Publish(event)
-					logp.Info("Event")
 				}
-				total[cryptoName]["all"] += allNouveaux[cryptoName]
-				event := beat.Event{
-					Timestamp: time,
-					Fields: common.MapStr{
-						"crypto": cryptoName,
-						"seed": "all",
-						"total": total[cryptoName]["all"],
-						"tailleReponse": allElems[cryptoName],
-						"nouveaux": allNouveaux[cryptoName],
-					},
+				for _, peer := range outdated {
+					delete(activePeers2hours[cryptoName], peer)
 				}
-				bt.client.Publish(event)
+
 			}
+			total[crypto.Code] += allNouveaux[crypto.Code]
+
+			logp.Info("->" + crypto.Code + " : " + temps.Format("18:04:05") +
+			  " Total ever seen: " + strconv.Itoa(total[crypto.Code]) +
+				" Total this loop: " + strconv.Itoa(allElems[crypto.Code]) +
+				" Added " + strconv.Itoa(allNouveaux[crypto.Code]) +
+				" Taille buffer " + strconv.Itoa(len(activePeers2hours[crypto.Code])) +
+				" Refresh " + strconv.Itoa(allRefreshed[crypto.Code]) +
+ 				" Recalled " + strconv.Itoa(allRecalled[crypto.Code]) +
+				" Removed " + strconv.Itoa(allRemoved[crypto.Code]))
+
+			event := beat.Event{
+				Timestamp: temps,
+				Fields: common.MapStr{
+					"crypto": crypto.Code,
+					"totalEverSeen": total[crypto.Code],
+					"totalLoop": allElems[crypto.Code],
+					"added": allNouveaux[crypto.Code],
+					"bufferSize": activePeers2hours[crypto.Code],
+					"Refreshed": allRefreshed[crypto.Code],
+					"Recalled": allRecalled[crypto.Code],
+					"Removed": allRemoved[crypto.Code],
+				},
+			}
+			bt.client.Publish(event)
+			// logp.Info("Event")
+
 		}
 
-		logp.Info("Sortie Loop")
+		// logp.Info("Sortie Loop")
 		select {
 			case <-bt.done:
 				return nil
 			case <-ticker.C:
-				logp.Info("Ticker")
+				// logp.Info("Ticker")
 		}
 
 	}
@@ -171,14 +181,14 @@ func parseSeeds(peerResChan chan <- []string, crypto string, seed string) {
 	peerRes[0] = crypto
 	peerRes[1] = seed
 
-	logp.Info("dig " + seed)
+	// logp.Info("dig " + seed)
 
 	out, err := exec.Command("dig", seed).CombinedOutput()
 	if err != nil {
 		// exit status 9
 		logp.Info(err.Error())
 	} else {
-		logp.Info("digged " + seed)
+		// logp.Info("digged " + seed)
 
 		digString := string(out)
 		digLines := strings.Split(digString, "\n")

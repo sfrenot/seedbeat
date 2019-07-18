@@ -4,13 +4,15 @@
 
 seeddisapear:
   period: 1s
-  seed: ["seed.bitcoin.sipa.be", "seed.bitcoin.jonasschnelli.ch"]
   cryptos:
-    BTC: 
-      seed: ["seed.bitcoin.sipa.be", "seed.bitcoin.jonasschnelli.ch"]
-      name: "BTC"
-    DASH:
-      seed: [ "dnsseed.dash.org", "dnsseed.dashdot.io", "dnsseed.masternode.io" ]
-      name: "DASH"
-
-
+    - name: "BTC"
+      dns-seeders: [
+        "seed.bitcoin.jonasschnelli.ch",
+        "seed.bitcoinstats.com",
+        "seed.bitnodes.io",
+        "dnsseed.bluematt.me",
+        "dnsseed.bitcoin.dashjr.org",
+        "seed.btc.petertodd.org"
+      ]
+    - name: "DASH"
+      dns-seeders: [ "dnsseed.dash.org", "dnsseed.dashdot.io", "dnsseed.masternode.io" ]
