@@ -13,19 +13,27 @@ curl -XPUT wired.citi.insa-lyon.fr:9200/seeddisapear-8.0.0 -H 'Content-Type: app
         "type": "keyword",
         "ignore_above": 1024
       },
-      "seed": {
-        "type": "keyword",
-        "ignore_above": 1024
-      },
-      "total": {
+      "totalEverSeen": {
         "type": "long"
       },
-      "tailleReponse": {
+      "totalLoop": {
         "type": "long"
       },
-      "nouveaux": {
+      "added": {
         "type": "long"
-      }
+      },
+      "bufferSize": {
+        "type": "long"
+      },
+      "refreshed": {
+        "type": "long"
+      },
+      "recalled": {
+        "type": "long"
+      },
+      "removed": {
+        "type": "long"
+      },
     }
   }
 }
