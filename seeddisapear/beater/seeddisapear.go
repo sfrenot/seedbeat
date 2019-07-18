@@ -147,7 +147,7 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 					"totalEverSeen": total[crypto.Code],
 					"totalLoop": allElems[crypto.Code],
 					"added": allNouveaux[crypto.Code],
-					"bufferSize": activePeers2hours[crypto.Code],
+					"bufferSize": len(activePeers2hours[crypto.Code]),
 					"Refreshed": allRefreshed[crypto.Code],
 					"Recalled": allRecalled[crypto.Code],
 					"Removed": allRemoved[crypto.Code],
