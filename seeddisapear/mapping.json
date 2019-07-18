@@ -33,7 +33,7 @@ curl -XPUT wired.citi.insa-lyon.fr:9200/seeddisapear-8.0.0 -H 'Content-Type: app
       },
       "removed": {
         "type": "long"
-      },
+      }
     }
   }
 }
