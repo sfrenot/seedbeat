@@ -139,8 +139,12 @@ class Test(BaseTest):
         output = open(os.path.join(output_path, "output.log"), "ab")
         output.write(" ".join(cmd) + "\n")
 
+        # Use a fixed timezone so results don't vary depending on the environment
+        # Don't use UTC to avoid hiding that non-UTC timezones are not being converted as needed,
+        # this can happen because UTC uses to be the default timezone in date parsers when no other
+        # timezone is specified.
         local_env = os.environ.copy()
-        local_env["TZ"] = 'Etc/UTC'
+        local_env["TZ"] = 'Etc/GMT+2'
 
         subprocess.Popen(cmd,
                          env=local_env,
@@ -219,13 +223,32 @@ def clean_keys(obj):
     other_keys = ["log.file.path", "agent.version"]
     # ECS versions change for any ECS release, large or small
     ecs_key = ["ecs.version"]
+    # datasets for which @timestamp is removed due to date missing
+    remove_timestamp = {"icinga.startup", "redis.log", "haproxy.log", "system.auth", "system.syslog", "cef.log"}
+    # dataset + log file pairs for which @timestamp is kept as an exception from above
+    remove_timestamp_exception = {
+        ('system.syslog', 'tz-offset.log'),
+        ('system.auth', 'timestamp.log')
+    }
+
+    # Keep source log filename for exceptions
+    filename = None
+    if "log.file.path" in obj:
+        filename = os.path.basename(obj["log.file.path"]).lower()
 
     for key in host_keys + time_keys + other_keys + ecs_key:
         delete_key(obj, key)
 
-    # Remove timestamp for comparison where timestamp is not part of the log line
-    if (obj["event.dataset"] in ["icinga.startup", "redis.log", "haproxy.log", "system.auth", "system.syslog"]):
-        delete_key(obj, "@timestamp")
+    # Most logs from syslog need their timestamp removed because it doesn't
+    # include a year.
+    if obj["event.dataset"] in remove_timestamp:
+        if not (obj['event.dataset'], filename) in remove_timestamp_exception:
+            delete_key(obj, "@timestamp")
+        else:
+            # excluded events need to have their filename saved to the expected.json
+            # so that the exception mechanism can be triggered when the json is
+            # loaded.
+            obj["log.file.path"] = filename
 
 
 def delete_key(obj, key):

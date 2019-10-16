@@ -19,8 +19,7 @@ package pipeline
 
 import (
 	"sync"
-  // "os"
-	"fmt"
+
 	"github.com/elastic/beats/libbeat/beat"
 	"github.com/elastic/beats/libbeat/common/atomic"
 	"github.com/elastic/beats/libbeat/logp"
@@ -44,7 +43,11 @@ type client struct {
 	canDrop      bool
 	reportEvents bool
 
-	isOpen atomic.Bool
+	// Open state, signaling, and sync primitives for coordinating client Close.
+	isOpen    atomic.Bool   // set to false during shutdown, such that no new events will be accepted anymore.
+	closeOnce sync.Once     // closeOnce ensure that the client shutdown sequence is only executed once
+	closeRef  beat.CloseRef // extern closeRef for sending a signal that the client should be closed.
+	done      chan struct{} // the done channel will be closed if the closeReg gets closed, or Close is run.
 
 	eventer beat.ClientEventer
 }
@@ -72,9 +75,6 @@ func (c *client) publish(e beat.Event) {
 		log     = c.pipeline.monitors.Logger
 	)
 
-	v, _ := event.GetValue("@metadata")
-	logp.Info(fmt.Sprintf("coucou%vcoucou", v))
-
 	c.onNewEvent()
 
 	if !c.isOpen.Load() {
@@ -87,11 +87,6 @@ func (c *client) publish(e beat.Event) {
 		var err error
 
 		event, err = c.processors.Run(event)
-
-		// v, _ = event.GetValue("@metadata.beat")
-		// logp.Info(fmt.Sprintf("coucou%vcoucou", v))
-		// os.Exit(0)
-
 		publish = event != nil
 		if err != nil {
 			// TODO: introduce dead-letter queue?
@@ -103,7 +98,6 @@ func (c *client) publish(e beat.Event) {
 	if event != nil {
 		e = *event
 	}
-
 
 	open := c.acker.addEvent(e, publish)
 	if !open {
@@ -127,8 +121,6 @@ func (c *client) publish(e beat.Event) {
 		c.pipeline.waitCloser.inc()
 	}
 
-
-
 	var published bool
 	if c.canDrop {
 		published = c.producer.TryPublish(pubEvent)
@@ -147,23 +139,40 @@ func (c *client) publish(e beat.Event) {
 }
 
 func (c *client) Close() error {
-	// first stop ack handling. ACK handler might block (with timeout), waiting
-	// for pending events to be ACKed.
-
 	log := c.logger()
 
-	if !c.isOpen.Swap(false) {
-		return nil // closed or already closing
-	}
+	// first stop ack handling. ACK handler might block on wait (with timeout), waiting
+	// for pending events to be ACKed.
+	c.doClose()
+	log.Debug("client: wait for acker to finish")
+	c.acker.wait()
+	log.Debug("client: acker shut down")
+	return nil
+}
 
-	c.onClosing()
+func (c *client) doClose() {
+	c.closeOnce.Do(func() {
+		close(c.done)
 
-	log.Debug("client: closing acker")
-	c.acker.close()
+		log := c.logger()
+
+		c.isOpen.Store(false)
+		c.onClosing()
+
+		log.Debug("client: closing acker")
+		c.acker.close() // this must trigger a direct/indirect call to 'unlink'
+	})
+}
+
+// unlink is the final step of closing a client. It must be executed only after
+// it is guaranteed that the underlying acker has been closed and will not
+// accept any new publish or ACK events.
+// This method is normally registered with the ACKer and triggered by it.
+func (c *client) unlink() {
+	log := c.logger()
 	log.Debug("client: done closing acker")
 
-	// finally disconnect client from broker
-	n := c.producer.Cancel()
+	n := c.producer.Cancel() // close connection to queue
 	log.Debugf("client: cancelled %v events", n)
 
 	if c.reportEvents {
@@ -174,7 +183,6 @@ func (c *client) Close() error {
 	}
 
 	c.onClosed()
-	return nil
 }
 
 func (c *client) logger() *logp.Logger {
@@ -209,7 +217,7 @@ func (c *client) onPublished() {
 func (c *client) onFilteredOut(e beat.Event) {
 	log := c.logger()
 
-	log.Debug("Pipeline client receives callback 'onFilteredOut' for event: %+v", e)
+	log.Debugf("Pipeline client receives callback 'onFilteredOut' for event: %+v", e)
 	c.pipeline.observer.filteredEvent()
 	if c.eventer != nil {
 		c.eventer.FilteredOut(e)
@@ -219,7 +227,7 @@ func (c *client) onFilteredOut(e beat.Event) {
 func (c *client) onDroppedOnPublish(e beat.Event) {
 	log := c.logger()
 
-	log.Debug("Pipeline client receives callback 'onDroppedOnPublish' for event: %+v", e)
+	log.Debugf("Pipeline client receives callback 'onDroppedOnPublish' for event: %+v", e)
 	c.pipeline.observer.failedPublishEvent()
 	if c.eventer != nil {
 		c.eventer.DroppedOnPublish(e)

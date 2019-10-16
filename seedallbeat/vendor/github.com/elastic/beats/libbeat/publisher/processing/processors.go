@@ -40,21 +40,24 @@ type processorFn struct {
 	fn   func(event *beat.Event) (*beat.Event, error)
 }
 
-var generalizeProcessor = newProcessor("generalizeEvent", func(event *beat.Event) (*beat.Event, error) {
-	// Filter out empty events. Empty events are still reported by ACK callbacks.
-	if len(event.Fields) == 0 {
-		return nil, nil
-	}
+func newGeneralizeProcessor(keepNull bool) *processorFn {
+	return newProcessor("generalizeEvent", func(event *beat.Event) (*beat.Event, error) {
+		// Filter out empty events. Empty events are still reported by ACK callbacks.
+		if len(event.Fields) == 0 {
+			return nil, nil
+		}
 
-	fields := common.ConvertToGenericEvent(event.Fields)
-	if fields == nil {
-		logp.Err("fail to convert to generic event")
-		return nil, nil
-	}
+		g := common.NewGenericEventConverter(keepNull)
+		fields := g.Convert(event.Fields)
+		if fields == nil {
+			logp.Err("fail to convert to generic event")
+			return nil, nil
+		}
 
-	event.Fields = fields
-	return event, nil
-})
+		event.Fields = fields
+		return event, nil
+	})
+}
 
 var dropDisabledProcessor = newProcessor("dropDisabled", func(event *beat.Event) (*beat.Event, error) {
 	return nil, nil
@@ -99,7 +102,6 @@ func (p *group) Run(event *beat.Event) (*beat.Event, error) {
 		var err error
 
 		event, err = sub.Run(event)
-		// p.log.Debugf("Apply processor %s %v", sub, event)
 		if err != nil {
 			// XXX: We don't drop the event, but continue filtering here if the most
 			//      recent processor did return an event.
