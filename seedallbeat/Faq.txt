@@ -1,0 +1,6 @@
+debug
+-----
+import fmt
+v, _ := event.GetValue("@metadata")
+logp.Info(fmt.Sprintf("coucou%vcoucou", v))
+
