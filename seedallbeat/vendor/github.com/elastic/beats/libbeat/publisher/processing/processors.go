@@ -99,6 +99,7 @@ func (p *group) Run(event *beat.Event) (*beat.Event, error) {
 		var err error
 
 		event, err = sub.Run(event)
+		// p.log.Debugf("Apply processor %s %v", sub, event)
 		if err != nil {
 			// XXX: We don't drop the event, but continue filtering here if the most
 			//      recent processor did return an event.

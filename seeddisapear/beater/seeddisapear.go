@@ -118,7 +118,7 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 
         outdated := make([]string, 20)
 				for peer, evnTime := range activePeers2hours[cryptoName] {
-					threshold := temps.Add(time.Minute * time.Duration(-2))
+					threshold := temps.Add(time.Hour * time.Duration(-2))
 					if evnTime.Before(threshold) {
 						allRemoved[cryptoName]++
 						outdated = append(outdated, peer)

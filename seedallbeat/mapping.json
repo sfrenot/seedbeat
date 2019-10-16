@@ -30,3 +30,23 @@ curl -XPUT wired.citi.insa-lyon.fr:9200/seedallbeat-8.0.0 -H 'Content-Type: appl
   }
 }
 '
+
+
+curl -XPUT wired.citi.insa-lyon.fr:9200/rawip-8.0.0 -H 'Content-Type: application/json' -d '
+{
+  "mappings" : {
+    "_meta" : {
+      "beat" : "rawip",
+      "version" : "8.0.0"
+    },
+    "properties" : {
+      "@timestamp" : {
+        "type" : "date"
+      },
+      "seed": {
+        "type": "keyword",
+        "ignore_above": 1024
+      },
+    }
+  }
+}

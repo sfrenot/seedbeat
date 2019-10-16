@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 	"strings"
-  // "os"G
+  // "os"
 	// "log"
 	// "strconv"
 
@@ -102,6 +102,28 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 					for _, newPeer := range peerList {
 						if newPeer != "" {
 							// logp.Info(seed + "Peer " + newPeer + " : ")
+							b.Info.Beat="dqsdqqs"
+							b.Info.IndexPrefix="toto"
+							logp.Info(fmt.Sprintf("coucou%vcoucou", b.Info))
+							event := beat.Event{
+
+								Timestamp: time,
+								Fields: common.MapStr{
+					        "seed": seed,
+							  },
+							  // Meta: common.MapStr{
+								// 	"beat": "rawip",
+								// 	"version": "0.0.8",
+								// 	"type": "_doc",
+								// },
+							}
+
+							// v, _ := event.GetValue("@metadata.beat")
+							// logp.Info(fmt.Sprintf("coucou%vcoucou", v))
+							// event.PutValue("@metadata.beat", "rawip")
+							// os.Exit(0)
+
+							bt.client.Publish(event)
 
 							elems++
 							_, found := ongoingPeers[cryptoName][seed][newPeer]

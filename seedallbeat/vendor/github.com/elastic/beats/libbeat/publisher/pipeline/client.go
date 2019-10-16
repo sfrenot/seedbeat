@@ -19,7 +19,8 @@ package pipeline
 
 import (
 	"sync"
-
+  // "os"
+	"fmt"
 	"github.com/elastic/beats/libbeat/beat"
 	"github.com/elastic/beats/libbeat/common/atomic"
 	"github.com/elastic/beats/libbeat/logp"
@@ -71,6 +72,9 @@ func (c *client) publish(e beat.Event) {
 		log     = c.pipeline.monitors.Logger
 	)
 
+	v, _ := event.GetValue("@metadata")
+	logp.Info(fmt.Sprintf("coucou%vcoucou", v))
+
 	c.onNewEvent()
 
 	if !c.isOpen.Load() {
@@ -83,6 +87,11 @@ func (c *client) publish(e beat.Event) {
 		var err error
 
 		event, err = c.processors.Run(event)
+
+		// v, _ = event.GetValue("@metadata.beat")
+		// logp.Info(fmt.Sprintf("coucou%vcoucou", v))
+		// os.Exit(0)
+
 		publish = event != nil
 		if err != nil {
 			// TODO: introduce dead-letter queue?
@@ -94,6 +103,7 @@ func (c *client) publish(e beat.Event) {
 	if event != nil {
 		e = *event
 	}
+
 
 	open := c.acker.addEvent(e, publish)
 	if !open {
@@ -116,6 +126,8 @@ func (c *client) publish(e beat.Event) {
 	if c.reportEvents {
 		c.pipeline.waitCloser.inc()
 	}
+
+
 
 	var published bool
 	if c.canDrop {
