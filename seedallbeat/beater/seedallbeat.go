@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 	"strings"
+
   // "os"
 	// "log"
 	// "strconv"
@@ -102,28 +103,31 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 					for _, newPeer := range peerList {
 						if newPeer != "" {
 							// logp.Info(seed + "Peer " + newPeer + " : ")
-							b.Info.Beat="dqsdqqs"
-							b.Info.IndexPrefix="toto"
-							logp.Info(fmt.Sprintf("coucou%vcoucou", b.Info))
+							// b.Info.Beat="dqsdqqs"
+							// b.Info.IndexPrefix="toto"
+							// logp.Info(fmt.Sprintf("coucou%vcoucou", b.Info))
 							event := beat.Event{
 
 								Timestamp: time,
 								Fields: common.MapStr{
 					        "seed": seed,
+									"log_type": "raw",
 							  },
 							  // Meta: common.MapStr{
-								// 	"beat": "rawip",
-								// 	"version": "0.0.8",
-								// 	"type": "_doc",
+								// 	---> Ca ca marche... "index": "raw",
+								// 	// "version": "8.0.0",
+								// 	// "type": "_doc",
 								// },
 							}
 
 							// v, _ := event.GetValue("@metadata.beat")
 							// logp.Info(fmt.Sprintf("coucou%vcoucou", v))
 							// event.PutValue("@metadata.beat", "rawip")
-							// os.Exit(0)
 
 							bt.client.Publish(event)
+							// bt.client.Close()
+							// close(bt.done)
+							// os.Exit(0)
 
 							elems++
 							_, found := ongoingPeers[cryptoName][seed][newPeer]
@@ -142,31 +146,31 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 						}
 					}
 					total[cryptoName][seed] += nouveaux
-					event := beat.Event{
-						Timestamp: time,
-						Fields: common.MapStr{
-							"crypto": cryptoName,
-			        "seed": seed,
-							"total": total[cryptoName][seed],
-							"tailleReponse": elems,
-							"nouveaux": nouveaux,
-						},
-					}
-					bt.client.Publish(event)
-					logp.Info("Event")
+					// event := beat.Event{
+					// 	Timestamp: time,
+					// 	Fields: common.MapStr{
+					// 		"crypto": cryptoName,
+			    //     "seed": seed,
+					// 		"total": total[cryptoName][seed],
+					// 		"tailleReponse": elems,
+					// 		"nouveaux": nouveaux,
+					// 	},
+					// }
+					// bt.client.Publish(event)
+					// logp.Info("Event")
 				}
 				total[cryptoName]["all"] += allNouveaux[cryptoName]
-				event := beat.Event{
-					Timestamp: time,
-					Fields: common.MapStr{
-						"crypto": cryptoName,
-						"seed": "all",
-						"total": total[cryptoName]["all"],
-						"tailleReponse": allElems[cryptoName],
-						"nouveaux": allNouveaux[cryptoName],
-					},
-				}
-				bt.client.Publish(event)
+				// event := beat.Event{
+				// 	Timestamp: time,
+				// 	Fields: common.MapStr{
+				// 		"crypto": cryptoName,
+				// 		"seed": "all",
+				// 		"total": total[cryptoName]["all"],
+				// 		"tailleReponse": allElems[cryptoName],
+				// 		"nouveaux": allNouveaux[cryptoName],
+				// 	},
+				// }
+				// bt.client.Publish(event)
 			}
 		}
 

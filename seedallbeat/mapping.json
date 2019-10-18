@@ -1,4 +1,4 @@
-curl -XPUT wired.citi.insa-lyon.fr:9200/seedallbeat-8.0.0 -H 'Content-Type: application/json' -d '
+curl -u elastic:3uNd2k0BOMvltLogHvUq -XPUT wired.citi.insa-lyon.fr:9200/seedallbeat-8.0.0-syn -H 'Content-Type: application/json' -d '
 {
   "mappings" : {
     "_meta" : {
@@ -31,12 +31,11 @@ curl -XPUT wired.citi.insa-lyon.fr:9200/seedallbeat-8.0.0 -H 'Content-Type: appl
 }
 '
 
-
-curl -XPUT wired.citi.insa-lyon.fr:9200/rawip-8.0.0 -H 'Content-Type: application/json' -d '
+curl -u elastic:3uNd2k0BOMvltLogHvUq -XPUT wired.citi.insa-lyon.fr:9200/seedallbeat-8.0.0-rawip -H 'Content-Type: application/json' -d '
 {
   "mappings" : {
     "_meta" : {
-      "beat" : "rawip",
+      "beat" : "seedallbeat",
       "version" : "8.0.0"
     },
     "properties" : {
@@ -46,7 +45,31 @@ curl -XPUT wired.citi.insa-lyon.fr:9200/rawip-8.0.0 -H 'Content-Type: applicatio
       "seed": {
         "type": "keyword",
         "ignore_above": 1024
-      },
+      }
     }
   }
 }
+'
+
+
+curl -u elastic:3uNd2k0BOMvltLogHvUq -XPUT wired.citi.insa-lyon.fr:9200/_template/seedallbeat-8.0.0 -H 'Content-Type: application/json' -d '
+{
+  "index_patterns": ["*"],
+  "settings": {
+    "number_of_shards": 1
+  },
+  "mappings": {
+    "_source": {
+      "enabled": false
+    },
+    "properties": {
+      "host_name": {
+        "type": "keyword"
+      },
+      "created_at": {
+        "type": "date",
+        "format": "EEE MMM dd HH:mm:ss Z yyyy"
+      }
+    }
+  }
+}'

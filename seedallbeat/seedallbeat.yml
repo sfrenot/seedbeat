@@ -1,5 +1,5 @@
 ################### Seedbeat Configuration Example #########################
-#setup.ilm.enabled: false
+# setup.ilm.enabled: false
 #logging.metrics.enabled: false
 
 seedallbeat:
@@ -181,16 +181,38 @@ setup.kibana:
 #================================ Outputs =====================================
 
 # Configure what output to use when sending the data collected by the beat.
+setup.template.name: "seedallbeat"
+setup.template.pattern: "seedallbeat-8.0.0-*"
 
 #-------------------------- Elasticsearch output ------------------------------
 output.elasticsearch:
   # Array of hosts to connect to.
   hosts: ["wired:9200"]
+  indices:
+    - index: "%{[log_type]}"
+      mappings:
+        raw: "seedallbeat-8.0.0-raw"
+        syn: "seedallbeat-8.0.0-syn"
+
+  # index: "seedallbeat-8.0.0-%{[fields.log_type]}"
+
+
+  # Configuration 1
+  # - index: "syn-%{+yyyy.MM.dd}"
+  #   when.contains:
+  #     log_type: "syn"
+  # - index: "raw-%{+yyyy.MM.dd}"
+  #   when.contains:
+    #     log_type: "raw"
+
+  # - index: "rawip-%{[{beat_version_key}]}-%{+yyyy.MM.dd}"
+  # indices: ["syn", "rawip"]
+  # index: "seedallbeat-8.0.0-%{[fields.log_type]}"
 
   # Optional protocol and basic auth credentials.
   #protocol: "https"
-  #username: "elastic"
-  #password: "changeme"
+  username: "elastic"
+  password: ""
 
 #----------------------------- Logstash output --------------------------------
 #output.logstash:
