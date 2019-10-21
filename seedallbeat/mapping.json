@@ -1,4 +1,4 @@
-curl -u elastic:3uNd2k0BOMvltLogHvUq -XPUT wired.citi.insa-lyon.fr:9200/seedallbeat-8.0.0-syn -H 'Content-Type: application/json' -d '
+curl -u elastic:3uNd2k0BOMvltLogHvUq -XPUT wired.citi.insa-lyon.fr:9200/seedallbeat-8.0.0 -H 'Content-Type: application/json' -d '
 {
   "mappings" : {
     "_meta" : {
@@ -31,7 +31,7 @@ curl -u elastic:3uNd2k0BOMvltLogHvUq -XPUT wired.citi.insa-lyon.fr:9200/seedallb
 }
 '
 
-curl -u elastic:3uNd2k0BOMvltLogHvUq -XPUT wired.citi.insa-lyon.fr:9200/seedallbeat-8.0.0-rawip -H 'Content-Type: application/json' -d '
+curl -u elastic:3uNd2k0BOMvltLogHvUq -XPUT wired.citi.insa-lyon.fr:9200/seedallbeat-8.0.0-raw -H 'Content-Type: application/json' -d '
 {
   "mappings" : {
     "_meta" : {
@@ -50,7 +50,6 @@ curl -u elastic:3uNd2k0BOMvltLogHvUq -XPUT wired.citi.insa-lyon.fr:9200/seedallb
   }
 }
 '
-
 
 curl -u elastic:3uNd2k0BOMvltLogHvUq -XPUT wired.citi.insa-lyon.fr:9200/_template/seedallbeat-8.0.0 -H 'Content-Type: application/json' -d '
 {

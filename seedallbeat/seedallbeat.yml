@@ -192,7 +192,7 @@ output.elasticsearch:
     - index: "%{[log_type]}"
       mappings:
         raw: "seedallbeat-8.0.0-raw"
-        syn: "seedallbeat-8.0.0-syn"
+        # default: "seedallbeat-8.0.0"
 
   # index: "seedallbeat-8.0.0-%{[fields.log_type]}"
 
