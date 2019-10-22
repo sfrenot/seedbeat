@@ -32,5 +32,5 @@ func init() {
 // AssetFieldsYml returns asset data.
 // This is the base64 encoded gzipped contents of fields.yml.
 func AssetFieldsYml() string {
-	return "eJxszMENwjAQRNF7qpgG0oAL4MgB0cBCJshi2Y3wBpHukThAbPn6R29G3LklFHIS1QslBiByKNs4Z+pU0gAAI0weTAgP0W/5ofM+bQsT1O1WKfP1RVnfNTw2tW/np1wju9X20NS+DcmqPHFxK6wPutP/5RMAAP//pWFXmA=="
+	return "eJxsz89Pq1AQxfE9f8V56aKbFt57S1Yaf8VNY6qJ6wucwujlXsIMVf57I8YqpNvv5HOSWeH5cr+73939wXVEiAZWYrBGFAfxRCU9S/PjBmJ4c4qagb0zVihGWEPcXD2i6+MLS9skKxROWSGGqR/Zq8SAf+n/9G+arPDg6ZQ4ioqhMes0z7JarBmKtIxtRu/UpMxYKixCh7qmGsrGhZpT+pw9CH2laZJs8coxh5KV876gswQwMc9l/CJ5AgBbBNcyx/rCpKWaa7v1dDjZU//OY8cclTPOBiya83P59DtNysdQz1SIw5FueJ/D3aKet4felSYxzO3top635sR77tnFoFz8e+70s/IRAAD//9l0qe4="
 }
