@@ -44,6 +44,9 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 	logp.Info("seedbeat is running! Hit CTRL-C to stop it.")
 	var err error
 
+  // fmt.Println("%v", bt.config)
+	// os.Exit(0)
+
 	// for _, crypto := range bt.config.Cryptos {
 	// 	logp.Info(crypto.Code +" -> "+ strings.Join(crypto.Seeds, ","))
 	// }
@@ -59,6 +62,7 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 	total := make(map[string]map[string]int)
 
 	for _, crypto := range bt.config.Cryptos {    // Initialisation des structures
+		// fmt.Println("->%v", crypto)
     ongoingPeers[crypto.Code] = make(map[string]map[string]bool)
 		total[crypto.Code] = make(map[string]int)
 
@@ -71,6 +75,7 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 		total[crypto.Code]["all"] = 0
 	}
 
+  // os.Exit(1)
 	for {
 
 		peersChan := make(chan []string)

@@ -17,8 +17,8 @@ type Config struct {
 
 var DefaultConfig = Config{
 	Period: 1 * time.Second,
-	Cryptos: []Crypto{
-		Crypto{[]string{"seed.bitcoin.jonasschnelli.ch", "seed.bitcoinstats.com", "seed.bitnodes.io", "dnsseed.bluematt.me", "dnsseed.bitcoin.dashjr.org", "seed.btc.petertodd.org"}, "BTC"},
-		Crypto{[]string{"dnsseed.dash.org", "dnsseed.dashdot.io", "dnsseed.masternode.io"}, "DASH"},
-	},
+	// Cryptos: []Crypto{
+	// 	Crypto{[]string{"seed.bitcoin.jonasschnelli.ch", "seed.bitcoinstats.com", "seed.bitnodes.io", "dnsseed.bluematt.me", "dnsseed.bitcoin.dashjr.org", "seed.btc.petertodd.org"}, "BTC"},
+	// 	Crypto{[]string{"dnsseed.dash.org", "dnsseed.dashdot.io", "dnsseed.masternode.io"}, "DASH"},
+	// },
 }
