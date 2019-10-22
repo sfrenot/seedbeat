@@ -112,6 +112,7 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 								Timestamp: time,
 								Fields: common.MapStr{
 					        "seed": seed,
+									"peer": newPeer,
 									"log_type": "raw",
 							  },
 							}
