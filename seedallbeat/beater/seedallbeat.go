@@ -116,6 +116,10 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 									"log_type": "raw",
 							  },
 							}
+							// if newPeer == "x1.dnsseed.bluematt.me." {
+							// 	fmt.Println("%v - %v", seed, newPeer)
+							// 	os.Exit(1)
+							// }
 
 							bt.client.Publish(event)
 
@@ -217,8 +221,13 @@ func parseSeeds(peerResChan chan <- []string, crypto string, seed string) {
 			record := strings.Split(line, "\t")
 			address := record[len(record)-1]
 
+			// typeDNS := record[len(record)-2]
 			//fmt.Println("Stitching " + address+ "-")
-			peerRes = append(peerRes, address)
+			// fmt.Println("Type " + typeDNS+ "-")
+
+			if record[len(record)-2] == "A" {
+				peerRes = append(peerRes, address)
+		  }
 		}
 	}
 	peerResChan <-peerRes
