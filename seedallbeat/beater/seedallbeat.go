@@ -143,7 +143,6 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 							"total": total[cryptoName][seed],
 							"tailleReponse": elems,
 							"nouveaux": nouveaux,
-							"log_type": "syn",
 						},
 					}
 					bt.client.Publish(event)
@@ -158,7 +157,6 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 						"total": total[cryptoName]["all"],
 						"tailleReponse": allElems[cryptoName],
 						"nouveaux": allNouveaux[cryptoName],
-						"log_type": "syn",
 					},
 				}
 				bt.client.Publish(event)

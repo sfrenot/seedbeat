@@ -20,3 +20,12 @@
     - name: tailleReponse
       title: tailleReponse
       type: long
+    - name: crypto
+      title: crypto
+      type: keyword
+    - name: seed
+      title: seed
+      type: keyword
+    - name: peer
+      title: peer
+      type: ip

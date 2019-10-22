@@ -3,7 +3,7 @@
 #logging.metrics.enabled: false
 
 seedallbeat:
-  period: 3s
+  period: 20s
   cryptos:
     - name: "BTC"
       dns-seeders: ["seed.bitcoin.jonasschnelli.ch",
@@ -192,9 +192,9 @@ output.elasticsearch:
     - index: "%{[log_type]}"
       mappings:
         raw: "seedallbeat-8.0.0-raw"
-        # default: "seedallbeat-8.0.0"
+      # default: ""
 
-  # index: "seedallbeat-8.0.0-%{[fields.log_type]}"
+  # index: "seedallbeat-8.0.0"
 
 
   # Configuration 1

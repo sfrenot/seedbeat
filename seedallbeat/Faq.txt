@@ -5,3 +5,13 @@ v, _ := event.GetValue("@metadata")
 logp.Info(fmt.Sprintf("coucou%vcoucou", v))
 
 fmt.Println("Coucou")
+
+
+----
+Générer les fields standard 
+  mage fields
+
+---
+Générer le fields.go
+
+go run  ./vendor/github.com/elastic/beats/dev-tools/cmd/asset/asset.go -license ASL2 -pkg include -in fields.yml -out include/fields.go seedallbeat
