@@ -44,7 +44,7 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 	logp.Info("seedbeat is running! Hit CTRL-C to stop it.")
 	var err error
 
-  // fmt.Println("%v", bt.config)
+  // fmt.Println("%v", bt.config.Period)
 	// os.Exit(0)
 
 	// for _, crypto := range bt.config.Cryptos {
@@ -56,7 +56,7 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 	if err != nil {
 		return err
 	}
-	ticker := time.NewTicker(bt.config.Period)
+	ticker := time.NewTicker(bt.config.Period * time.Second)
 
 	ongoingPeers := make(map[string]map[string]map[string]bool)
 	total := make(map[string]map[string]int)
@@ -77,6 +77,13 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 
   // os.Exit(1)
 	for {
+		select {
+			case <-bt.done:
+				return nil
+			case <-ticker.C:
+				logp.Info("Ticker")
+		}
+		fmt.Println("coucou0")
 
 		peersChan := make(chan []string)
     for _, crypto := range bt.config.Cryptos { // Pour toutes les cryptos observées
@@ -151,7 +158,7 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 						},
 					}
 					bt.client.Publish(event)
-					logp.Info("Event")
+					// logp.Info("Event")
 				}
 				total[cryptoName]["all"] += allNouveaux[cryptoName]
 				event := beat.Event{
@@ -168,13 +175,7 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 			}
 		}
 
-		logp.Info("Sortie Loop")
-		select {
-			case <-bt.done:
-				return nil
-			case <-ticker.C:
-				logp.Info("Ticker")
-		}
+		logp.Info("Fin Loop")
 
 	}
 }
@@ -191,14 +192,14 @@ func parseSeeds(peerResChan chan <- []string, crypto string, seed string) {
 	peerRes[0] = crypto
 	peerRes[1] = seed
 
-	logp.Info("dig " + seed)
+	// logp.Info("dig " + seed)
 
 	out, err := exec.Command("dig", seed).CombinedOutput()
 	if err != nil {
 		// exit status 9
 		logp.Info(err.Error())
 	} else {
-		logp.Info("digged " + seed)
+		// logp.Info("digged " + seed)
 
 		digString := string(out)
 		digLines := strings.Split(digString, "\n")

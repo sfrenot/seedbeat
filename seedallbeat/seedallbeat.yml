@@ -3,7 +3,7 @@
 #logging.metrics.enabled: false
 
 seedallbeat:
-  period: 20s
+  period: 10
   cryptos:
     - name: "BTC"
       dns-seeders: ["seed.bitcoin.jonasschnelli.ch",
