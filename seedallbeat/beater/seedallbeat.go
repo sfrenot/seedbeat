@@ -56,7 +56,7 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 	if err != nil {
 		return err
 	}
-	ticker := time.NewTicker(bt.config.Period * time.Second)
+	ticker := time.NewTicker(bt.config.Period)
 
 	ongoingPeers := make(map[string]map[string]map[string]bool)
 	total := make(map[string]map[string]int)
@@ -81,9 +81,8 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 			case <-bt.done:
 				return nil
 			case <-ticker.C:
-				logp.Info("Ticker")
+				logp.Info("Boucle")
 		}
-		fmt.Println("coucou0")
 
 		peersChan := make(chan []string)
     for _, crypto := range bt.config.Cryptos { // Pour toutes les cryptos observées
@@ -120,6 +119,7 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 								Fields: common.MapStr{
 					        "seed": seed,
 									"peer": newPeer,
+                  "crypto": cryptoName,
 									"log_type": "raw",
 							  },
 							}
