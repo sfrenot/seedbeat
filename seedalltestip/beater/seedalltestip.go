@@ -182,7 +182,7 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 						"live": ok,
 						"dead": ko,
 						"nouveaux": nouveaux,
-						"pourcentUp": ((((float32)(ok)) / (float32)(elems)) * 100),
+						"pourcentUp": (((float32)(ok)) / (float32)(elems)),
 					},
 				}
 				bt.client.Publish(event)
