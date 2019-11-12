@@ -85,7 +85,6 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 
 		peersChan := make(chan []string) //TODO: On devrait pouvoir le sortir de la boucle
     for _, crypto := range bt.config.Cryptos { // Pour toutes les cryptos observées
-
 	    for i := 0; i < len(crypto.Seeds); i++ {
 				// logp.Info("chan -> " + strconv.Itoa(j*10+i))
 				go parseSeeds(peersChan, crypto.Code, crypto.Seeds[i])
@@ -147,11 +146,8 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 				}
 
 				for _, aPeer := range newPeers {
-					// fmt.Println("->", aPeer)
-					// os.Exit(1)
 					go peerTester(aPeer, crypto.Port, peerTest)
 				}
-				// os.Exit(1)
 
 			  for i:=0; i < nouveaux; i++ {
 					testedPeer := <-peerTest
