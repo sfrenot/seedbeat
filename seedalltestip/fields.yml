@@ -38,3 +38,6 @@
     - name: dead
       title: dead
       type: long
+    - name: pourcentUp
+      title: pourcentUp
+      type: long

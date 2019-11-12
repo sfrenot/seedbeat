@@ -15,3 +15,14 @@ Générer les fields standard
 Générer le fields.go
 
 go run  ./vendor/github.com/elastic/beats/dev-tools/cmd/asset/asset.go -license ASL2 -pkg include -in fields.yml -out include/fields.go seedallbeat
+
+--- Import / Export
+https://www.elastic.co/fr/blog/how-to-migrate-to-kibana-spaces
+
+- Exporter le tableau bord de l'espace d'origine
+curl -u elastic:changeme http://wired/s/marketing/api/kibana/dashboards/export?dashboard=75529f60-0236-11ea-862c-2b541ec3f235 > export.json
+
+- Importer dans l'espace forkmon
+curl -H 'Content-Type: application/json' -H 'kbn-xsrf: true' -u
+elastic:changeme 'http://wired/s/forkmon/api/kibana/dashboards/import' --data-binary @export.json
+

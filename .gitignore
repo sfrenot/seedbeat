@@ -5,3 +5,4 @@
 /seedbeat.test
 *.pyc
 node_modules
+logs

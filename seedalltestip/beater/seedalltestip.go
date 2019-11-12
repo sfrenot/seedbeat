@@ -99,11 +99,11 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 			time := time.Now()
 
 			for i := 0; i < len(crypto.Seeds); i++ {
-
 				// peers := parseSeeds(crypto.Code, crypto.Seeds[i])
 				// logp.Info("chan <- " + strconv.Itoa(j*10+i))
 				peers := <-peersChan
 				// logp.Info("chan2 <- " + strconv.Itoa(j*10+i))
+				newPeers := make([]string, 0)
 
 		    elems := 0
 				ok := 0
@@ -113,85 +113,97 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 				cryptoName, seed, peerList :=  peers[0], peers[1], peers[2:]
 
 				if len(peerList) > 0 {
-
 					for _, aPeer := range peerList {
 						if aPeer != "" {
 							elems++
-              go peerTester(aPeer, peerTest)
-					  }
-					}
 
-				  for i:=0; i < elems; i++ {
-						newPeer := <-peerTest
+							_, found := ongoingPeers[cryptoName][seed][aPeer]
+							if !found {
+								nouveaux++
+								// logp.Info("==>"+crypto.Code+ " : "+ seed)
+								ongoingPeers[cryptoName][seed][aPeer] = true
+								newPeers = append(newPeers, aPeer)
+							} else {
+								event := beat.Event{
+									Timestamp: time,
+									Fields: common.MapStr{
+										"seed": seed,
+										"peer": aPeer,
+										"crypto": cryptoName,
+										"log_type": "raw",
+									},
+								}
+								bt.client.Publish(event)
+							}
 
-						event := beat.Event{
-							Timestamp: time,
-							Fields: common.MapStr{
-				        "seed": seed,
-								"peer": newPeer.peer,
-								"available": newPeer.status,
-	              "crypto": cryptoName,
-								"log_type": "raw",
-						  },
-						}
-						// if newPeer == "x1.dnsseed.bluematt.me." {
-						// 	fmt.Println("%v - %v", seed, newPeer)
-						// 	os.Exit(1)
-						// }
-
-						bt.client.Publish(event)
-
-						if newPeer.status {
-							ok++
-						} else {
-							ko++
-						}
-
-						_, found := ongoingPeers[cryptoName][seed][newPeer.peer]
-						if !found {
-							nouveaux++
-							// logp.Info("==>"+crypto.Code+ " : "+ seed)
-							ongoingPeers[cryptoName][seed][newPeer.peer] = true
-						}
-
-						allElems[cryptoName]++
-						_, found = ongoingPeers[cryptoName]["all"][newPeer.peer]
-						if !found {
-							allNouveaux[cryptoName]++
-							ongoingPeers[cryptoName]["all"][newPeer.peer] = true
+							allElems[cryptoName]++
+							_, found = ongoingPeers[cryptoName]["all"][aPeer]
+							if !found {
+								allNouveaux[cryptoName]++
+								ongoingPeers[cryptoName]["all"][aPeer] = true
+							}
 						}
 					}
+				}
 
-					total[cryptoName][seed] += nouveaux
+				for _, aPeer := range newPeers {
+					// fmt.Println("->", aPeer)
+					// os.Exit(1)
+					go peerTester(aPeer, crypto.Port, peerTest)
+				}
+				// os.Exit(1)
+
+			  for i:=0; i < nouveaux; i++ {
+					newPeer := <-peerTest
 					event := beat.Event{
 						Timestamp: time,
 						Fields: common.MapStr{
+							"seed": seed,
+							"peer": newPeer.peer,
+							"available": newPeer.status,
 							"crypto": cryptoName,
-			        "seed": seed,
-							"total": total[cryptoName][seed],
-							"tailleReponse": elems,
-							"live": ok,
-							"dead": ko,
-							"nouveaux": nouveaux,
+							"log_type": "raw",
 						},
 					}
 					bt.client.Publish(event)
-					logp.Info("Event")
 
+					if newPeer.status {
+						ok++
+					} else {
+						ko++
+					}
 				}
 
-				// total[cryptoName]["all"] += allNouveaux[cryptoName]
-				// event := beat.Event{
-				// 	Timestamp: time,
-				// 	Fields: common.MapStr{
-				// 		"crypto": cryptoName,
-				// 		"seed": "all",
-				// 		"total": total[cryptoName]["all"],
-				// 		"tailleReponse": allElems[cryptoName],
-				// 		"nouveaux": allNouveaux[cryptoName],
-				// 	},
-				// }
-				// bt.client.Publish(event)
+				total[cryptoName][seed] += nouveaux
+
+				event := beat.Event{
+					Timestamp: time,
+					Fields: common.MapStr{
+						"crypto": cryptoName,
+		        "seed": seed,
+						"total": total[cryptoName][seed],
+						"tailleReponse": elems,
+						"live": ok,
+						"dead": ko,
+						"nouveaux": nouveaux,
+						"pourcentUp": ((((float32)(ok)) / (float32)(elems)) * 100),
+					},
+				}
+				bt.client.Publish(event)
+				// logp.Info("Event")
+
+				total[cryptoName]["all"] += allNouveaux[cryptoName]
+				event = beat.Event{
+					Timestamp: time,
+					Fields: common.MapStr{
+						"crypto": cryptoName,
+						"seed": "all",
+						"total": total[cryptoName]["all"],
+						"tailleReponse": allElems[cryptoName],
+						"nouveaux": allNouveaux[cryptoName],
+					},
+				}
+				bt.client.Publish(event)
 			}
 		}
 		logp.Info("Fin Loop")
@@ -258,8 +270,8 @@ func parseSeeds(peerResChan chan <- []string, crypto string, seed string) {
 	peerResChan <-peerRes
 }
 
-func peerTester(peer string, peerTest chan <- peerTestStruct){
-  conn, err := net.DialTimeout("tcp", peer+":8333", time.Duration(1*time.Second))
+func peerTester(peer string, port string, peerTest chan <- peerTestStruct){
+  conn, err := net.DialTimeout("tcp", peer+":"+port, time.Duration(1*time.Second))
 	res:=true
   if err != nil {
 		res=false

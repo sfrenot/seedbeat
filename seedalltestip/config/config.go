@@ -8,6 +8,7 @@ import "time"
 type Crypto struct {
 	Seeds []string `config:"dns-seeders"`
 	Code string `config:"name"`
+	Port string `config:"port"`
 }
 
 type Config struct {
