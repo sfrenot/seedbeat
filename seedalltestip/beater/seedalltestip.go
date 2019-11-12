@@ -154,20 +154,20 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 				// os.Exit(1)
 
 			  for i:=0; i < nouveaux; i++ {
-					newPeer := <-peerTest
+					testedPeer := <-peerTest
 					event := beat.Event{
 						Timestamp: time,
 						Fields: common.MapStr{
 							"seed": seed,
-							"peer": newPeer.peer,
-							"available": newPeer.status,
+							"peer": testedPeer.peer,
+							"available": testedPeer.status,
 							"crypto": cryptoName,
 							"log_type": "raw",
 						},
 					}
 					bt.client.Publish(event)
 
-					if newPeer.status {
+					if testedPeer.status {
 						ok++
 					} else {
 						ko++
