@@ -134,7 +134,7 @@ func triggerDigs(cryptos [] config.Crypto, peersChan chan bctools.DiggedSeedStru
 }
 
 func setPeersToBeTested(digged bctools.DiggedSeedStruct, t time.Time) testingPeers {
-	newPeers := make([]string, len(digged.Peers))
+	newPeers := make([]string, 0)
 	new := 0
 	for _, aPeer := range digged.Peers { // Résultat d'un dig
 		lastPing, found := ongoingPeers[digged.Crypto][digged.Seed][aPeer]
