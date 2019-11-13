@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"github.com/sfrenot/seedbeat/seedalltestip/beater"
-
 	cmd "github.com/elastic/beats/libbeat/cmd"
 	"github.com/elastic/beats/libbeat/cmd/instance"
 )
