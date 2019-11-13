@@ -23,6 +23,15 @@ type Seedallbeat struct {
 	client beat.Client
 }
 
+type peersToTest struct {
+	peer string
+	needtest bool
+}
+
+var OngoingPeers = make(map[string]map[string]map[string]bool) //All peers
+var AllElems = make(map[string]int)
+var AllNouveaux = make(map[string]int)
+
 // New creates an instance of seedbeat.
 func New(b *beat.Beat, cfg *common.Config) (beat.Beater, error) {
 	c := config.DefaultConfig
@@ -54,103 +63,61 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 	}
 	ticker := time.NewTicker(bt.config.Period)
 
-	ongoingPeers := make(map[string]map[string]map[string]bool)
+
 	total := make(map[string]map[string]int)
 
 	for _, crypto := range bt.config.Cryptos {    // Initialisation des structures
 		// fmt.Println("->%v", crypto)
-    ongoingPeers[crypto.Code] = make(map[string]map[string]bool)
+    OngoingPeers[crypto.Code] = make(map[string]map[string]bool)
 		total[crypto.Code] = make(map[string]int)
 
 	  for i := 0; i < len(crypto.Seeds); i++ {
-			ongoingPeers[crypto.Code][crypto.Seeds[i]] = make(map[string]bool)
+			OngoingPeers[crypto.Code][crypto.Seeds[i]] = make(map[string]bool)
 			total[crypto.Code][crypto.Seeds[i]] = 0
 		}
 
-		ongoingPeers[crypto.Code]["all"] = make(map[string]bool)
+		OngoingPeers[crypto.Code]["all"] = make(map[string]bool)
 		total[crypto.Code]["all"] = 0
 	}
 
-  peerTest := make(chan bctools.PeerTestStruct)
+  peerTestChan := make(chan bctools.PeerTestStruct)
 	peersChan := make(chan bctools.DiggedSeedStruct)
   // os.Exit(1)
 
 	for {
-    for _, crypto := range bt.config.Cryptos { // Pour toutes les cryptos observées
-	    for i := 0; i < len(crypto.Seeds); i++ {
-				// logp.Info("chan -> " + strconv.Itoa(j*10+i))
-				go bctools.ParseSeeds(crypto.Code, crypto.Seeds[i], peersChan)
-			}
-		}
+		triggerDigs(bt.config.Cryptos, peersChan)
 
 		for _, crypto := range bt.config.Cryptos { // Pour toutes les cryptos observées
 
-			allElems := make(map[string]int)
-			allNouveaux := make(map[string]int)
+			AllElems = make(map[string]int)
+			AllNouveaux = make(map[string]int)
+
 			time := time.Now()
 
 			for i := 0; i < len(crypto.Seeds); i++ {
 				// peers := parseSeeds(crypto.Code, crypto.Seeds[i])
 				// logp.Info("chan <- " + strconv.Itoa(j*10+i))
 				diggedPeers := <-peersChan
-				// logp.Info("chan2 <- " + strconv.Itoa(j*10+i))
-				newPeers := make([]string, 0)
 
-		    elems := 0
+				// logp.Info("chan2 <- " + strconv.Itoa(j*10+i))
 				ok := 0
 				ko := 0
+				testedPeers := 0
 
-				// diggedPeers.Crypto, seed, peerList :=  peers[0], peers[1], peers[2:]
+        peersToTest := setPeersToBeTested(diggedPeers)
 
-				for _, aPeer := range diggedPeers.Peers { // Résultat d'un dig
-					if aPeer != "" {
-						elems++
-
-						_, found := ongoingPeers[diggedPeers.Crypto][diggedPeers.Seed][aPeer]
-						if !found {
-							// logp.Info("==>"+crypto.Code+ " : "+ seed)
-							ongoingPeers[diggedPeers.Crypto][diggedPeers.Seed][aPeer] = true
-							newPeers = append(newPeers, aPeer)
-						} else {
-							event := beat.Event{
-								Timestamp: time,
-								Fields: common.MapStr{
-									"seed": diggedPeers.Seed,
-									"peer": aPeer,
-									"crypto": diggedPeers.Crypto,
-									"log_type": "raw",
-								},
-							}
-							bt.client.Publish(event)
-						}
-
-						allElems[diggedPeers.Crypto]++
-						_, found = ongoingPeers[diggedPeers.Crypto]["all"][aPeer]
-						if !found {
-							allNouveaux[diggedPeers.Crypto]++
-							ongoingPeers[diggedPeers.Crypto]["all"][aPeer] = true
-						}
-					}
+				for _, aPeer := range peersToTest {
+					if aPeer.needtest {
+						testedPeers++
+						go bctools.PeerTester(aPeer.peer, crypto.Port, peerTestChan)
+					} else {
+						emitRawEvent(bt, time, &diggedPeers, aPeer.peer, false) // Date à la place du false
+ 					}
 				}
 
-
-				for _, aPeer := range newPeers {
-					go bctools.PeerTester(aPeer, crypto.Port, peerTest)
-				}
-
-			  for i:=0; i < len(newPeers); i++ {
-					testedPeer := <-peerTest
-					event := beat.Event{
-						Timestamp: time,
-						Fields: common.MapStr{
-							"seed": diggedPeers.Seed,
-							"peer": testedPeer.Peer,
-							"available": testedPeer.Status,
-							"crypto": diggedPeers.Crypto,
-							"log_type": "raw",
-						},
-					}
-					bt.client.Publish(event)
+			  for i:=0; i < testedPeers; i++ {
+					testedPeer := <-peerTestChan
+					emitRawEvent(bt, time, &diggedPeers, testedPeer.Peer, testedPeer.Status) // if status -> date, sinon 1970 ?
 
 					if testedPeer.Status {
 						ok++
@@ -159,38 +126,25 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 					}
 				}
 
-				total[diggedPeers.Crypto][diggedPeers.Seed] += len(newPeers)
+				total[diggedPeers.Crypto][diggedPeers.Seed] += len(peersToTest) //Faux : uniquement les news
 				pourcentUp := float32(0)
-				if len(newPeers) > 0 {
-					pourcentUp = (((float32)(ok)) / (float32)(len(newPeers)))
+				if len(peersToTest) > 0 {
+					pourcentUp = (((float32)(ok)) / (float32)(len(peersToTest)))
 				}
 
-				event := beat.Event{
-					Timestamp: time,
-					Fields: common.MapStr{
-						"crypto": diggedPeers.Crypto,
-		        "seed": diggedPeers.Seed,
-						"total": total[diggedPeers.Crypto][diggedPeers.Seed],
-						"tailleReponse": elems,
-						"live": ok,
-						"dead": ko,
-						"nouveaux": len(newPeers),
-						"pourcentUp": pourcentUp,
-					},
-				}
-				bt.client.Publish(event)
+				emitStdEvent(bt, time, &diggedPeers, total[diggedPeers.Crypto][diggedPeers.Seed], len(peersToTest),  ok, ko, pourcentUp)
 
 				// logp.Info("Event")
 				//
-				// total[diggedPeers.Crypto]["all"] += allNouveaux[diggedPeers.Crypto]
+				// total[diggedPeers.Crypto]["all"] += AllNouveaux[diggedPeers.Crypto]
 				// event = beat.Event{
 				// 	Timestamp: time,
 				// 	Fields: common.MapStr{
 				// 		"crypto": diggedPeers.Crypto,
 				// 		"seed": "all",
 				// 		"total": total[diggedPeers.Crypto]["all"],
-				// 		"tailleReponse": allElems[diggedPeers.Crypto],
-				// 		"nouveaux": allNouveaux[diggedPeers.Crypto],
+				// 		"tailleReponse": AllElems[diggedPeers.Crypto],
+				// 		"nouveaux": AllNouveaux[diggedPeers.Crypto],
 				// 	},
 				// }
 				// bt.client.Publish(event)
@@ -210,4 +164,68 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 func (bt *Seedallbeat) Stop() {
 	bt.client.Close()
 	close(bt.done)
+}
+
+func triggerDigs(cryptos [] config.Crypto, peersChan chan bctools.DiggedSeedStruct ) {
+	for _, crypto := range cryptos { // Pour toutes les cryptos observées
+		for i := 0; i < len(crypto.Seeds); i++ {
+			// logp.Info("chan -> " + strconv.Itoa(j*10+i))
+			go bctools.ParseSeeds(crypto.Code, crypto.Seeds[i], peersChan)
+		}
+	}
+}
+func setPeersToBeTested(digged bctools.DiggedSeedStruct ) [] peersToTest {
+
+	newPeers := make([]peersToTest, len(digged.Peers))
+
+	for idx, aPeer := range digged.Peers { // Résultat d'un dig
+
+		_, found := OngoingPeers[digged.Crypto][digged.Seed][aPeer]
+		if !found {
+			// logp.Info("==>"+crypto.Code+ " : "+ seed)
+			OngoingPeers[digged.Crypto][digged.Seed][aPeer] = true
+			newPeers[idx] = peersToTest{aPeer, true}
+		} else {
+			newPeers[idx] = peersToTest{aPeer, false}
+		}
+
+		// AllElems[digged.Crypto]++
+		// _, found = OngoingPeers[digged.Crypto]["all"][aPeer]
+		// if !found {
+		// 	AllNouveaux[digged.Crypto]++
+		// 	OngoingPeers[digged.Crypto]["all"][aPeer] = true
+		// }
+	}
+	return newPeers
+}
+
+func emitRawEvent(bt *Seedallbeat, t time.Time, dig * bctools.DiggedSeedStruct, peer string, available bool ) {
+	event := beat.Event{
+		Timestamp: t,
+		Fields: common.MapStr{
+			"log_type": "raw",
+			"crypto": dig.Crypto,
+			"seed": dig.Seed,
+			"peer": peer,
+			"available": available,
+		},
+	}
+	bt.client.Publish(event)
+}
+
+func emitStdEvent(bt *Seedallbeat, t time.Time, dig * bctools.DiggedSeedStruct, sum int, tailleReponse int, ok int, ko int, pourcentUp float32) {
+		event := beat.Event{
+			Timestamp: t,
+			Fields: common.MapStr{
+				"crypto": dig.Crypto,
+				"seed": dig.Seed,
+				"total": sum,
+				"tailleReponse": tailleReponse,
+				"live": ok,
+				"dead": ko,
+				// "nouveaux": len(peersToTest), //Faux... Il faut que les trues
+				"pourcentUp": pourcentUp,
+			},
+		}
+		bt.client.Publish(event)
 }
