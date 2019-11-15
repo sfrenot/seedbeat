@@ -28,7 +28,12 @@ type testingPeers struct {
 	olds [] string
 }
 
-var ongoingPeers = make(map[string]map[string]map[string]time.Time) //All peers
+type testPeer struct {
+	date time.Time
+	isUp bool
+}
+
+var ongoingPeers = make(map[string]map[string]map[string]testPeer) //All peers
 
 // New creates an instance of seedbeat.
 func New(b *beat.Beat, cfg *common.Config) (beat.Beater, error) {
@@ -58,10 +63,10 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 
 	for _, crypto := range bt.config.Cryptos {    // Initialisation des structures
 		// fmt.Println("->%v", crypto)
-    ongoingPeers[crypto.Code] = make(map[string]map[string]time.Time)
+    ongoingPeers[crypto.Code] = make(map[string]map[string]testPeer)
 		total[crypto.Code] = make(map[string]int)
 	  for i := 0; i < len(crypto.Seeds); i++ {
-			ongoingPeers[crypto.Code][crypto.Seeds[i]] = make(map[string]time.Time)
+			ongoingPeers[crypto.Code][crypto.Seeds[i]] = make(map[string]testPeer)
 			total[crypto.Code][crypto.Seeds[i]] = 0
 		}
 	}
@@ -98,6 +103,8 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 				allTested := len(peersToTest.news)+len(peersToTest.olds)
 			  for i:=0; i < allTested; i++ {
 					testedPeer := <-peerTestChan
+					ongoingPeers[diggedPeers.Crypto][diggedPeers.Seed][testedPeer.Peer] = testPeer{time, testedPeer.Status}
+
 					emitRawEvent(bt, time, &diggedPeers, testedPeer.Peer, testedPeer.IsNew, testedPeer.Status)
 					if testedPeer.Status {
 						ok++
@@ -149,18 +156,23 @@ func setPeersToBeTested(digged bctools.DiggedSeedStruct, t time.Time) testingPee
 	newPeers := make([]string, 0)
 	oldPeers := make([]string, 0)
 	for _, aPeer := range digged.Peers { // Résultat d'un dig
+		// logp.Info("Ajout peer")
 		lastPing, found := ongoingPeers[digged.Crypto][digged.Seed][aPeer]
 		if !found { // Never see this peer
 			newPeers = append(newPeers, aPeer)
 		} else {
 			threshold := t.Add(time.Hour * 24 * time.Duration(-1))
-			if lastPing.Before(threshold) {
+			if lastPing.date.Before(threshold) {
+				logp.Info("Ajout vieux peer à tester %v %v", aPeer, t)
 				oldPeers = append(oldPeers, aPeer)
+			} else {
+				if !lastPing.isUp {
+					logp.Info("Ajout peer à tester dead %v %v", aPeer, t)
+					oldPeers = append(oldPeers, aPeer)
+				}
 			}
 		}
-		ongoingPeers[digged.Crypto][digged.Seed][aPeer] = t
 	}
-
 	return testingPeers{newPeers, oldPeers}
 }
 
