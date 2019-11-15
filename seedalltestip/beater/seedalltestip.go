@@ -85,14 +85,13 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 				// peers := parseSeeds(crypto.Code, crypto.Seeds[i])
 				// logp.Info("chan <- " + strconv.Itoa(j*10+i))
 				diggedPeers := <-peersChan
+				peersToTest := setPeersToBeTested(diggedPeers, time)
 
 				// logp.Info("chan2 <- " + strconv.Itoa(j*10+i))
-				ok := diggedPeers.supposedOk
+				ok := peersToTest.supposedOk
 				ko := 0
 				newsOK := 0
 				newsKO := 0
-
-        peersToTest := setPeersToBeTested(diggedPeers, time)
 
 				for _, aPeer := range peersToTest.news {
 					go bctools.PeerTester(aPeer, crypto.Port, true, peerTestChan)
