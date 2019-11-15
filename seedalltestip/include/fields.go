@@ -32,5 +32,5 @@ func init() {
 // AssetFieldsYml returns asset data.
 // This is the base64 encoded gzipped contents of fields.yml.
 func AssetFieldsYml() string {
-	return "eJx00U2PlEAQxvE7n6LMHPayy6hHThrf4mViVo3ngn4Gyu3p6nQXrHx7sxhXmsHrv/Or5IED/Xh7f/p8+vSC3isFNYITIxsk01k8yElCZ36+JTF65Ew9AhIbHLUz2QD68O4rxaQ/0dltdaCWMxxpWPqElEUDvapf1y/r6kBfPDiDJsliNJjF3ByPvdgwtnWnlyM8Z5PuiC6TKeWx75GNuoFDjyU9nT0LvMt1Vd3RA+aGMuDYe0M2iRWRiXlc5z+sqYiI7ijwBQ3dvDG5IBtf4s3y8Kyf+988RzTk2FAcMDX2pfy2TovyGvpCBR0n8PirhKdN3bfnxJ2JhtJ+3NR9ayze4x5RQ8Zm797T/pUuzdG05GVb3APmR02uoE//pITr8l8WgVSydVmYxELwxOK59ZuVV3mxraoHh+KAl2lj12X/wzjwZt267JuoY+oQ7HvcDLzq//zvAAAA//+DoxvA"
+	return "eJx00b+O00AQx/HeTzEoxTV3DlC6AvFPNCd0gKjH3l/s4Ta7q51JIr89OiOC13ba7+ozmYx39Ov90+PXxy+v6GOkEI3gxMgGUTqIBznJ6MyP9yRGF1bqEZDZ4KgdyQbQpw/fKeX4G53dVztqWeEohqmfkVVioDf12/p1Xe3omwcr6CwqRoNZ0ma/78WGU1t38biHZzXp9uiULJKe+h5q1A0cekzpZexB4J3WVfVAzxgbUsCx9wY1SRWRiXms81/WVEREDxT4iIbu3pkcocbHdDc9XPW1/8tjQkOODcUAi8a+lD/maVI+hr5Qh8ydSQwl/Lyo29ZYvMcTUgyKxc5bT9tTujwmiyUv2+SeMV5idgV9uWsJ5+UmS0Au2bxMTFIh+MziufWLf7nKk21j9OBQDBANuJS4SDehl/PiR+dl+6IOvDjLvGybgIuWZl5um/V+y7pto3e63nNZt22Kp9wh2M+0+Iqr/t//CQAA//+6cEtE"
 }

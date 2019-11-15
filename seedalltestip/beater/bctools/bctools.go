@@ -14,6 +14,7 @@ import (
 
 type PeerTestStruct struct {
 	Peer string
+	IsNew bool
 	Status bool
 }
 
@@ -66,7 +67,7 @@ func ParseSeeds(crypto string, seed string, peerResChan chan <- DiggedSeedStruct
 	peerResChan <-DiggedSeedStruct{crypto, seed, peerRes}
 }
 
-func PeerTester(peer string, port string, peerTest chan <- PeerTestStruct){
+func PeerTester(peer string, port string, isNew bool, peerTest chan <- PeerTestStruct){
   conn, err := net.DialTimeout("tcp", peer+":"+port, time.Duration(1*time.Second))
 	res:=true
   if err != nil {
@@ -74,5 +75,5 @@ func PeerTester(peer string, port string, peerTest chan <- PeerTestStruct){
 	} else {
 	 	conn.Close()
 	}
-	peerTest <-PeerTestStruct{peer, res}
+	peerTest <-PeerTestStruct{peer, isNew, res}
 }

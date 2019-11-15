@@ -24,8 +24,8 @@ type Seedallbeat struct {
 }
 
 type testingPeers struct {
-	newOnes int
-	peers [] string
+	news [] string
+	olds [] string
 }
 
 var ongoingPeers = make(map[string]map[string]map[string]time.Time) //All peers
@@ -83,29 +83,41 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 				// logp.Info("chan2 <- " + strconv.Itoa(j*10+i))
 				ok := 0
 				ko := 0
+				newsOK := 0
+				newsKO := 0
 
         peersToTest := setPeersToBeTested(diggedPeers, time)
 
-				for _, aPeer := range peersToTest.peers {
-					go bctools.PeerTester(aPeer, crypto.Port, peerTestChan)
+				for _, aPeer := range peersToTest.news {
+					go bctools.PeerTester(aPeer, crypto.Port, true, peerTestChan)
+				}
+				for _, aPeer := range peersToTest.olds {
+					go bctools.PeerTester(aPeer, crypto.Port, false, peerTestChan)
 				}
 
-			  for i:=0; i < len(peersToTest.peers); i++ {
+				all := len(peersToTest.news)+len(peersToTest.olds)
+			  for i:=0; i < all; i++ {
 					testedPeer := <-peerTestChan
-					emitRawEvent(bt, time, &diggedPeers, testedPeer.Peer, testedPeer.Status) // if status -> date, sinon 1970 ?
+					emitRawEvent(bt, time, &diggedPeers, testedPeer.Peer, testedPeer.IsNew, testedPeer.Status)
 					if testedPeer.Status {
 						ok++
+						if testedPeer.IsNew {
+							newsOK++
+						}
 					} else {
 						ko++
+						if testedPeer.IsNew {
+							newsKO++
+						}
 					}
 				}
 
-				total[diggedPeers.Crypto][diggedPeers.Seed] += peersToTest.newOnes
+				total[diggedPeers.Crypto][diggedPeers.Seed] += len(peersToTest.news)
 				pourcentUp := float32(0)
-				if len(peersToTest.peers) > 0 {
-					pourcentUp = (((float32)(ok)) / (float32)(len(peersToTest.peers)))
+				if all > 0 {
+					pourcentUp = (((float32)(ok)) / (float32)(all))
 				}
-				emitStdEvent(bt, time, &diggedPeers, total[diggedPeers.Crypto][diggedPeers.Seed], len(peersToTest.peers), ok, ko, peersToTest.newOnes, pourcentUp)
+				emitStdEvent(bt, time, &diggedPeers, total[diggedPeers.Crypto][diggedPeers.Seed], all, ok, ko, len(peersToTest.news), newsOK, newsKO, pourcentUp)
 			}
 		}
 		logp.Info("Fin Loop")
@@ -135,25 +147,24 @@ func triggerDigs(cryptos [] config.Crypto, peersChan chan bctools.DiggedSeedStru
 
 func setPeersToBeTested(digged bctools.DiggedSeedStruct, t time.Time) testingPeers {
 	newPeers := make([]string, 0)
-	new := 0
+	oldPeers := make([]string, 0)
 	for _, aPeer := range digged.Peers { // Résultat d'un dig
 		lastPing, found := ongoingPeers[digged.Crypto][digged.Seed][aPeer]
 		if !found { // Never see this peer
-			new++
 			newPeers = append(newPeers, aPeer)
 		} else {
 			threshold := t.Add(time.Hour * 24 * time.Duration(-1))
 			if lastPing.Before(threshold) {
-				newPeers = append(newPeers, aPeer)
+				oldPeers = append(oldPeers, aPeer)
 			}
 		}
 		ongoingPeers[digged.Crypto][digged.Seed][aPeer] = t
 	}
 
-	return testingPeers{new, newPeers}
+	return testingPeers{newPeers, oldPeers}
 }
 
-func emitRawEvent(bt *Seedallbeat, t time.Time, dig * bctools.DiggedSeedStruct, peer string, available bool ) {
+func emitRawEvent(bt *Seedallbeat, t time.Time, dig * bctools.DiggedSeedStruct, peer string, isnew bool, available bool ) {
 	event := beat.Event{
 		Timestamp: t,
 		Fields: common.MapStr{
@@ -161,23 +172,26 @@ func emitRawEvent(bt *Seedallbeat, t time.Time, dig * bctools.DiggedSeedStruct, 
 			"crypto": dig.Crypto,
 			"seed": dig.Seed,
 			"peer": peer,
+			"isNew": isnew,
 			"available": available,
 		},
 	}
 	bt.client.Publish(event)
 }
 
-func emitStdEvent(bt *Seedallbeat, t time.Time, dig * bctools.DiggedSeedStruct, sum int, tailleReponse int, ok int, ko int, new int, pourcentUp float32) {
+func emitStdEvent(bt *Seedallbeat, t time.Time, dig * bctools.DiggedSeedStruct, sum int, tailleTest int, ok int, ko int, news int, newsok int, newsko int, pourcentUp float32) {
 		event := beat.Event{
 			Timestamp: t,
 			Fields: common.MapStr{
 				"crypto": dig.Crypto,
 				"seed": dig.Seed,
 				"total": sum,
-				"tailleReponse": tailleReponse,
+				"tailleReponse": tailleTest,
 				"live": ok,
 				"dead": ko,
-				"nouveaux": new,
+				"news": news,
+				"newslive": newsok,
+				"newsdead": newsko,
 				"pourcentUp": pourcentUp,
 			},
 		}

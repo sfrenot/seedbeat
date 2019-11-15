@@ -11,9 +11,6 @@
     - name: total
       title: Total
       type: long
-    - name: nouveaux
-      title: Nouveaux
-      type: long
     - name: fraction
       title: Fraction
       type: long
@@ -32,11 +29,23 @@
     - name: available
       title: available
       type: boolean
+    - name: isnew
+      title: isnew
+      type: boolean
     - name: live
       title: live
       type: long
     - name: dead
       title: dead
+      type: long
+    - name: news
+      title: news
+      type: long
+    - name: newslive
+      title: newslive
+      type: long
+    - name: oldsdead
+      title: oldsdead
       type: long
     - name: pourcentUp
       title: pourcentUp
