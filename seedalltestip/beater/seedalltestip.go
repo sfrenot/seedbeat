@@ -122,7 +122,7 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 				total[diggedPeers.Crypto][diggedPeers.Seed] += len(peersToTest.news)
 				pourcentUp := float32(0)
 				if allTested > 0 {
-					pourcentUp = (((float32)(ok)) / (float32)(allTested))
+					pourcentUp = (((float32)(ok)) / (float32)(allTested + peersToTest.supposedOk))
 				}
 				emitStdEvent(bt, time, &diggedPeers, total[diggedPeers.Crypto][diggedPeers.Seed], len(diggedPeers.Peers), allTested, ok, ko, len(peersToTest.news), newsOK, newsKO, pourcentUp)
 			}
