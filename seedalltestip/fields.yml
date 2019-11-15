@@ -29,6 +29,9 @@
     - name: available
       title: available
       type: boolean
+    - name: tailleTest
+      title: tailleTest
+      type: long
     - name: isnew
       title: isnew
       type: boolean

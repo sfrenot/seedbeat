@@ -95,8 +95,8 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 					go bctools.PeerTester(aPeer, crypto.Port, false, peerTestChan)
 				}
 
-				all := len(peersToTest.news)+len(peersToTest.olds)
-			  for i:=0; i < all; i++ {
+				allTested := len(peersToTest.news)+len(peersToTest.olds)
+			  for i:=0; i < allTested; i++ {
 					testedPeer := <-peerTestChan
 					emitRawEvent(bt, time, &diggedPeers, testedPeer.Peer, testedPeer.IsNew, testedPeer.Status)
 					if testedPeer.Status {
@@ -114,10 +114,10 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 
 				total[diggedPeers.Crypto][diggedPeers.Seed] += len(peersToTest.news)
 				pourcentUp := float32(0)
-				if all > 0 {
-					pourcentUp = (((float32)(ok)) / (float32)(all))
+				if allTested > 0 {
+					pourcentUp = (((float32)(ok)) / (float32)(allTested))
 				}
-				emitStdEvent(bt, time, &diggedPeers, total[diggedPeers.Crypto][diggedPeers.Seed], all, ok, ko, len(peersToTest.news), newsOK, newsKO, pourcentUp)
+				emitStdEvent(bt, time, &diggedPeers, total[diggedPeers.Crypto][diggedPeers.Seed], len(diggedPeers.Peers), allTested, ok, ko, len(peersToTest.news), newsOK, newsKO, pourcentUp)
 			}
 		}
 		logp.Info("Fin Loop")
@@ -179,14 +179,15 @@ func emitRawEvent(bt *Seedallbeat, t time.Time, dig * bctools.DiggedSeedStruct, 
 	bt.client.Publish(event)
 }
 
-func emitStdEvent(bt *Seedallbeat, t time.Time, dig * bctools.DiggedSeedStruct, sum int, tailleTest int, ok int, ko int, news int, newsok int, newsko int, pourcentUp float32) {
+func emitStdEvent(bt *Seedallbeat, t time.Time, dig * bctools.DiggedSeedStruct, sum int, tailleReponse int, tailleTest int,ok int, ko int, news int, newsok int, newsko int, pourcentUp float32) {
 		event := beat.Event{
 			Timestamp: t,
 			Fields: common.MapStr{
 				"crypto": dig.Crypto,
 				"seed": dig.Seed,
 				"total": sum,
-				"tailleReponse": tailleTest,
+				"tailleReponse": tailleReponse,
+				"tailleTest": tailleTest,
 				"live": ok,
 				"dead": ko,
 				"news": news,
