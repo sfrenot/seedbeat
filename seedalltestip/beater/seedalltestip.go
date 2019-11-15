@@ -26,6 +26,7 @@ type Seedallbeat struct {
 type testingPeers struct {
 	news [] string
 	olds [] string
+	supposedOk int
 }
 
 type testPeer struct {
@@ -86,7 +87,7 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 				diggedPeers := <-peersChan
 
 				// logp.Info("chan2 <- " + strconv.Itoa(j*10+i))
-				ok := 0
+				ok := diggedPeers.supposedOk
 				ko := 0
 				newsOK := 0
 				newsKO := 0
@@ -155,6 +156,7 @@ func triggerDigs(cryptos [] config.Crypto, peersChan chan bctools.DiggedSeedStru
 func setPeersToBeTested(digged bctools.DiggedSeedStruct, t time.Time) testingPeers {
 	newPeers := make([]string, 0)
 	oldPeers := make([]string, 0)
+	supposedOk := 0
 	for _, aPeer := range digged.Peers { // Résultat d'un dig
 		// logp.Info("Ajout peer")
 		lastPing, found := ongoingPeers[digged.Crypto][digged.Seed][aPeer]
@@ -167,13 +169,15 @@ func setPeersToBeTested(digged bctools.DiggedSeedStruct, t time.Time) testingPee
 				oldPeers = append(oldPeers, aPeer)
 			} else {
 				if !lastPing.isUp {
-					logp.Info("Ajout peer à tester dead %v %v", aPeer, t)
+					logp.Info("Ajout peer a tester dead %v %v", aPeer, t)
 					oldPeers = append(oldPeers, aPeer)
+				} else {
+					supposedOk++
 				}
 			}
 		}
 	}
-	return testingPeers{newPeers, oldPeers}
+	return testingPeers{newPeers, oldPeers, supposedOk}
 }
 
 func emitRawEvent(bt *Seedallbeat, t time.Time, dig * bctools.DiggedSeedStruct, peer string, isnew bool, available bool ) {
