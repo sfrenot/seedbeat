@@ -63,7 +63,7 @@ func New(b *beat.Beat, cfg *common.Config) (beat.Beater, error) {
 // Run starts seedbeat.
 func (bt *Seedallbeat) Run(b *beat.Beat) error {
 	logp.Info("seedbeat is running! Hit CTRL-C to stop it.")
-  fmt.Printf("->%v", db)
+  // fmt.Printf("->%v", db)
 	var err error
 
 	bt.client, err = b.Publisher.Connect()
@@ -206,7 +206,7 @@ func emitRawEvent(bt *Seedallbeat, t time.Time, dig * bctools.DiggedSeedStruct, 
 			"peer": peer,
 			"isNew": isnew,
 			"available": available,
-			"geo": [2]float64{record.Location.Latitude, record.Location.Longitude},
+			"geopoint": [2]float64{record.Location.Latitude, record.Location.Longitude},
 			"city": record.City.Names["en"],
 			"country": record.Country.Names["en"],
 			"isoCode": record.Country.IsoCode,

@@ -53,7 +53,7 @@
     - name: pourcentUp
       title: pourcentUp
       type: long
-    - name:	geo
+    - name:	geopoint
       title: geolocation of peer ip
       type: geo_point
     - name: city
