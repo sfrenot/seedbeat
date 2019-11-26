@@ -8,7 +8,7 @@ fmt.Println("Coucou")
 
 
 ----
-Générer les fields standard 
+Générer les fields standard
   mage fields
 
 ---
@@ -29,7 +29,7 @@ curl -u elastic:changeme 'http://wired/api/kibana/dashboards/export?dashboard=75
 curl -H 'Content-Type: application/json' -H 'kbn-xsrf: true' -u elastic:changeme 'http://wired/s/forkmon/api/kibana/dashboards/import' --data-binary @export.json
 
 --- Import base ASN
+go get github.com/oschwald/geoip2-golang
 
 wget https://geolite.maxmind.com/download/geoip/database/GeoLite2-City.tar.gz
 wget https://geolite.maxmind.com/download/geoip/database/GeoLite2-Country.tar.gz
-
