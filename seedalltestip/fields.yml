@@ -53,3 +53,15 @@
     - name: pourcentUp
       title: pourcentUp
       type: long
+    - name:	geo
+      title: geolocation of peer ip
+      type: geo_point
+    - name: city
+      title: Ville
+      type: keyword
+    - name: country
+      title: Pays
+      type: keyword
+    - name: isocode
+      title: Code ISO pays
+      type: keyword

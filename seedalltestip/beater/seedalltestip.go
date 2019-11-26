@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-  // "os"
-	// "log"
+  "net"
+	"log"
 	// "strconv"
 
 	"github.com/elastic/beats/libbeat/beat"
@@ -14,6 +14,8 @@ import (
 
 	"github.com/sfrenot/seedbeat/seedalltestip/config"
 	"github.com/sfrenot/seedbeat/seedalltestip/beater/bctools"
+
+  "github.com/oschwald/geoip2-golang"
 )
 
 // Seedallbeat configuration.
@@ -35,9 +37,12 @@ type testPeer struct {
 }
 
 var ongoingPeers = make(map[string]map[string]map[string]testPeer) //All peers
+var db * geoip2.Reader
 
 // New creates an instance of seedbeat.
 func New(b *beat.Beat, cfg *common.Config) (beat.Beater, error) {
+	var err error
+
 	c := config.DefaultConfig
 	if err := cfg.Unpack(&c); err != nil {
 		return nil, fmt.Errorf("Error reading config file: %v", err)
@@ -46,12 +51,19 @@ func New(b *beat.Beat, cfg *common.Config) (beat.Beater, error) {
 		done:   make(chan struct{}),
 		config: c,
 	}
+
+  db, err = geoip2.Open("./beater/GeoLite2-City_20191126/GeoLite2-City.mmdb")
+	if err != nil {
+		log.Fatal(err)
+    // os.Exit(1)
+	}
 	return bt, nil
 }
 
 // Run starts seedbeat.
 func (bt *Seedallbeat) Run(b *beat.Beat) error {
 	logp.Info("seedbeat is running! Hit CTRL-C to stop it.")
+  fmt.Printf("->%v", db)
 	var err error
 
 	bt.client, err = b.Publisher.Connect()
@@ -103,9 +115,14 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 				allTested := len(peersToTest.news)+len(peersToTest.olds)
 			  for i:=0; i < allTested; i++ {
 					testedPeer := <-peerTestChan
+
+					record, err := db.City(net.ParseIP(testedPeer.Peer))
+					if err != nil {
+						log.Fatal(err)
+					}
 					ongoingPeers[diggedPeers.Crypto][diggedPeers.Seed][testedPeer.Peer] = testPeer{time, testedPeer.Status}
 
-					emitRawEvent(bt, time, &diggedPeers, testedPeer.Peer, testedPeer.IsNew, testedPeer.Status)
+					emitRawEvent(bt, time, &diggedPeers, testedPeer.Peer, testedPeer.IsNew, testedPeer.Status, record)
 					if testedPeer.Status {
 						ok++
 						if testedPeer.IsNew {
@@ -179,7 +196,7 @@ func setPeersToBeTested(digged bctools.DiggedSeedStruct, t time.Time) testingPee
 	return testingPeers{newPeers, oldPeers, supposedOk}
 }
 
-func emitRawEvent(bt *Seedallbeat, t time.Time, dig * bctools.DiggedSeedStruct, peer string, isnew bool, available bool ) {
+func emitRawEvent(bt *Seedallbeat, t time.Time, dig * bctools.DiggedSeedStruct, peer string, isnew bool, available bool, record *geoip2.City) {
 	event := beat.Event{
 		Timestamp: t,
 		Fields: common.MapStr{
@@ -189,6 +206,10 @@ func emitRawEvent(bt *Seedallbeat, t time.Time, dig * bctools.DiggedSeedStruct, 
 			"peer": peer,
 			"isNew": isnew,
 			"available": available,
+			"geo": [2]float64{record.Location.Latitude, record.Location.Longitude},
+			"city": record.City.Names["en"],
+			"country": record.Country.Names["en"],
+			"isoCode": record.Country.IsoCode,
 		},
 	}
 	bt.client.Publish(event)
