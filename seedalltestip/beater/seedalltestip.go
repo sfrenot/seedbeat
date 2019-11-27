@@ -197,6 +197,7 @@ func setPeersToBeTested(digged bctools.DiggedSeedStruct, t time.Time) testingPee
 }
 
 func emitRawEvent(bt *Seedallbeat, t time.Time, dig * bctools.DiggedSeedStruct, peer string, isnew bool, available bool, record *geoip2.City) {
+	coord := fmt.Sprintf("%f,%f",record.Location.Latitude, record.Location.Longitude)
 	event := beat.Event{
 		Timestamp: t,
 		Fields: common.MapStr{
@@ -206,8 +207,8 @@ func emitRawEvent(bt *Seedallbeat, t time.Time, dig * bctools.DiggedSeedStruct, 
 			"peer": peer,
 			"isNew": isnew,
 			"available": available,
-			"geopoint": [2]float64{record.Location.Latitude, record.Location.Longitude},
-      "geopoint_s": fmt.Sprintf("%f-%f", record.Location.Latitude, record.Location.Longitude),
+			"geopoint": coord,
+      "geopoint_s": coord,
 			"city": record.City.Names["en"],
 			"country": record.Country.Names["en"],
 			"isoCode": record.Country.IsoCode,
