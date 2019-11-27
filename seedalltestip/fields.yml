@@ -56,6 +56,9 @@
     - name:	geopoint
       title: geolocation of peer ip
       type: geo_point
+    - name: geopoint_s
+      title: String representation of geo_point
+      type: keyword
     - name: city
       title: Ville
       type: keyword
