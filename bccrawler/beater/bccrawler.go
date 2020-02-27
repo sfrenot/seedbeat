@@ -1,68 +1,379 @@
 package beater
 
 import (
-	"fmt"
-	"time"
-
+  "time"
+  "fmt"
   "net"
-	"log"
-	// "strconv"
+  "encoding/binary"
+  "sync"
+  "sync/atomic"
+  "os"
+  "runtime"
+  // "io"
+  "bufio"
 
-	"github.com/elastic/beats/libbeat/beat"
-	"github.com/elastic/beats/libbeat/common"
-	"github.com/elastic/beats/libbeat/logp"
+  "github.com/elastic/beats/libbeat/beat"
+  "github.com/elastic/beats/libbeat/common"
+  "github.com/elastic/beats/libbeat/logp"
 
-	"github.com/sfrenot/seedbeat/bccrawler/config"
-	"github.com/sfrenot/seedbeat/bccrawler/beater/bctools"
+  "github.com/sfrenot/seedbeat/bccrawler/config"
 
-  "github.com/oschwald/geoip2-golang"
+  "github.com/sfrenot/seedbeat/bccrawler/beater/bc/bcmessage"
+
 )
 
-// Seedallbeat configuration.
-type Seedallbeat struct {
+const NBGOROUTINES = 800
+const CHECK_FOR_END_TIMER = 1* time.Duration(time.Minute)
+
+const DONE = "Done"
+
+type BcExplorer struct {
 	done   chan struct{}
 	config config.Config
 	client beat.Client
 }
 
-type testingPeers struct {
-	news [] string
-	olds [] string
-	supposedOk int
+var connectionStartChannel chan string
+
+var beatOn bool
+
+// var peerLogFile *os.File
+var addressChannel chan string
+
+var addressesToTest int32
+var startTime = time.Now()
+
+// Peer Status Management
+type status int
+const (
+  Waiting status = iota
+  Connecting
+  Connected
+  Done
+  Failed
+)
+
+func (s status) String() string {
+  return [...]string{"Waiting", "Connecting", "Connected", "Done", "Failed"}[s]
 }
 
-type testPeer struct {
-	date time.Time
-	isUp bool
+type peerStatus struct {
+  status status
+  retries int
 }
 
-var ongoingPeers = make(map[string]map[string]map[string]testPeer) //All peers
-var db * geoip2.Reader
+var addressesVisited = make(map[string]*peerStatus)
+var addressesStatusMutex sync.Mutex
 
-// New creates an instance of seedbeat.
+func isWaiting(aPeer string) bool {
+  addressesStatusMutex.Lock()
+  peer, found := addressesVisited[aPeer]
+  isWaiting := false
+  if !found {
+    addressesVisited[aPeer] = &peerStatus{Connecting, 0}
+    isWaiting = true
+  } else if peer.status == Waiting {
+    addressesVisited[aPeer].status = Connecting
+    isWaiting = true
+  }
+  addressesStatusMutex.Unlock()
+  return isWaiting
+}
+
+func registerPVMConnection(aPeer string) {
+  addressesStatusMutex.Lock()
+  addressesVisited[aPeer].status = Connected
+  addressesStatusMutex.Unlock()
+}
+
+func retryAddress(aPeer string) {
+  addressesStatusMutex.Lock()
+  if addressesVisited[aPeer].retries > 3 {
+    addressesVisited[aPeer].status = Failed
+  } else {
+    addressesVisited[aPeer].status = Waiting
+  }
+  addressesStatusMutex.Unlock()
+}
+func fail(aPeer string){
+  addressesStatusMutex.Lock()
+  addressesVisited[aPeer].status = Failed
+  addressesStatusMutex.Unlock()
+}
+
+func done(aPeer string) {
+  addressesStatusMutex.Lock()
+  addressesVisited[aPeer].status = Done
+  addressesStatusMutex.Unlock()
+}
+
+// func parseArgs() string{
+//   var outputFileName = flag.String("o", "", "Fichier de sortie du crawling")
+//   var initialAddress = flag.String("s", "", "Adresse initiale de crawling. Format [a.b.c.d]:ppp")
+//   flag.BoolVar(&beatOn, "b", false, "Flag pour le mode beat")
+//   flag.Parse()
+//   if *initialAddress == "" {
+//     flag.PrintDefaults()
+//     os.Exit(1)
+//   }
+//   if *outputFileName != "" {
+//     peerLogFile, _ = os.Create(*outputFileName)
+//   }
+//   return *initialAddress
+// }
+
+
+func getcompactIntAsInt(bytes []byte) uint64 {
+  if bytes[0] == 0xFD {
+    return uint64(binary.LittleEndian.Uint16(bytes[1:3]))
+  } else {
+    if bytes[0] == 0xFE {
+      return uint64(binary.LittleEndian.Uint32(bytes[1:5]))
+    } else {
+      if bytes[0] == 0xFF {
+        return uint64(binary.LittleEndian.Uint64(bytes[1:9]))
+      } else {
+        return uint64(uint8(bytes[0]))
+      }
+    }
+  }
+}
+
+// In Message Mgmt
+func processAddrMessage(targetAddress string, payload []byte) int {
+  if len(payload) == 0 {return 0}
+
+  addrNumber := getcompactIntAsInt(payload)
+  if addrNumber > 1 {
+    startByte := uint64(0)
+    if addrNumber < 253 {
+      startByte = 1
+    } else {
+      if addrNumber < 0xFFFF {
+        startByte = 3
+      } else {
+        if addrNumber < 0xFFFFFFFF {
+          startByte = 5
+        } else {
+          startByte = 9
+        }
+      }
+    }
+
+    // fmt.Printf("Received %d addresses\n", addrNumber)
+    readAddr := uint64(0)
+    for {
+      if readAddr == addrNumber {
+        break
+      }
+      addrBeginsat := startByte + (30 * readAddr)
+      if (addrBeginsat+4) > uint64(len(payload)) {
+        fmt.Println("POOL Error ", readAddr, payload)
+      }
+      timefield:=payload[addrBeginsat:addrBeginsat+4]
+      timeint := int64(binary.LittleEndian.Uint32(timefield[:]))
+      timetime := time.Unix(timeint,0)
+      services:=payload[addrBeginsat+4:addrBeginsat+12]
+      ipAddr := payload[addrBeginsat+12 : addrBeginsat+28]
+      port := payload[addrBeginsat+28 : addrBeginsat+30]
+      // fmt.Println("Received : ", net.IP.String(ipAddr))
+      newPeer := fmt.Sprintf("[%s]:%d", net.IP.String(ipAddr), binary.BigEndian.Uint16(port))
+      peerrecordstring := fmt.Sprintf("PAR\t[%s]:%d\t%v\t%v\t%v\t%v\t%v\n", net.IP.String(ipAddr), binary.BigEndian.Uint16(port), timetime.String(), time.Since(timetime), time.Now().String(), services, targetAddress)
+      storeEvent(peerrecordstring)
+      // io.Copy(peerLogFile, strings.NewReader(peerrecordstring))
+      addressChannel <- newPeer
+      readAddr++
+    }
+  }
+  return int(addrNumber)
+}
+
+func eightByteLittleEndianTimestampToTime(buf []byte) time.Time {
+  timeint := int64(binary.LittleEndian.Uint64(buf[:]))
+  return time.Unix(timeint,0)
+}
+
+func processVersionMessage(peerID string, payload []byte){
+
+  versionNumber := binary.LittleEndian.Uint32(payload[0:4])
+  servicesbuf := payload[4:12] //services
+  peertimestamp := eightByteLittleEndianTimestampToTime(payload[12:20])
+
+  userAgentStringSize := int(getcompactIntAsInt(payload[80:]))
+  startByte :=0
+  useragentString := ""
+  if userAgentStringSize < 253 {
+    startByte = 1
+  } else {
+    if userAgentStringSize < 0xFFFF {
+      startByte = 3
+    } else {
+      if userAgentStringSize < 0xFFFFFFFF {
+        startByte = 5
+      } else {
+        startByte = 9
+      }
+    }
+  }
+  if 80+startByte+userAgentStringSize < len(payload) {
+    if userAgentStringSize > 0{
+      useragentbuf := payload[80+startByte:80+startByte+userAgentStringSize]
+      useragentString = string(useragentbuf)
+    }
+  }
+  storeEvent(fmt.Sprintf("PVM\t%s\t%v\t%s\t%v\t%v\t%v\t%v\n",peerID,versionNumber,useragentString, peertimestamp.String(), time.Since(peertimestamp), servicesbuf[:],time.Now().String()))
+  // io.Copy(peerLogFile, strings.NewReader(fmt.Sprintf("PVM  %s  %v  %s  %v  %v  %v  %v\n",peerID,versionNumber,useragentString, peertimestamp.String(), time.Since(peertimestamp), servicesbuf[:],time.Now().String())))
+  registerPVMConnection(peerID)
+}
+
+func handleIncommingMessages(targetAddress string, inChan chan []string, rawConn net.Conn) {
+  rawConn.SetReadDeadline(time.Now().Add(1*time.Minute))
+  connE := bufio.NewReader(rawConn)
+
+  for {
+    command, payload, err := bcmessage.ReadMessage(connE)
+    if err !=  nil {
+      inChan <- []string{"CONNCLOSED"}
+      break
+    }
+
+    if command == bcmessage.MSG_VERSION && len(payload) > 0 {
+      processVersionMessage(targetAddress, payload)
+      inChan <- []string{bcmessage.MSG_VERSION}
+      continue
+    }
+    if command == bcmessage.MSG_VERSION_ACK {
+      inChan <- []string{bcmessage.MSG_VERSION_ACK}
+      continue
+    }
+    if command == bcmessage.MSG_ADDR {
+      numAddr := processAddrMessage(targetAddress, payload)
+      if numAddr > 5 {
+        inChan <- []string{"CONNCLOSED"}
+        break
+      }
+      continue
+    }
+    // fmt.Println("->", command)
+    continue
+  }
+}
+
+func handleOnePeer(agentNumber int, connectionStartChannel chan string) {
+  for {
+    // fmt.Println("POOL reading agent ", agentNumber)
+    targetaddress := <- connectionStartChannel
+    // fmt.Println("POOL unlock agent ", agentNumber, targetaddress)
+
+    // fmt.Println("Targeting |" + targetaddress + "|")
+    conn, err := net.DialTimeout("tcp", targetaddress, time.Duration(600*time.Millisecond))
+    if err != nil {
+      // fmt.Println("Failed on connect " + targetaddress)
+      retryAddress(targetaddress)
+      // fmt.Println("POOL Failed on connect " + targetaddress + " " + err.Error())
+      // io.Copy(peerLogFile, strings.NewReader(fmt.Sprintf("ERR %s\n", targetaddress)))
+    } else {
+
+      for {
+        // fmt.Println("Connected to " + targetaddress)
+        //SFR Pareil ?
+        // io.Copy(peerLogFile, strings.NewReader(fmt.Sprintf("Connected to %s\n", targetaddress)))
+        inChan := make(chan []string, 10)
+        go handleIncommingMessages(targetaddress, inChan, conn)
+
+        err := bcmessage.SendRequest(conn, bcmessage.MSG_VERSION)
+        if err != nil {
+          fail(targetaddress)
+          break
+        }
+        rcvdMessage := <-inChan
+        if rcvdMessage[0] != bcmessage.MSG_VERSION {
+          // fmt.Println("Version Ack not received", rcvdMessage[0])
+          fail(targetaddress)
+          break
+        }
+
+        err = bcmessage.SendRequest(conn, bcmessage.MSG_VERSION_ACK)
+        if err != nil {
+          fail(targetaddress)
+          break
+        }
+        rcvdMessage = <-inChan
+        if rcvdMessage[0] != bcmessage.MSG_VERSION_ACK {
+          // fmt.Println("Version AckAck not received")
+          fail(targetaddress)
+          break
+        }
+
+        err = bcmessage.SendRequest(conn, bcmessage.MSG_GETADDR)
+        if err != nil {
+          fail(targetaddress)
+          break
+        }
+        rcvdMessage = <-inChan
+        if rcvdMessage[0] == "CONNCLOSED" {
+          done(targetaddress)
+          break
+        } else {
+          fmt.Println("Bad message", rcvdMessage[0])
+          os.Exit(1)
+        }
+      } //For Loop that handles broken bcmessage
+      conn.Close()
+    }
+    atomic.AddInt32(&addressesToTest, -1)
+  }
+}
+
+func storeEvent(msg string) {
+  fmt.Println("fichier", msg)
+
+  // if peerLogFile != nil {
+  //   fmt.Println("fichier", msg)
+  //   // io.Copy(peerLogFile, strings.NewReader(msg))
+  // }
+  if beatOn {
+    // fmt.Println("beat")
+  }
+}
+
+func checkPoolSizes(addressChannel chan string){
+  for{
+    time.Sleep(CHECK_FOR_END_TIMER)
+    fmt.Printf("POOLSIZE ADDR %d GOROUTINES %d\n", addressesToTest, runtime.NumGoroutine())
+    if (addressesToTest == 0){
+        fmt.Println("POOL Crawling ends : ", time.Now().Sub(startTime))
+        addressChannel<-DONE
+        return
+    }
+  }
+}
+
+// Beat
 func New(b *beat.Beat, cfg *common.Config) (beat.Beater, error) {
-	var err error
+	// var err error
 
 	c := config.DefaultConfig
 	if err := cfg.Unpack(&c); err != nil {
 		return nil, fmt.Errorf("Error reading config file: %v", err)
 	}
-	bt := &Seedallbeat{
+	bt := &BcExplorer{
 		done:   make(chan struct{}),
 		config: c,
 	}
 
-  db, err = geoip2.Open("./beater/GeoLite2-City_20191126/GeoLite2-City.mmdb")
-	if err != nil {
-		log.Fatal(err)
-    // os.Exit(1)
-	}
+  connectionStartChannel = make(chan string, 1000000)
+  for i := 0; i < NBGOROUTINES; i++ {
+    go handleOnePeer(i, connectionStartChannel)
+  }
+
+  // peerLogFile, _ = os.Create("./crawler.out")
+
 	return bt, nil
 }
 
-// Run starts seedbeat.
-func (bt *Seedallbeat) Run(b *beat.Beat) error {
-	logp.Info("seedbeat is running! Hit CTRL-C to stop it.")
+func (bt *BcExplorer) Run(b *beat.Beat) error {
+	logp.Info("bcExplorer is running! Hit CTRL-C to stop it.")
   // fmt.Printf("->%v", db)
 	var err error
 
@@ -72,167 +383,45 @@ func (bt *Seedallbeat) Run(b *beat.Beat) error {
 	}
 	ticker := time.NewTicker(bt.config.Period)
 
-	total := make(map[string]map[string]int)
-
-	for _, crypto := range bt.config.Cryptos {    // Initialisation des structures
-		// fmt.Println("->%v", crypto)
-    ongoingPeers[crypto.Code] = make(map[string]map[string]testPeer)
-		total[crypto.Code] = make(map[string]int)
-	  for i := 0; i < len(crypto.Seeds); i++ {
-			ongoingPeers[crypto.Code][crypto.Seeds[i]] = make(map[string]testPeer)
-			total[crypto.Code][crypto.Seeds[i]] = 0
-		}
-	}
-
-  peerTestChan := make(chan bctools.PeerTestStruct)
-	peersChan := make(chan bctools.DiggedSeedStruct)
-
 	for {
-		triggerDigs(bt.config.Cryptos, peersChan)
+    logp.Info("Start Loop")
 
-		for _, crypto := range bt.config.Cryptos { // Pour toutes les cryptos observées
-			time := time.Now()
+    getPeers("[95.213.182.182]:8333")
 
-			for i := 0; i < len(crypto.Seeds); i++ {
-				// peers := parseSeeds(crypto.Code, crypto.Seeds[i])
-				// logp.Info("chan <- " + strconv.Itoa(j*10+i))
-				diggedPeers := <-peersChan
-				peersToTest := setPeersToBeTested(diggedPeers, time)
-
-				// logp.Info("chan2 <- " + strconv.Itoa(j*10+i))
-				ok := peersToTest.supposedOk
-				ko := 0
-				newsOK := 0
-				newsKO := 0
-
-				for _, aPeer := range peersToTest.news {
-					go bctools.PeerTester(aPeer, crypto.Port, true, peerTestChan)
-				}
-				for _, aPeer := range peersToTest.olds {
-					go bctools.PeerTester(aPeer, crypto.Port, false, peerTestChan)
-				}
-
-				allTested := len(peersToTest.news)+len(peersToTest.olds)
-			  for i:=0; i < allTested; i++ {
-					testedPeer := <-peerTestChan
-
-					record, err := db.City(net.ParseIP(testedPeer.Peer))
-					if err != nil {
-						log.Fatal(err)
-					}
-					ongoingPeers[diggedPeers.Crypto][diggedPeers.Seed][testedPeer.Peer] = testPeer{time, testedPeer.Status}
-
-					emitRawEvent(bt, time, &diggedPeers, testedPeer.Peer, testedPeer.IsNew, testedPeer.Status, record)
-					if testedPeer.Status {
-						ok++
-						if testedPeer.IsNew {
-							newsOK++
-						}
-					} else {
-						ko++
-						if testedPeer.IsNew {
-							newsKO++
-						}
-					}
-				}
-
-				total[diggedPeers.Crypto][diggedPeers.Seed] += len(peersToTest.news)
-				pourcentUp := float32(0)
-				if allTested > 0 {
-					pourcentUp = (((float32)(ok)) / (float32)(allTested + peersToTest.supposedOk))
-				}
-				emitStdEvent(bt, time, &diggedPeers, total[diggedPeers.Crypto][diggedPeers.Seed], len(diggedPeers.Peers), allTested, ok, ko, len(peersToTest.news), newsOK, newsKO, pourcentUp)
-			}
-		}
-		logp.Info("Fin Loop")
 		select {
 			case <-bt.done:
 				return nil
 			case <-ticker.C:
+        startTime = time.Now()
 				logp.Info("Boucler")
 		}
 	}
 }
 
+func getPeers(startDig string) {
+
+  addressChannel = make(chan string, 1000000)
+  addressChannel <- startDig
+
+  go checkPoolSizes(addressChannel)
+
+  for {
+    newPeer := <-addressChannel
+    if newPeer == DONE { // Finished crawled adress
+      fmt.Println("getPeers::Done")
+      return
+    }
+    if isWaiting(newPeer) { //Peer Inconnu
+      fmt.Println("Ajout peer", newPeer )
+      atomic.AddInt32(&addressesToTest, 1)
+      connectionStartChannel <- newPeer
+    }
+  }
+}
+
+
 // Stop stops seedbeat.
-func (bt *Seedallbeat) Stop() {
+func (bt *BcExplorer) Stop() {
 	bt.client.Close()
 	close(bt.done)
-}
-
-func triggerDigs(cryptos [] config.Crypto, peersChan chan bctools.DiggedSeedStruct ) {
-	for _, crypto := range cryptos { // Pour toutes les cryptos observées
-		for i := 0; i < len(crypto.Seeds); i++ {
-			// logp.Info("chan -> " + strconv.Itoa(j*10+i))
-			go bctools.ParseSeeds(crypto.Code, crypto.Seeds[i], peersChan)
-		}
-	}
-}
-
-func setPeersToBeTested(digged bctools.DiggedSeedStruct, t time.Time) testingPeers {
-	newPeers := make([]string, 0)
-	oldPeers := make([]string, 0)
-	supposedOk := 0
-	for _, aPeer := range digged.Peers { // Résultat d'un dig
-		// logp.Info("Ajout peer")
-		lastPing, found := ongoingPeers[digged.Crypto][digged.Seed][aPeer]
-		if !found { // Never see this peer
-			newPeers = append(newPeers, aPeer)
-		} else {
-			threshold := t.Add(time.Hour * 24 * time.Duration(-1))
-			if lastPing.date.Before(threshold) {
-				logp.Info("Ajout vieux peer à tester %v %v", aPeer, t)
-				oldPeers = append(oldPeers, aPeer)
-			} else {
-				if !lastPing.isUp {
-					logp.Info("Ajout peer a tester dead %v %v", aPeer, t)
-					oldPeers = append(oldPeers, aPeer)
-				} else {
-					supposedOk++
-				}
-			}
-		}
-	}
-	return testingPeers{newPeers, oldPeers, supposedOk}
-}
-
-func emitRawEvent(bt *Seedallbeat, t time.Time, dig * bctools.DiggedSeedStruct, peer string, isnew bool, available bool, record *geoip2.City) {
-	coord := fmt.Sprintf("%f,%f",record.Location.Latitude, record.Location.Longitude)
-	event := beat.Event{
-		Timestamp: t,
-		Fields: common.MapStr{
-			"log_type": "raw",
-			"crypto": dig.Crypto,
-			"seed": dig.Seed,
-			"peer": peer,
-			"isNew": isnew,
-			"available": available,
-			"geopoint": coord,
-      "geopoint_s": coord,
-			"city": record.City.Names["en"],
-			"country": record.Country.Names["en"],
-			"isoCode": record.Country.IsoCode,
-		},
-	}
-	bt.client.Publish(event)
-}
-
-func emitStdEvent(bt *Seedallbeat, t time.Time, dig * bctools.DiggedSeedStruct, sum int, tailleReponse int, tailleTest int,ok int, ko int, news int, newsok int, newsko int, pourcentUp float32) {
-		event := beat.Event{
-			Timestamp: t,
-			Fields: common.MapStr{
-				"crypto": dig.Crypto,
-				"seed": dig.Seed,
-				"total": sum,
-				"tailleReponse": tailleReponse,
-				"tailleTest": tailleTest,
-				"live": ok,
-				"dead": ko,
-				"news": news,
-				"newslive": newsok,
-				"newsdead": newsko,
-				"pourcentUp": pourcentUp,
-			},
-		}
-		bt.client.Publish(event)
 }
