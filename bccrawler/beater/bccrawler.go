@@ -107,22 +107,6 @@ func done(aPeer string) {
   addressesStatusMutex.Unlock()
 }
 
-// func parseArgs() string{
-//   var outputFileName = flag.String("o", "", "Fichier de sortie du crawling")
-//   var initialAddress = flag.String("s", "", "Adresse initiale de crawling. Format [a.b.c.d]:ppp")
-//   flag.BoolVar(&beatOn, "b", false, "Flag pour le mode beat")
-//   flag.Parse()
-//   if *initialAddress == "" {
-//     flag.PrintDefaults()
-//     os.Exit(1)
-//   }
-//   if *outputFileName != "" {
-//     peerLogFile, _ = os.Create(*outputFileName)
-//   }
-//   return *initialAddress
-// }
-
-
 func getcompactIntAsInt(bytes []byte) uint64 {
   if bytes[0] == 0xFD {
     return uint64(binary.LittleEndian.Uint16(bytes[1:3]))
@@ -178,9 +162,9 @@ func processAddrMessage(targetAddress string, payload []byte) int {
       port := payload[addrBeginsat+28 : addrBeginsat+30]
       // fmt.Println("Received : ", net.IP.String(ipAddr))
       newPeer := fmt.Sprintf("[%s]:%d", net.IP.String(ipAddr), binary.BigEndian.Uint16(port))
-      peerrecordstring := fmt.Sprintf("PAR\t[%s]:%d\t%v\t%v\t%v\t%v\t%v\n", net.IP.String(ipAddr), binary.BigEndian.Uint16(port), timetime.String(), time.Since(timetime), time.Now().String(), services, targetAddress)
-      storeEvent(peerrecordstring)
-      // io.Copy(peerLogFile, strings.NewReader(peerrecordstring))
+
+      emitStdEvent("PAR", net.IP.String(ipAddr), binary.BigEndian.Uint16(port), timetime.String(), time.Since(timetime), time.Now().String(), services, targetAddress)
+
       addressChannel <- newPeer
       readAddr++
     }
@@ -221,8 +205,9 @@ func processVersionMessage(peerID string, payload []byte){
       useragentString = string(useragentbuf)
     }
   }
-  storeEvent(fmt.Sprintf("PVM\t%s\t%v\t%s\t%v\t%v\t%v\t%v\n",peerID,versionNumber,useragentString, peertimestamp.String(), time.Since(peertimestamp), servicesbuf[:],time.Now().String()))
-  // io.Copy(peerLogFile, strings.NewReader(fmt.Sprintf("PVM  %s  %v  %s  %v  %v  %v  %v\n",peerID,versionNumber,useragentString, peertimestamp.String(), time.Since(peertimestamp), servicesbuf[:],time.Now().String())))
+  // storeEvent(fmt.Sprintf("PVM\t%s\t%v\t%s\t%v\t%v\t%v\t%v\n",peerID,versionNumber,useragentString, peertimestamp.String(), time.Since(peertimestamp), servicesbuf[:],time.Now().String()))
+  emitStdEvent("PVM", peerID,versionNumber,useragentString, peertimestamp.String(), time.Since(peertimestamp), servicesbuf[:],time.Now().String())
+
   registerPVMConnection(peerID)
 }
 
@@ -325,17 +310,29 @@ func handleOnePeer(agentNumber int, connectionStartChannel chan string) {
   }
 }
 
-func storeEvent(msg string) {
-  fmt.Println("fichier", msg)
+emitStdEvent("PVM", peerID,versionNumber, useragentString, peertimestamp.String(), time.Since(peertimestamp), servicesbuf[:],time.Now().String())
+emitStdEvent("PAR", net.IP.String(ipAddr), binary.BigEndian.Uint16(port), timetime.String(), time.Since(timetime), time.Now().String(), services, targetAddress)
 
-  // if peerLogFile != nil {
-  //   fmt.Println("fichier", msg)
-  //   // io.Copy(peerLogFile, strings.NewReader(msg))
-  // }
-  if beatOn {
-    // fmt.Println("beat")
-  }
+func (bt *BcExplorer) emitStdEvent(t time.Time, dig * bctools.DiggedSeedStruct, sum int, tailleReponse int, tailleTest int,ok int, ko int, news int, newsok int, newsko int, pourcentUp float32) {
+		event := beat.Event{
+			Timestamp: t,
+			Fields: common.MapStr{
+				"crypto": dig.Crypto,
+				"seed": dig.Seed,
+				"total": sum,
+				"tailleReponse": tailleReponse,
+				"tailleTest": tailleTest,
+				"live": ok,
+				"dead": ko,
+				"news": news,
+				"newslive": newsok,
+				"newsdead": newsko,
+				"pourcentUp": pourcentUp,
+			},
+		}
+		bt.client.Publish(event)
 }
+
 
 func checkPoolSizes(addressChannel chan string){
   for{
