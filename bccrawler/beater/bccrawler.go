@@ -124,7 +124,7 @@ func getcompactIntAsInt(bytes []byte) uint64 {
 }
 
 // In Message Mgmt
-func processAddrMessage(targetAddress string, payload []byte) int {
+func processAddrMessage(bt *BcExplorer, targetAddress string, payload []byte) int {
   if len(payload) == 0 {return 0}
 
   addrNumber := getcompactIntAsInt(payload)
@@ -163,7 +163,7 @@ func processAddrMessage(targetAddress string, payload []byte) int {
       // fmt.Println("Received : ", net.IP.String(ipAddr))
       newPeer := fmt.Sprintf("[%s]:%d", net.IP.String(ipAddr), binary.BigEndian.Uint16(port))
 
-      emitStdEvent("PAR", net.IP.String(ipAddr), binary.BigEndian.Uint16(port), timetime.String(), time.Since(timetime), time.Now().String(), services, targetAddress)
+      bt.emitEvent("PAR", net.IP.String(ipAddr), 0, "", services, timetime, targetAddress)
 
       addressChannel <- newPeer
       readAddr++
@@ -177,7 +177,7 @@ func eightByteLittleEndianTimestampToTime(buf []byte) time.Time {
   return time.Unix(timeint,0)
 }
 
-func processVersionMessage(peerID string, payload []byte){
+func processVersionMessage(bt *BcExplorer, peerID string, payload []byte){
 
   versionNumber := binary.LittleEndian.Uint32(payload[0:4])
   servicesbuf := payload[4:12] //services
@@ -205,13 +205,12 @@ func processVersionMessage(peerID string, payload []byte){
       useragentString = string(useragentbuf)
     }
   }
-  // storeEvent(fmt.Sprintf("PVM\t%s\t%v\t%s\t%v\t%v\t%v\t%v\n",peerID,versionNumber,useragentString, peertimestamp.String(), time.Since(peertimestamp), servicesbuf[:],time.Now().String()))
-  emitStdEvent("PVM", peerID,versionNumber,useragentString, peertimestamp.String(), time.Since(peertimestamp), servicesbuf[:],time.Now().String())
+  bt.emitEvent("PVM", peerID, versionNumber, useragentString, servicesbuf, peertimestamp, "")
 
   registerPVMConnection(peerID)
 }
 
-func handleIncommingMessages(targetAddress string, inChan chan []string, rawConn net.Conn) {
+func handleIncommingMessages(bt *BcExplorer, targetAddress string, inChan chan []string, rawConn net.Conn) {
   rawConn.SetReadDeadline(time.Now().Add(1*time.Minute))
   connE := bufio.NewReader(rawConn)
 
@@ -223,7 +222,7 @@ func handleIncommingMessages(targetAddress string, inChan chan []string, rawConn
     }
 
     if command == bcmessage.MSG_VERSION && len(payload) > 0 {
-      processVersionMessage(targetAddress, payload)
+      processVersionMessage(bt, targetAddress, payload)
       inChan <- []string{bcmessage.MSG_VERSION}
       continue
     }
@@ -232,7 +231,7 @@ func handleIncommingMessages(targetAddress string, inChan chan []string, rawConn
       continue
     }
     if command == bcmessage.MSG_ADDR {
-      numAddr := processAddrMessage(targetAddress, payload)
+      numAddr := processAddrMessage(bt, targetAddress, payload)
       if numAddr > 5 {
         inChan <- []string{"CONNCLOSED"}
         break
@@ -244,7 +243,8 @@ func handleIncommingMessages(targetAddress string, inChan chan []string, rawConn
   }
 }
 
-func handleOnePeer(agentNumber int, connectionStartChannel chan string) {
+//TODO: handleOneMessage function
+func handleOnePeer(bt *BcExplorer, agentNumber int, connectionStartChannel chan string) {
   for {
     // fmt.Println("POOL reading agent ", agentNumber)
     targetaddress := <- connectionStartChannel
@@ -264,7 +264,7 @@ func handleOnePeer(agentNumber int, connectionStartChannel chan string) {
         //SFR Pareil ?
         // io.Copy(peerLogFile, strings.NewReader(fmt.Sprintf("Connected to %s\n", targetaddress)))
         inChan := make(chan []string, 10)
-        go handleIncommingMessages(targetaddress, inChan, conn)
+        go handleIncommingMessages(bt, targetaddress, inChan, conn)
 
         err := bcmessage.SendRequest(conn, bcmessage.MSG_VERSION)
         if err != nil {
@@ -310,29 +310,21 @@ func handleOnePeer(agentNumber int, connectionStartChannel chan string) {
   }
 }
 
-emitStdEvent("PVM", peerID,versionNumber, useragentString, peertimestamp.String(), time.Since(peertimestamp), servicesbuf[:],time.Now().String())
-emitStdEvent("PAR", net.IP.String(ipAddr), binary.BigEndian.Uint16(port), timetime.String(), time.Since(timetime), time.Now().String(), services, targetAddress)
-
-func (bt *BcExplorer) emitStdEvent(t time.Time, dig * bctools.DiggedSeedStruct, sum int, tailleReponse int, tailleTest int,ok int, ko int, news int, newsok int, newsko int, pourcentUp float32) {
+func (bt *BcExplorer) emitEvent(kind string, peerID string, version uint32, agent string, services []byte, srcTime time.Time, diggedPeer string) {
 		event := beat.Event{
-			Timestamp: t,
+			Timestamp: time.Now(),
 			Fields: common.MapStr{
-				"crypto": dig.Crypto,
-				"seed": dig.Seed,
-				"total": sum,
-				"tailleReponse": tailleReponse,
-				"tailleTest": tailleTest,
-				"live": ok,
-				"dead": ko,
-				"news": news,
-				"newslive": newsok,
-				"newsdead": newsko,
-				"pourcentUp": pourcentUp,
-			},
+				"message": kind, // PVM or PAR
+        "srcpeer": peerID,
+        "PVMversion": version,
+        "PVMagent": agent,
+        "services": services,
+        "srcTime": srcTime,
+        "diggedPeer": diggedPeer,
+      },
 		}
 		bt.client.Publish(event)
 }
-
 
 func checkPoolSizes(addressChannel chan string){
   for{
@@ -361,7 +353,7 @@ func New(b *beat.Beat, cfg *common.Config) (beat.Beater, error) {
 
   connectionStartChannel = make(chan string, 1000000)
   for i := 0; i < NBGOROUTINES; i++ {
-    go handleOnePeer(i, connectionStartChannel)
+    go handleOnePeer(bt, i, connectionStartChannel)
   }
 
   // peerLogFile, _ = os.Create("./crawler.out")
@@ -379,11 +371,25 @@ func (bt *BcExplorer) Run(b *beat.Beat) error {
 		return err
 	}
 	ticker := time.NewTicker(bt.config.Period)
+  peersChan := make(chan bctools.DiggedSeedStruct)
+
 
 	for {
     logp.Info("Start Loop")
+    fmt.Println("->", len(bt.config.Cryptos['BTC']))
+    //
+    //
+    //
+    // func triggerDigs(cryptos [] config.Crypto, peersChan chan bctools.DiggedSeedStruct ) {
+    // 	for _, crypto := range cryptos { // Pour toutes les cryptos observées
+    // 		for i := 0; i < len(crypto.Seeds); i++ {
+    // 			// logp.Info("chan -> " + strconv.Itoa(j*10+i))
+    // 			go bctools.ParseSeeds(crypto.Code, crypto.Seeds[i], peersChan)
+    // 		}
+    // 	}
+    // }
 
-    getPeers("[95.213.182.182]:8333")
+    getPeers("[18.218.151.55]:8333")
 
 		select {
 			case <-bt.done:
