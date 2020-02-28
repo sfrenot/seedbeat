@@ -11,6 +11,7 @@ import (
   "runtime"
   // "io"
   "bufio"
+  "math/rand"
 
   "github.com/elastic/beats/libbeat/beat"
   "github.com/elastic/beats/libbeat/common"
@@ -19,6 +20,7 @@ import (
   "github.com/sfrenot/seedbeat/bccrawler/config"
 
   "github.com/sfrenot/seedbeat/bccrawler/beater/bc/bcmessage"
+  "github.com/sfrenot/seedbeat/bccrawler/beater/bctools"
 
 )
 
@@ -376,20 +378,12 @@ func (bt *BcExplorer) Run(b *beat.Beat) error {
 
 	for {
     logp.Info("Start Loop")
-    fmt.Println("->", len(bt.config.Cryptos['BTC']))
-    //
-    //
-    //
-    // func triggerDigs(cryptos [] config.Crypto, peersChan chan bctools.DiggedSeedStruct ) {
-    // 	for _, crypto := range cryptos { // Pour toutes les cryptos observées
-    // 		for i := 0; i < len(crypto.Seeds); i++ {
-    // 			// logp.Info("chan -> " + strconv.Itoa(j*10+i))
-    // 			go bctools.ParseSeeds(crypto.Code, crypto.Seeds[i], peersChan)
-    // 		}
-    // 	}
-    // }
 
-    getPeers("[18.218.151.55]:8333")
+    go bctools.ParseSeeds("BTC", bt.config.Cryptos[0].Seeds[rand.Intn(len(bt.config.Cryptos[0].Seeds))], peersChan)
+    digResponse := <-peersChan
+
+    //[134.14.143.12]:8333
+    getPeers(fmt.Sprintf("[%s]:%s", digResponse.Peers[rand.Intn(len(digResponse.Peers))], bt.config.Cryptos[0].Port))
 
 		select {
 			case <-bt.done:
@@ -411,11 +405,11 @@ func getPeers(startDig string) {
   for {
     newPeer := <-addressChannel
     if newPeer == DONE { // Finished crawled adress
-      fmt.Println("getPeers::Done")
+      // fmt.Println("getPeers::Done")
       return
     }
     if isWaiting(newPeer) { //Peer Inconnu
-      fmt.Println("Ajout peer", newPeer )
+      // fmt.Println("Ajout peer", newPeer )
       atomic.AddInt32(&addressesToTest, 1)
       connectionStartChannel <- newPeer
     }

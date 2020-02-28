@@ -4,6 +4,7 @@ import (
 	"time"
 	"strings"
 	"net"
+	// "fmt"
 
   // "os"
 	// "log"
@@ -64,6 +65,7 @@ func ParseSeeds(crypto string, seed string, peerResChan chan <- DiggedSeedStruct
 		  }
 		}
 	}
+	// fmt.Println("coucou dig")
 	peerResChan <-DiggedSeedStruct{crypto, seed, peerRes}
 }
 
