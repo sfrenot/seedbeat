@@ -334,7 +334,7 @@ func checkPoolSizes(addressChannel chan string){
     time.Sleep(CHECK_FOR_END_TIMER)
     logp.Info("POOLSIZE ADDR %d GOROUTINES %d\n", addressesToTest, runtime.NumGoroutine())
     if (addressesToTest == 0){
-        logp.Info("POOL Crawling ends : ", time.Now().Sub(startTime))
+        logp.Info("POOL Crawling ends : %v", time.Now().Sub(startTime))
         addressChannel<-DONE
         return
     }
