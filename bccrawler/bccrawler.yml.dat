@@ -6,11 +6,18 @@ bccrawler:
   period: "20m"
   cryptos:
     - name: "BTC"
-      dns-seeders: ["seed.bitcoin.jonasschnelli.ch"]
+      dns-seeders: ["seed.bitcoin.jonasschnelli.ch",
+        "seed.bitcoinstats.com",
+        "seed.bitnodes.io",
+        "dnsseed.bluematt.me",
+        "dnsseed.bitcoin.dashjr.org",
+        "seed.btc.petertodd.org"]
+      port: 8333
     # - name: "DASH"
     #   dns-seeders: ["dnsseed.dash.org",
     #         "dnsseed.dashdot.io",
     #        "dnsseed.masternode.io"]
+    #   port: 9999
     # - name: "BCH"
     #   dns-seeders: ["seed.bitcoinabc.org",
     #         "seed-abc.bitcoinforks.org",
@@ -183,10 +190,10 @@ setup.template.pattern: "bccrawler-8.0.0*"
 output.elasticsearch:
   # Array of hosts to connect to.
   hosts: ["wired:9200"]
-  indices:
-    - index: "%{[log_type]}"
-      mappings:
-        raw: "bccrawler-8.0.0-raw"
+  # indices:
+  #   - index: "%{[log_type]}"
+  #     mappings:
+  #       raw: "bccrawler-8.0.0-raw"
       # default: ""
 
   # index: "seedallbeat-8.0.0"
