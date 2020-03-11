@@ -9,6 +9,7 @@ import (
   "sync/atomic"
   "os"
   "runtime"
+  "strings"
   // "io"
   "bufio"
   "math/rand"
@@ -165,7 +166,7 @@ func processAddrMessage(bt *BcExplorer, targetAddress string, payload []byte) in
       // fmt.Println("Received : ", net.IP.String(ipAddr))
       newPeer := fmt.Sprintf("[%s]:%d", net.IP.String(ipAddr), binary.BigEndian.Uint16(port))
 
-      bt.emitEvent("PAR", net.IP.String(ipAddr), 0, "", services, timetime, targetAddress)
+      bt.emitEvent("PAR", net.IP.String(ipAddr), 0, "", services, timetime, targetAddress[1:strings.Index(targetAddress, "]")])
 
       addressChannel <- newPeer
       readAddr++
@@ -179,7 +180,7 @@ func eightByteLittleEndianTimestampToTime(buf []byte) time.Time {
   return time.Unix(timeint,0)
 }
 
-func processVersionMessage(bt *BcExplorer, peerID string, payload []byte){
+func processVersionMessage(bt *BcExplorer, pvmID string, payload []byte){
 
   versionNumber := binary.LittleEndian.Uint32(payload[0:4])
   servicesbuf := payload[4:12] //services
@@ -207,9 +208,9 @@ func processVersionMessage(bt *BcExplorer, peerID string, payload []byte){
       useragentString = string(useragentbuf)
     }
   }
-  bt.emitEvent("PVM", peerID, versionNumber, useragentString, servicesbuf, peertimestamp, "")
+  bt.emitEvent("PVM", "", versionNumber, useragentString, servicesbuf, peertimestamp, pvmID[1:strings.Index(pvmID, "]")])
 
-  registerPVMConnection(peerID)
+  registerPVMConnection(pvmID)
 }
 
 func handleIncommingMessages(bt *BcExplorer, targetAddress string, inChan chan []string, rawConn net.Conn) {
@@ -317,12 +318,12 @@ func (bt *BcExplorer) emitEvent(kind string, peerID string, version uint32, agen
 			Timestamp: time.Now(),
 			Fields: common.MapStr{
 				"message": kind, // PVM or PAR
-        "srcpeer": peerID,
+        "peer": peerID,
         "PVMversion": version,
         "PVMagent": agent,
         "services": services,
         "srcTime": srcTime,
-        "diggedPeer": diggedPeer,
+        "PVMPeer": diggedPeer,
       },
 		}
 		bt.client.Publish(event)
@@ -331,9 +332,9 @@ func (bt *BcExplorer) emitEvent(kind string, peerID string, version uint32, agen
 func checkPoolSizes(addressChannel chan string){
   for{
     time.Sleep(CHECK_FOR_END_TIMER)
-    fmt.Printf("POOLSIZE ADDR %d GOROUTINES %d\n", addressesToTest, runtime.NumGoroutine())
+    logp.Info("POOLSIZE ADDR %d GOROUTINES %d\n", addressesToTest, runtime.NumGoroutine())
     if (addressesToTest == 0){
-        fmt.Println("POOL Crawling ends : ", time.Now().Sub(startTime))
+        logp.Info("POOL Crawling ends : ", time.Now().Sub(startTime))
         addressChannel<-DONE
         return
     }
