@@ -1,0 +1,271 @@
+################### Seedbeat Configuration Example #########################
+# setup.ilm.enabled: false
+#logging.metrics.enabled: false
+
+seedallbeat:
+  period: 3s
+  cryptos:
+    - name: "BTC"
+      dns-seeders: ["seed.bitcoin.jonasschnelli.ch",
+           "seed.bitcoinstats.com",
+           "seed.bitnodes.io",
+           "dnsseed.bluematt.me",
+           "dnsseed.bitcoin.dashjr.org",
+           "seed.btc.petertodd.org"]
+    - name: "DASH"
+      dns-seeders: ["dnsseed.dash.org",
+            "dnsseed.dashdot.io",
+           "dnsseed.masternode.io"]
+    - name: "BCH"
+      dns-seeders: ["seed.bitcoinabc.org",
+            "seed-abc.bitcoinforks.org",
+            "btccash-seeder.bitcoinunlimited.info",
+            "seed.bitprim.org",
+            "seed.deadalnix.me",
+            "seeder.criptolayer.net"]
+    - name: "BSV"
+      dns-seeders: ["seed.bitcoinsv.io",
+            "seed.cascharia.com",
+            "seed.satoshisvision.network"]
+    - name: "BTG"
+      dns-seeders: ["eu-dnsseed.bitcoingold-official.org",
+            "dnsseed.bitcoingold.org",
+            "dnsseed.bitcoingold.dev"]
+    - name: "BCD"
+      dns-seeders: [
+            "seed1.dns.btcd.io",
+            "seed2.dns.btcd.io",
+            "seed3.dns.btcd.io",
+            "seed4.dns.btcd.io",
+            "seed5.dns.btcd.io",
+            "seed6.dns.btcd.io"]
+    - name: "BCX"
+      dns-seeders: [
+            "seed.bcx.org",
+            "iseed.bcx.info"]
+    - name: "MBC"
+      dns-seeders: [
+            "seed.sman.pw",
+            "seed.microbitcoin.org"]
+    - name: "CLAM"
+      dns-seeders: [
+            "clam.just-dice.com"]
+    - name: "BTX"
+      dns-seeders: ["seed.bitcore.biz",
+          "37.120.190.76",
+          "37.120.186.85",
+          "185.194.140.60",
+          "188.71.223.206",
+          "185.194.142.122"]
+    - name: "BCI"
+      dns-seeders: [
+            "seeder1.bci-server.com",
+            "seeder2.bci-server.com",
+            "seeder3.bci-server.com",
+            "37.16.104.241"]
+    - name: "BCA"
+      dns-seeders: [
+            "seed.bitcoinatom.io",
+            "seed.bitcoin-atom.org",
+            "seed.bitcoinatom.net"]
+    - name: "B2X"
+      dns-seeders: [
+            "node1.b2x-segwit.io",
+            "node2.b2x-segwit.io",
+            "node3.b2x-segwit.io"
+    ]
+    - name: "BTCC"
+      dns-seeders: [
+            "seeder.clashic.cash",
+            "seeder.bitcoincore.zone",
+            "seeder-mainnet.clashic.org"
+    ]
+    - name: "BRECO"
+      dns-seeders: ["dnsseed.bitcoinreferenceline.com"]
+    - name: "CBTC"
+      dns-seeders: [
+            "dnsseed.classicbitcoin.info",
+            "dnsseed.dnsseed.bitclassic.info"
+      ]
+    - name: "XAP"
+      dns-seeders: [
+            "seed.BitcoinAir.io",
+            "seed.BitcoinAir.wkibbler.io",
+            "seed2.BitcoinAir.io",
+            "seed.BitcoinAir.com",
+            "seed.bitcoinair.org"
+      ]
+    - name: "BCRM"
+      dns-seeders: [
+            "dnsseed.bitcoinrm.org",
+            "dnsseedna.bitcoinrm.org",
+            "dnsseedau.bitcoinrm.org",
+            "dnsseedsg.bitcoinrm.org",
+            "dnsseed2.bitcoinrm.org"
+      ]
+    - name: "BSH"
+      dns-seeders: [
+            "dnseed.bstash.org"
+      ]
+    - name: "LTC"
+      dns-seeders: [
+            "seed-a.litecoin.loshan.co.uk",
+             "dnsseed.thrasher.io",
+             "dnsseed.litecointools.com",
+             "dnsseed.litecoinpool.org",
+             "dnsseed.koin-project.com"
+      ]
+    - name: "UBTC"
+      dns-seeders: [
+            "ip.ub.com"
+      ]
+
+
+#================================ General =====================================
+# The name of the shipper that publishes the network data. It can be used to group
+# all the transactions sent by a single shipper in the web interface.
+#name:
+
+# The tags of the shipper are included in their own field with each
+# transaction published.
+#tags: ["service-X", "web-tier"]
+
+# Optional fields that you can specify to add additional information to the
+# output.
+#fields:
+#  env: staging
+
+
+#============================== Dashboards =====================================
+# These settings control loading the sample dashboards to the Kibana index. Loading
+# the dashboards is disabled by default and can be enabled either by setting the
+# options here or by using the `setup` command.
+#setup.dashboards.enabled: false
+
+# The URL from where to download the dashboards archive. By default this URL
+# has a value which is computed based on the Beat name and version. For released
+# versions, this URL points to the dashboard archive on the artifacts.elastic.co
+# website.
+#setup.dashboards.url:
+
+#============================== Kibana =====================================
+
+# Starting with Beats version 6.0.0, the dashboards are loaded via the Kibana API.
+# This requires a Kibana endpoint configuration.
+setup.kibana:
+
+  # Kibana Host
+  # Scheme and port can be left out and will be set to the default (http and 5601)
+  # In case you specify and additional path, the scheme is required: http://localhost:5601/path
+  # IPv6 addresses should always be defined as: https://[2001:db8::1]:5601
+  #host: "localhost:5601"
+
+  # Kibana Space ID
+  # ID of the Kibana Space into which the dashboards should be loaded. By default,
+  # the Default Space will be used.
+  #space.id:
+
+#============================= Elastic Cloud ==================================
+
+# These settings simplify using seedallbeat with the Elastic Cloud (https://cloud.elastic.co/).
+
+# The cloud.id setting overwrites the `output.elasticsearch.hosts` and
+# `setup.kibana.host` options.
+# You can find the `cloud.id` in the Elastic Cloud web UI.
+#cloud.id:
+
+# The cloud.auth setting overwrites the `output.elasticsearch.username` and
+# `output.elasticsearch.password` settings. The format is `<user>:<pass>`.
+#cloud.auth:
+
+#================================ Outputs =====================================
+
+# Configure what output to use when sending the data collected by the beat.
+setup.template.name: "seedallbeat"
+setup.template.pattern: "seedallbeat-8.0.0-*"
+
+#-------------------------- Elasticsearch output ------------------------------
+output.elasticsearch:
+  # Array of hosts to connect to.
+  hosts: ["wired:9200"]
+  indices:
+    - index: "%{[log_type]}"
+      mappings:
+        raw: "seedallbeat-8.0.0-raw"
+        syn: "seedallbeat-8.0.0-syn"
+
+  # index: "seedallbeat-8.0.0-%{[fields.log_type]}"
+
+
+  # Configuration 1
+  # - index: "syn-%{+yyyy.MM.dd}"
+  #   when.contains:
+  #     log_type: "syn"
+  # - index: "raw-%{+yyyy.MM.dd}"
+  #   when.contains:
+    #     log_type: "raw"
+
+  # - index: "rawip-%{[{beat_version_key}]}-%{+yyyy.MM.dd}"
+  # indices: ["syn", "rawip"]
+  # index: "seedallbeat-8.0.0-%{[fields.log_type]}"
+
+  # Optional protocol and basic auth credentials.
+  #protocol: "https"
+  username: "elastic"
+  password: ""
+
+#----------------------------- Logstash output --------------------------------
+#output.logstash:
+  # The Logstash hosts
+  #hosts: ["localhost:5044"]
+
+  # Optional SSL. By default is off.
+  # List of root certificates for HTTPS server verifications
+  #ssl.certificate_authorities: ["/etc/pki/root/ca.pem"]
+
+  # Certificate for SSL client authentication
+  #ssl.certificate: "/etc/pki/client/cert.pem"
+
+  # Client Certificate Key
+  #ssl.key: "/etc/pki/client/cert.key"
+
+#================================ Processors =====================================
+
+# Configure processors to enhance or manipulate events generated by the beat.
+
+processors:
+#  - add_host_metadata: ~
+#  - add_cloud_metadata: ~
+
+#================================ Logging =====================================
+
+# Sets log level. The default log level is info.
+# Available log levels are: error, warning, info, debug
+#logging.level: debug
+
+# At debug level, you can selectively enable logging only for some components.
+# To enable all selectors use ["*"]. Examples of other selectors are "beat",
+# "publish", "service".
+#logging.selectors: ["*"]
+
+#============================== Xpack Monitoring ===============================
+# seedallbeat can export internal metrics to a central Elasticsearch monitoring
+# cluster.  This requires xpack monitoring to be enabled in Elasticsearch.  The
+# reporting is disabled by default.
+
+# Set to true to enable the monitoring reporter.
+#monitoring.enabled: false
+
+# Uncomment to send the metrics to Elasticsearch. Most settings from the
+# Elasticsearch output are accepted here as well.
+# Note that the settings should point to your Elasticsearch *monitoring* cluster.
+# Any setting that is not set is automatically inherited from the Elasticsearch
+# output configuration, so if you have the Elasticsearch output configured such
+# that it is pointing to your Elasticsearch monitoring cluster, you can simply
+# uncomment the following line.
+#monitoring.elasticsearch:
+
+#================================= Migration ==================================
+
+# This allows to enable 6.7 migration aliases
+#migration.6_to_7.enabled: true

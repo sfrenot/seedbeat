@@ -1,0 +1,10 @@
+"seedalltestip-8.0.0-raw" :
+{
+  "mappings" : {
+   "properties" : {
+     "geopoint" : {
+      "type" : "geo_point"
+     }
+    }
+  }
+}
