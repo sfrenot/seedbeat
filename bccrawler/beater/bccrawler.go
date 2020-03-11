@@ -25,7 +25,7 @@ import (
 
 )
 
-const NBGOROUTINES = 800
+const NBGOROUTINES = 200
 const CHECK_FOR_END_TIMER = 1* time.Duration(time.Minute)
 
 const DONE = "Done"
@@ -208,7 +208,7 @@ func processVersionMessage(bt *BcExplorer, pvmID string, payload []byte){
       useragentString = string(useragentbuf)
     }
   }
-  bt.emitEvent("PVM", "", versionNumber, useragentString, servicesbuf, peertimestamp, pvmID[1:strings.Index(pvmID, "]")])
+  bt.emitEvent("PVM", "127.0.0.1", versionNumber, useragentString, servicesbuf, peertimestamp, pvmID[1:strings.Index(pvmID, "]")])
 
   registerPVMConnection(pvmID)
 }
@@ -319,7 +319,7 @@ func (bt *BcExplorer) emitEvent(kind string, peerID string, version uint32, agen
 			Fields: common.MapStr{
 				"message": kind, // PVM or PAR
         "peer": peerID,
-        "PVMversion": version,
+        "PVMversion": fmt.Sprint(version),
         "PVMagent": agent,
         "services": services,
         "srcTime": srcTime,

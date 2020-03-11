@@ -1,0 +1,26 @@
+PUT /_template/bccrawler-8.0.0
+{
+    "order" : 1,
+    "index_patterns" : [
+      "bccrawler-8.0.0-*"
+    ],
+    "settings" : {
+      "index" : {
+        "lifecycle" : {
+          "name" : "bccrawler-8.0.0",
+          "rollover_alias" : "bccrawler-8.0.0"
+        }
+      }
+    },
+  "mappings" : {
+   "properties" : {
+     "PVMPeer" : {
+      "type" : "ip"
+     },
+     "peer" : {
+      "type" : "ip"
+     }
+    }
+  },
+    "aliases" : { }
+}
