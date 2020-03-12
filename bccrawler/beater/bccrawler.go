@@ -25,7 +25,7 @@ import (
 
 )
 
-const NBGOROUTINES = 800
+const NBGOROUTINES = 400
 const CHECK_FOR_END_TIMER = 10* time.Duration(time.Minute)
 
 const DONE = "Done"
