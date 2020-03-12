@@ -360,7 +360,6 @@ func New(b *beat.Beat, cfg *common.Config) (beat.Beater, error) {
   }
 
   // peerLogFile, _ = os.Create("./crawler.out")
-
 	return bt, nil
 }
 
@@ -373,26 +372,26 @@ func (bt *BcExplorer) Run(b *beat.Beat) error {
 	if err != nil {
 		return err
 	}
-	ticker := time.NewTicker(bt.config.Period)
+	// ticker := time.NewTicker(bt.config.Period)
   peersChan := make(chan bctools.DiggedSeedStruct)
 
-
 	for {
-    logp.Info("Start Loop")
+    digSrc := bt.config.Cryptos[0].Seeds[rand.Intn(len(bt.config.Cryptos[0].Seeds))]
+    logp.Info("Start Loop %v", digSrc)
 
-    go bctools.ParseSeeds("BTC", bt.config.Cryptos[0].Seeds[rand.Intn(len(bt.config.Cryptos[0].Seeds))], peersChan)
+    go bctools.ParseSeeds("BTC", digSrc , peersChan)
     digResponse := <-peersChan
 
     //[134.14.143.12]:8333
     getPeers(fmt.Sprintf("[%s]:%s", digResponse.Peers[rand.Intn(len(digResponse.Peers))], bt.config.Cryptos[0].Port))
 
-		select {
-			case <-bt.done:
-				return nil
-			case <-ticker.C:
-        startTime = time.Now()
-				logp.Info("Boucler")
-		}
+		// select {
+		// 	case <-bt.done:
+		// 		return nil
+		// 	case <-ticker.C:
+    //     startTime = time.Now()
+		// 		logp.Info("Boucler")
+		// }
 	}
 }
 
@@ -417,9 +416,10 @@ func getPeers(startDig string) {
   }
 }
 
-
 // Stop stops seedbeat.
 func (bt *BcExplorer) Stop() {
+  logp.Info("Boucler")
+
 	bt.client.Close()
 	close(bt.done)
 }
