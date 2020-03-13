@@ -4,6 +4,7 @@
 
 bccrawler:
   period: "20m"
+  nbgoroutines: 200
   cryptos:
     - name: "BTC"
       dns-seeders: ["seed.bitcoin.jonasschnelli.ch",

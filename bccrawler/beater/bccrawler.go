@@ -25,9 +25,6 @@ import (
 
 )
 
-const NBGOROUTINES = 400
-const CHECK_FOR_END_TIMER = 10* time.Duration(time.Minute)
-
 const DONE = "Done"
 
 type BcExplorer struct {
@@ -329,9 +326,9 @@ func (bt *BcExplorer) emitEvent(kind string, peerID string, version uint32, agen
 		bt.client.Publish(event)
 }
 
-func checkPoolSizes(addressChannel chan string){
+func (bt *BcExplorer) checkPoolSizes(addressChannel chan string){
   for{
-    time.Sleep(CHECK_FOR_END_TIMER)
+    time.Sleep(bt.config.CHECK_FOR_END_TIMER)
     logp.Info("POOLSIZE ADDR %d GOROUTINES %d\n", addressesToTest, runtime.NumGoroutine())
     if (addressesToTest == 0){
         logp.Info("POOL Crawling ends : %v", time.Now().Sub(startTime))
@@ -355,7 +352,7 @@ func New(b *beat.Beat, cfg *common.Config) (beat.Beater, error) {
 	}
 
   connectionStartChannel = make(chan string, 1000000)
-  for i := 0; i < NBGOROUTINES; i++ {
+  for i := 0; i < bt.config.NBGOROUTINES; i++ {
     go handleOnePeer(bt, i, connectionStartChannel)
   }
 
@@ -383,7 +380,9 @@ func (bt *BcExplorer) Run(b *beat.Beat) error {
     digResponse := <-peersChan
 
     //[134.14.143.12]:8333
-    getPeers(fmt.Sprintf("[%s]:%s", digResponse.Peers[rand.Intn(len(digResponse.Peers))], bt.config.Cryptos[0].Port))
+    bt.getPeers(fmt.Sprintf("[%s]:%s", digResponse.Peers[rand.Intn(len(digResponse.Peers))], bt.config.Cryptos[0].Port))
+    logp.Info("Sleeping for %v", bt.config.Period)
+    time.Sleep(bt.config.Period)
 
 		// select {
 		// 	case <-bt.done:
@@ -395,12 +394,12 @@ func (bt *BcExplorer) Run(b *beat.Beat) error {
 	}
 }
 
-func getPeers(startDig string) {
+func (bt *BcExplorer) getPeers(startDig string) {
 
   addressChannel = make(chan string, 1000000)
   addressChannel <- startDig
 
-  go checkPoolSizes(addressChannel)
+  go bt.checkPoolSizes(addressChannel)
 
   for {
     newPeer := <-addressChannel
