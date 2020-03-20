@@ -33,12 +33,12 @@ type BcExplorer struct {
 	client beat.Client
 }
 
-var connectionStartChannel chan string
+var connectionStartChannel chan string = make(chan string, 1000000)
 
 var beatOn bool
 
 // var peerLogFile *os.File
-var addressChannel chan string
+var addressChannel chan string = make(chan string, 1000000)
 
 var addressesToTest int32
 var startTime = time.Now()
@@ -66,6 +66,7 @@ var addressesVisited = make(map[string]*peerStatus)
 var addressesStatusMutex sync.Mutex
 
 func isWaiting(aPeer string) bool {
+  //logp.Info("Testing peer, %v", aPeer)
   addressesStatusMutex.Lock()
   peer, found := addressesVisited[aPeer]
   isWaiting := false
@@ -77,6 +78,7 @@ func isWaiting(aPeer string) bool {
     isWaiting = true
   }
   addressesStatusMutex.Unlock()
+  //logp.Info("Waiting %v", isWaiting)
   return isWaiting
 }
 
@@ -152,7 +154,7 @@ func processAddrMessage(bt *BcExplorer, targetAddress string, payload []byte) in
       }
       addrBeginsat := startByte + (30 * readAddr)
       if (addrBeginsat+4) > uint64(len(payload)) {
-        fmt.Println("POOL Error ", readAddr, payload)
+        logp.Info("POOL Error %v %v ", readAddr, payload)
       }
       timefield:=payload[addrBeginsat:addrBeginsat+4]
       timeint := int64(binary.LittleEndian.Uint32(timefield[:]))
@@ -162,10 +164,12 @@ func processAddrMessage(bt *BcExplorer, targetAddress string, payload []byte) in
       port := payload[addrBeginsat+28 : addrBeginsat+30]
       // fmt.Println("Received : ", net.IP.String(ipAddr))
       newPeer := fmt.Sprintf("[%s]:%d", net.IP.String(ipAddr), binary.BigEndian.Uint16(port))
-
-      bt.emitEvent("PAR", net.IP.String(ipAddr), 0, "", services, timetime, targetAddress[1:strings.Index(targetAddress, "]")])
-
-      addressChannel <- newPeer
+      
+      //logp.Info("coucou -> %v", newPeer) 
+      if isWaiting(newPeer){
+        bt.emitEvent("PAR", net.IP.String(ipAddr), 0, "", services, timetime, targetAddress[1:strings.Index(targetAddress, "]")])
+        addressChannel <- newPeer
+      }
       readAddr++
     }
   }
@@ -205,8 +209,9 @@ func processVersionMessage(bt *BcExplorer, pvmID string, payload []byte){
       useragentString = string(useragentbuf)
     }
   }
+  
   bt.emitEvent("PVM", "127.0.0.1", versionNumber, useragentString, servicesbuf, peertimestamp, pvmID[1:strings.Index(pvmID, "]")])
-
+  isWaiting(pvmID)
   registerPVMConnection(pvmID)
 }
 
@@ -244,11 +249,11 @@ func handleIncommingMessages(bt *BcExplorer, targetAddress string, inChan chan [
 }
 
 //TODO: handleOneMessage function
-func handleOnePeer(bt *BcExplorer, agentNumber int, connectionStartChannel chan string) {
+func handleOnePeer(bt *BcExplorer, agentNumber int) {
   for {
     // fmt.Println("POOL reading agent ", agentNumber)
     targetaddress := <- connectionStartChannel
-    // fmt.Println("POOL unlock agent ", agentNumber, targetaddress)
+    //logp.Info("POOL unlock agent %v %v ", agentNumber, targetaddress)
 
     // fmt.Println("Targeting |" + targetaddress + "|")
     conn, err := net.DialTimeout("tcp", targetaddress, time.Duration(600*time.Millisecond))
@@ -300,7 +305,7 @@ func handleOnePeer(bt *BcExplorer, agentNumber int, connectionStartChannel chan 
           done(targetaddress)
           break
         } else {
-          fmt.Println("Bad message", rcvdMessage[0])
+          logp.Info("Bad message %v", rcvdMessage[0])
           os.Exit(1)
         }
       } //For Loop that handles broken bcmessage
@@ -326,10 +331,10 @@ func (bt *BcExplorer) emitEvent(kind string, peerID string, version uint32, agen
 		bt.client.Publish(event)
 }
 
-func (bt *BcExplorer) checkPoolSizes(addressChannel chan string){
+func (bt *BcExplorer) checkPoolSizes(){
   for{
     time.Sleep(bt.config.CHECK_FOR_END_TIMER)
-    logp.Info("POOLSIZE ADDR %d GOROUTINES %d\n", addressesToTest, runtime.NumGoroutine())
+    logp.Info("POOLSIZE ADDR %d GOROUTINES %d", addressesToTest, runtime.NumGoroutine())
     if (addressesToTest == 0){
         logp.Info("POOL Crawling ends : %v", time.Now().Sub(startTime))
         addressChannel<-DONE
@@ -351,9 +356,8 @@ func New(b *beat.Beat, cfg *common.Config) (beat.Beater, error) {
 		config: c,
 	}
 
-  connectionStartChannel = make(chan string, 1000000)
   for i := 0; i < bt.config.NBGOROUTINES; i++ {
-    go handleOnePeer(bt, i, connectionStartChannel)
+    go handleOnePeer(bt, i)
   }
 
   // peerLogFile, _ = os.Create("./crawler.out")
@@ -380,38 +384,30 @@ func (bt *BcExplorer) Run(b *beat.Beat) error {
     digResponse := <-peersChan
 
     //[134.14.143.12]:8333
-    bt.getPeers(fmt.Sprintf("[%s]:%s", digResponse.Peers[rand.Intn(len(digResponse.Peers))], bt.config.Cryptos[0].Port))
-    logp.Info("Sleeping for %v", bt.config.Period)
-    time.Sleep(bt.config.Period)
-
-		// select {
-		// 	case <-bt.done:
-		// 		return nil
-		// 	case <-ticker.C:
-    //     startTime = time.Now()
-		// 		logp.Info("Boucler")
-		// }
-	}
+    if (len(digResponse.Peers)) > 0 {
+      bt.getPeers(fmt.Sprintf("[%s]:%s", digResponse.Peers[rand.Intn(len(digResponse.Peers))], bt.config.Cryptos[0].Port))
+      logp.Info("POOL Sleeping for %v", bt.config.Period)
+      time.Sleep(bt.config.Period)
+    }
+  }
 }
 
 func (bt *BcExplorer) getPeers(startDig string) {
 
-  addressChannel = make(chan string, 1000000)
+  isWaiting(startDig)
   addressChannel <- startDig
 
-  go bt.checkPoolSizes(addressChannel)
+  go bt.checkPoolSizes()
 
   for {
     newPeer := <-addressChannel
     if newPeer == DONE { // Finished crawled adress
       // fmt.Println("getPeers::Done")
+      logp.Info("POOL getPeers :: end")
       return
     }
-    if isWaiting(newPeer) { //Peer Inconnu
-      // fmt.Println("Ajout peer", newPeer )
-      atomic.AddInt32(&addressesToTest, 1)
-      connectionStartChannel <- newPeer
-    }
+    atomic.AddInt32(&addressesToTest, 1)
+    connectionStartChannel <- newPeer
   }
 }
 
