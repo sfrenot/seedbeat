@@ -35,13 +35,12 @@ type BcExplorer struct {
 
 var connectionStartChannel chan string = make(chan string, 1000000)
 
-var beatOn bool
-
 // var peerLogFile *os.File
 var addressChannel chan string = make(chan string, 1000000)
 
 var addressesToTest int32
 var startTime = time.Now()
+var runNumber = 0
 
 // Peer Status Management
 type status int
@@ -319,6 +318,7 @@ func (bt *BcExplorer) emitEvent(kind string, peerID string, version uint32, agen
 		event := beat.Event{
 			Timestamp: time.Now(),
 			Fields: common.MapStr{
+                                "run": runNumber,
 				"message": kind, // PVM or PAR
         "peer": peerID,
         "PVMversion": fmt.Sprint(version),
@@ -365,6 +365,7 @@ func New(b *beat.Beat, cfg *common.Config) (beat.Beater, error) {
 }
 
 func (bt *BcExplorer) Run(b *beat.Beat) error {
+  var runNumber = 0
 	logp.Info("bcExplorer is running! Hit CTRL-C to stop it.")
   // fmt.Printf("->%v", db)
 	var err error
@@ -388,6 +389,7 @@ func (bt *BcExplorer) Run(b *beat.Beat) error {
       bt.getPeers(fmt.Sprintf("[%s]:%s", digResponse.Peers[rand.Intn(len(digResponse.Peers))], bt.config.Cryptos[0].Port))
       logp.Info("POOL Sleeping for %v", bt.config.Period)
       time.Sleep(bt.config.Period)
+      runNumber++
     }
   }
 }
