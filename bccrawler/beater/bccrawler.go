@@ -34,13 +34,11 @@ type BcExplorer struct {
 }
 
 var connectionStartChannel chan string = make(chan string, 1000000)
-
-// var peerLogFile *os.File
 var addressChannel chan string = make(chan string, 1000000)
 
 var addressesToTest int32
 var startTime = time.Now()
-var runNumber = 0
+var runNumber int32
 
 // Peer Status Management
 type status int
@@ -315,6 +313,7 @@ func handleOnePeer(bt *BcExplorer, agentNumber int) {
 }
 
 func (bt *BcExplorer) emitEvent(kind string, peerID string, version uint32, agent string, services []byte, srcTime time.Time, diggedPeer string) {
+       //fmt.Println("->", runNumber)
 		event := beat.Event{
 			Timestamp: time.Now(),
 			Fields: common.MapStr{
@@ -365,7 +364,6 @@ func New(b *beat.Beat, cfg *common.Config) (beat.Beater, error) {
 }
 
 func (bt *BcExplorer) Run(b *beat.Beat) error {
-  var runNumber = 0
 	logp.Info("bcExplorer is running! Hit CTRL-C to stop it.")
   // fmt.Printf("->%v", db)
 	var err error
