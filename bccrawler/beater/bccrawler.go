@@ -59,7 +59,7 @@ type peerStatus struct {
   retries int
 }
 
-var addressesVisited = make(map[string]*peerStatus)
+var addressesVisited map[string]*peerStatus
 var addressesStatusMutex sync.Mutex
 
 func isWaiting(aPeer string) bool {
@@ -364,26 +364,29 @@ func New(b *beat.Beat, cfg *common.Config) (beat.Beater, error) {
 }
 
 func (bt *BcExplorer) Run(b *beat.Beat) error {
-	logp.Info("bcExplorer is running! Hit CTRL-C to stop it.")
+  logp.Info("bcExplorer is running! Hit CTRL-C to stop it.")
   // fmt.Printf("->%v", db)
-	var err error
+  var err error
 
-	bt.client, err = b.Publisher.Connect()
-	if err != nil {
-		return err
-	}
-	// ticker := time.NewTicker(bt.config.Period)
+  bt.client, err = b.Publisher.Connect()
+  if err != nil {
+    return err
+  }
+
+  // ticker := time.NewTicker(bt.config.Period)
   peersChan := make(chan bctools.DiggedSeedStruct)
 
-	for {
+  for {
+    addressesVisited = make(map[string]*peerStatus) 	
     digSrc := bt.config.Cryptos[0].Seeds[rand.Intn(len(bt.config.Cryptos[0].Seeds))]
-    logp.Info("Start Loop %v", digSrc)
+    logp.Info("Start Loop with %v", digSrc)
 
     go bctools.ParseSeeds("BTC", digSrc , peersChan)
     digResponse := <-peersChan
 
     //[134.14.143.12]:8333
     if (len(digResponse.Peers)) > 0 {
+      logp.Info("POOL Run #%v", runNumber)
       bt.getPeers(fmt.Sprintf("[%s]:%s", digResponse.Peers[rand.Intn(len(digResponse.Peers))], bt.config.Cryptos[0].Port))
       logp.Info("POOL Sleeping for %v", bt.config.Period)
       time.Sleep(bt.config.Period)
