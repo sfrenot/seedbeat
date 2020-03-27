@@ -3,8 +3,9 @@
 #logging.metrics.enabled: false
 
 bccrawler:
-  period: "20m"
-  nbgoroutines: 200
+  period: "10s"
+  nbgoroutines: 300
+  checkforendtimer: "10s"
   cryptos:
     - name: "BTC"
       dns-seeders: ["seed.bitcoin.jonasschnelli.ch",
