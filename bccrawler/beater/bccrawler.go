@@ -62,21 +62,23 @@ type peerStatus struct {
 var addressesVisited = make(map[string]*peerStatus)
 var addressesStatusMutex sync.Mutex
 
-func isWaiting(aPeer string) bool {
+func getInfo(aPeer string) (bool, bool) {
   //logp.Info("Testing peer, %v", aPeer)
   addressesStatusMutex.Lock()
   peer, found := addressesVisited[aPeer]
   isWaiting := false
+  isNew := false
   if !found {
     addressesVisited[aPeer] = &peerStatus{Connecting, 0}
     isWaiting = true
+    isNew = true
   } else if peer.status == Waiting {
     addressesVisited[aPeer].status = Connecting
     isWaiting = true
   }
   addressesStatusMutex.Unlock()
   //logp.Info("Waiting %v", isWaiting)
-  return isWaiting
+  return isNew, isWaiting
 }
 
 func registerPVMConnection(aPeer string) {
@@ -161,12 +163,12 @@ func processAddrMessage(bt *BcExplorer, targetAddress string, payload []byte) in
       port := payload[addrBeginsat+28 : addrBeginsat+30]
       // fmt.Println("Received : ", net.IP.String(ipAddr))
       newPeer := fmt.Sprintf("[%s]:%d", net.IP.String(ipAddr), binary.BigEndian.Uint16(port))
-      
-      //logp.Info("coucou -> %v", newPeer) 
-      if isWaiting(newPeer){
-        bt.emitEvent("PAR", net.IP.String(ipAddr), 0, "", services, timetime, targetAddress[1:strings.Index(targetAddress, "]")])
-        addressChannel <- newPeer
-      }
+
+      //logp.Info("coucou -> %v", newPeer)
+      new, waiting := getInfo(newPeer)
+      if new { bt.emitEvent("PAR", net.IP.String(ipAddr), 0, "", services, timetime, targetAddress[1:strings.Index(targetAddress, "]")])}
+      if waiting { addressChannel <- newPeer }
+
       readAddr++
     }
   }
@@ -206,9 +208,9 @@ func processVersionMessage(bt *BcExplorer, pvmID string, payload []byte){
       useragentString = string(useragentbuf)
     }
   }
-  
+
   bt.emitEvent("PVM", "127.0.0.1", versionNumber, useragentString, servicesbuf, peertimestamp, pvmID[1:strings.Index(pvmID, "]")])
-  isWaiting(pvmID)
+  getInfo(pvmID)
   registerPVMConnection(pvmID)
 }
 
@@ -394,7 +396,7 @@ func (bt *BcExplorer) Run(b *beat.Beat) error {
 
 func (bt *BcExplorer) getPeers(startDig string) {
 
-  isWaiting(startDig)
+  getInfo(startDig)
   addressChannel <- startDig
 
   go bt.checkPoolSizes()
