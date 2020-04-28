@@ -166,7 +166,7 @@ func processAddrMessage(bt *BcExplorer, targetAddress string, payload []byte) in
 
       //logp.Info("coucou -> %v", newPeer)
       new, waiting := getInfo(newPeer)
-      if new { bt.emitEvent("PAR", net.IP.String(ipAddr), 0, "", services, timetime, targetAddress[1:strings.Index(targetAddress, "]")])}
+      if bt.config.ParEvent && new { bt.emitEvent("PAR", net.IP.String(ipAddr), 0, "", services, timetime, targetAddress[1:strings.Index(targetAddress, "]")])}
       if waiting { addressChannel <- newPeer }
 
       readAddr++
@@ -319,7 +319,7 @@ func (bt *BcExplorer) emitEvent(kind string, peerID string, version uint32, agen
 		event := beat.Event{
 			Timestamp: time.Now(),
 			Fields: common.MapStr{
-                                "run": runNumber,
+        "run": runNumber,
 				"message": kind, // PVM or PAR
         "peer": peerID,
         "PVMversion": fmt.Sprint(version),
@@ -379,7 +379,7 @@ func (bt *BcExplorer) Run(b *beat.Beat) error {
   peersChan := make(chan bctools.DiggedSeedStruct)
 
   for {
-    addressesVisited = make(map[string]*peerStatus) 	
+    addressesVisited = make(map[string]*peerStatus)
     digSrc := bt.config.Cryptos[0].Seeds[rand.Intn(len(bt.config.Cryptos[0].Seeds))]
     logp.Info("Start Loop with %v", digSrc)
 

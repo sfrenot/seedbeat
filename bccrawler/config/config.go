@@ -13,6 +13,7 @@ type Crypto struct {
 
 type Config struct {
 	Period time.Duration `config:"period"`
+	ParEvent bool `config:"parEvent"`
 	CHECK_FOR_END_TIMER time.Duration `config:"checkforendtimer"`
 	NBGOROUTINES int `config:"nbgoroutines"`
 	Cryptos []Crypto `config:"cryptos"`

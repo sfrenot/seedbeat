@@ -6,6 +6,7 @@ bccrawler:
   period: "10s"
   nbgoroutines: 300
   checkforendtimer: "10s"
+  parEvent: true
   cryptos:
     - name: "BTC"
       dns-seeders: ["seed.bitcoin.jonasschnelli.ch",
