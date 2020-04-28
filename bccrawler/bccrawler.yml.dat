@@ -3,6 +3,7 @@
 #logging.metrics.enabled: false
 
 bccrawler:
+  initialrunnumber: 0
   period: "10s"
   nbgoroutines: 300
   checkforendtimer: "10s"

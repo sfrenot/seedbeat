@@ -334,7 +334,7 @@ func (bt *BcExplorer) emitEvent(kind string, peerID string, version uint32, agen
 
 func (bt *BcExplorer) checkPoolSizes(){
   for{
-    time.Sleep(bt.config.CHECK_FOR_END_TIMER)
+    time.Sleep(bt.config.CheckForEndTimer)
     logp.Info("POOLSIZE ADDR %d GOROUTINES %d", addressesToTest, runtime.NumGoroutine())
     if (addressesToTest == 0){
         logp.Info("POOL Crawling ends : %v", time.Now().Sub(startTime))
@@ -357,7 +357,9 @@ func New(b *beat.Beat, cfg *common.Config) (beat.Beater, error) {
 		config: c,
 	}
 
-  for i := 0; i < bt.config.NBGOROUTINES; i++ {
+  runNumber = bt.config.InitialRunNumber
+
+  for i := 0; i < bt.config.NbGoRoutines; i++ {
     go handleOnePeer(bt, i)
   }
 
