@@ -251,57 +251,58 @@ func handleIncommingMessages(bt *BcExplorer, targetAddress string, inChan chan [
 func handleOnePeer(bt *BcExplorer, agentNumber int) {
   for {
     // fmt.Println("POOL reading agent ", agentNumber)
-    targetaddress := <- connectionStartChannel
-    //logp.Info("POOL unlock agent %v %v ", agentNumber, targetaddress)
+    targetAddress := <- connectionStartChannel
+    if targetAddress == "quit" {return}
+    //logp.Info("POOL unlock agent %v %v ", agentNumber, targetAddress)
 
-    // fmt.Println("Targeting |" + targetaddress + "|")
-    conn, err := net.DialTimeout("tcp", targetaddress, time.Duration(600*time.Millisecond))
+    // fmt.Println("Targeting |" + targetAddress + "|")
+    conn, err := net.DialTimeout("tcp", targetAddress, time.Duration(600*time.Millisecond))
     if err != nil {
-      // fmt.Println("Failed on connect " + targetaddress)
-      retryAddress(targetaddress)
-      // fmt.Println("POOL Failed on connect " + targetaddress + " " + err.Error())
-      // io.Copy(peerLogFile, strings.NewReader(fmt.Sprintf("ERR %s\n", targetaddress)))
+      // fmt.Println("Failed on connect " + targetAddress)
+      retryAddress(targetAddress)
+      // fmt.Println("POOL Failed on connect " + targetAddress + " " + err.Error())
+      // io.Copy(peerLogFile, strings.NewReader(fmt.Sprintf("ERR %s\n", targetAddress)))
     } else {
 
       for {
-        // fmt.Println("Connected to " + targetaddress)
+        // fmt.Println("Connected to " + targetAddress)
         //SFR Pareil ?
-        // io.Copy(peerLogFile, strings.NewReader(fmt.Sprintf("Connected to %s\n", targetaddress)))
+        // io.Copy(peerLogFile, strings.NewReader(fmt.Sprintf("Connected to %s\n", targetAddress)))
         inChan := make(chan []string, 10)
-        go handleIncommingMessages(bt, targetaddress, inChan, conn)
+        go handleIncommingMessages(bt, targetAddress, inChan, conn)
 
         err := bcmessage.SendRequest(conn, bcmessage.MSG_VERSION)
         if err != nil {
-          fail(targetaddress)
+          fail(targetAddress)
           break
         }
         rcvdMessage := <-inChan
         if rcvdMessage[0] != bcmessage.MSG_VERSION {
           // fmt.Println("Version Ack not received", rcvdMessage[0])
-          fail(targetaddress)
+          fail(targetAddress)
           break
         }
 
         err = bcmessage.SendRequest(conn, bcmessage.MSG_VERSION_ACK)
         if err != nil {
-          fail(targetaddress)
+          fail(targetAddress)
           break
         }
         rcvdMessage = <-inChan
         if rcvdMessage[0] != bcmessage.MSG_VERSION_ACK {
           // fmt.Println("Version AckAck not received")
-          fail(targetaddress)
+          fail(targetAddress)
           break
         }
 
         err = bcmessage.SendRequest(conn, bcmessage.MSG_GETADDR)
         if err != nil {
-          fail(targetaddress)
+          fail(targetAddress)
           break
         }
         rcvdMessage = <-inChan
         if rcvdMessage[0] == "CONNCLOSED" {
-          done(targetaddress)
+          done(targetAddress)
           break
         } else {
           logp.Info("Bad message %v", rcvdMessage[0])
@@ -346,7 +347,7 @@ func (bt *BcExplorer) checkPoolSizes(){
 
 // Beat
 func New(b *beat.Beat, cfg *common.Config) (beat.Beater, error) {
-	// var err error
+  fmt.Println("->", runtime.NumGoroutine())
 
 	c := config.DefaultConfig
 	if err := cfg.Unpack(&c); err != nil {
@@ -363,38 +364,42 @@ func New(b *beat.Beat, cfg *common.Config) (beat.Beater, error) {
     go handleOnePeer(bt, i)
   }
 
-  // peerLogFile, _ = os.Create("./crawler.out")
+  var err error
+  bt.client, err = b.Publisher.Connect()
+  if err != nil {
+    return nil, fmt.Errorf("Erreur connexion au publisher : %v", err)
+  }
+
+
 	return bt, nil
 }
 
 func (bt *BcExplorer) Run(b *beat.Beat) error {
+
   logp.Info("bcExplorer is running! Hit CTRL-C to stop it.")
-  // fmt.Printf("->%v", db)
-  var err error
-
-  bt.client, err = b.Publisher.Connect()
-  if err != nil {
-    return err
-  }
-
-  // ticker := time.NewTicker(bt.config.Period)
-  peersChan := make(chan bctools.DiggedSeedStruct)
 
   for {
     addressesVisited = make(map[string]*peerStatus)
-    digSrc := bt.config.Cryptos[0].Seeds[rand.Intn(len(bt.config.Cryptos[0].Seeds))]
-    logp.Info("Start Loop with %v", digSrc)
 
+    // Récupération d'une adresse d'initialisation
+    digSrc := bt.config.Cryptos[0].Seeds[rand.Intn(len(bt.config.Cryptos[0].Seeds))]
+    peersChan := make(chan bctools.DiggedSeedStruct)
     go bctools.ParseSeeds("BTC", digSrc , peersChan)
     digResponse := <-peersChan
 
-    //[134.14.143.12]:8333
+    // ex: [134.14.143.12]:8333
     if (len(digResponse.Peers)) > 0 {
-      logp.Info("POOL Run #%v", runNumber)
+      logp.Info("Start Loop with %v, %d routines, run #%v", digSrc, runtime.NumGoroutine(), runNumber)
+
       bt.getPeers(fmt.Sprintf("[%s]:%s", digResponse.Peers[rand.Intn(len(digResponse.Peers))], bt.config.Cryptos[0].Port))
       logp.Info("POOL Sleeping for %v", bt.config.Period)
-      time.Sleep(bt.config.Period)
-      runNumber++
+      ticker := time.NewTicker(bt.config.Period)
+      select {
+        case <-bt.done:
+          return nil
+        case <-ticker.C:
+          runNumber++
+        }
     }
   }
 }
@@ -420,8 +425,12 @@ func (bt *BcExplorer) getPeers(startDig string) {
 
 // Stop stops seedbeat.
 func (bt *BcExplorer) Stop() {
-  logp.Info("Boucler")
+  logp.Info("Arrêt avant, il reste %d routine", runtime.NumGoroutine())
+  addressChannel<-DONE
+  for i := 0; i < bt.config.NbGoRoutines; i++ {
+    connectionStartChannel <- "quit"
+  }
 
-	bt.client.Close()
+  bt.client.Close()
 	close(bt.done)
 }

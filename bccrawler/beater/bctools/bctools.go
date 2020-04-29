@@ -65,7 +65,7 @@ func ParseSeeds(crypto string, seed string, peerResChan chan <- DiggedSeedStruct
 		}
 	}
 	// fmt.Println("coucou dig")
-	peerResChan <-DiggedSeedStruct{crypto, seed, peerRes}
+	peerResChan <- DiggedSeedStruct{crypto, seed, peerRes}
 }
 
 func PeerTester(peer string, port string, isNew bool, peerTest chan <- PeerTestStruct){
