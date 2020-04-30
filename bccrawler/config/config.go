@@ -9,6 +9,7 @@ type Crypto struct {
 	Seeds []string `config:"dns-seeders"`
 	Code string `config:"name"`
 	Port string `config:"port"`
+	Magic []byte `config:"magic"`
 }
 
 type Config struct {
@@ -18,6 +19,7 @@ type Config struct {
 	NbGoRoutines int `config:"nbgoroutines"`
 	Cryptos []Crypto `config:"cryptos"`
 	InitialRunNumber int32 `config:"initialrunnumber"`
+	ObservedCrypto uint8 `config:"observedcrypto"`
 }
 
 var DefaultConfig = Config{

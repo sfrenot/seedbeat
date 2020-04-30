@@ -3,6 +3,7 @@
 #logging.metrics.enabled: false
 
 bccrawler:
+  observedcrypto: 1    # Which crypto number should we observe (0 -> BTC, 1 -> BSV, see below)
   initialrunnumber: 0
   period: "10s"
   nbgoroutines: 300
@@ -17,6 +18,7 @@ bccrawler:
         "dnsseed.bitcoin.dashjr.org",
         "seed.btc.petertodd.org"]
       port: 8333
+      magic: [ 0xF9, 0xBE, 0xB4, 0xD9 ]
     # - name: "DASH"
     #   dns-seeders: ["dnsseed.dash.org",
     #         "dnsseed.dashdot.io",

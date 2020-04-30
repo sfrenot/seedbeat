@@ -370,6 +370,7 @@ func New(b *beat.Beat, cfg *common.Config) (beat.Beater, error) {
     return nil, fmt.Errorf("Erreur connexion au publisher : %v", err)
   }
 
+  bcmessage.SetMagic(bt.config.Cryptos[bt.config.ObservedCrypto].Magic)
 
 	return bt, nil
 }
@@ -382,16 +383,15 @@ func (bt *BcExplorer) Run(b *beat.Beat) error {
     addressesVisited = make(map[string]*peerStatus)
 
     // Récupération d'une adresse d'initialisation
-    digSrc := bt.config.Cryptos[0].Seeds[rand.Intn(len(bt.config.Cryptos[0].Seeds))]
+    digSrc := bt.config.Cryptos[bt.config.ObservedCrypto].Seeds[rand.Intn(len(bt.config.Cryptos[bt.config.ObservedCrypto].Seeds))]
     peersChan := make(chan bctools.DiggedSeedStruct)
-    go bctools.ParseSeeds("BTC", digSrc , peersChan)
+    go bctools.ParseSeeds(bt.config.Cryptos[bt.config.ObservedCrypto].Code, digSrc , peersChan)
     digResponse := <-peersChan
 
     // ex: [134.14.143.12]:8333
     if (len(digResponse.Peers)) > 0 {
       logp.Info("Start Loop with %v, %d routines, run #%v", digSrc, runtime.NumGoroutine(), runNumber)
-
-      bt.getPeers(fmt.Sprintf("[%s]:%s", digResponse.Peers[rand.Intn(len(digResponse.Peers))], bt.config.Cryptos[0].Port))
+      bt.getPeers(fmt.Sprintf("[%s]:%s", digResponse.Peers[rand.Intn(len(digResponse.Peers))], bt.config.Cryptos[bt.config.ObservedCrypto].Port))
       logp.Info("POOL Sleeping for %v", bt.config.Period)
       ticker := time.NewTicker(bt.config.Period)
       select {

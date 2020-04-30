@@ -8,7 +8,7 @@ import "crypto/sha256"
 import "io"
 // import "os"
 
-var magic = []byte{0xF9, 0xBE, 0xB4, 0xD9}
+var magic [] byte
 
 var templateVersionMessagePayLoad [105] byte
 
@@ -64,6 +64,10 @@ func init() {
     templateVersionMessagePayLoad[i] = val
   }
 
+}
+
+func SetMagic(lmagic [] byte) {
+  magic = lmagic
 }
 
 // TOP Functions :
