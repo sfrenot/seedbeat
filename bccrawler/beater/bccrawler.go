@@ -257,6 +257,7 @@ func handleOnePeer(bt *BcExplorer, agentNumber int) {
 
     // fmt.Println("Targeting |" + targetAddress + "|")
     conn, err := net.DialTimeout("tcp", targetAddress, time.Duration(600*time.Millisecond))
+    // fmt.Println("conn", conn)
     if err != nil {
       // fmt.Println("Failed on connect " + targetAddress)
       retryAddress(targetAddress)
@@ -328,6 +329,7 @@ func (bt *BcExplorer) emitEvent(kind string, peerID string, version uint32, agen
         "services": services,
         "srcTime": srcTime,
         "PVMPeer": diggedPeer,
+        "Crypto": bt.config.Cryptos[bt.config.ObservedCrypto].Code,
       },
 		}
 		bt.client.Publish(event)
@@ -347,7 +349,7 @@ func (bt *BcExplorer) checkPoolSizes(){
 
 // Beat
 func New(b *beat.Beat, cfg *common.Config) (beat.Beater, error) {
-  fmt.Println("->", runtime.NumGoroutine())
+  // fmt.Println("->", runtime.NumGoroutine())
 
 	c := config.DefaultConfig
 	if err := cfg.Unpack(&c); err != nil {
@@ -405,6 +407,7 @@ func (bt *BcExplorer) Run(b *beat.Beat) error {
 }
 
 func (bt *BcExplorer) getPeers(startDig string) {
+  // fmt.Println("->", startDig)
 
   getInfo(startDig)
   addressChannel <- startDig
@@ -425,7 +428,7 @@ func (bt *BcExplorer) getPeers(startDig string) {
 
 // Stop stops seedbeat.
 func (bt *BcExplorer) Stop() {
-  logp.Info("Arrêt avant, il reste %d routine", runtime.NumGoroutine())
+  // logp.Info("Arrêt avant, il reste %d routine", runtime.NumGoroutine())
   addressChannel<-DONE
   for i := 0; i < bt.config.NbGoRoutines; i++ {
     connectionStartChannel <- "quit"

@@ -18,7 +18,7 @@ bccrawler:
         "dnsseed.bitcoin.dashjr.org",
         "seed.btc.petertodd.org"]
       port: 8333
-      magic: [ 0xF9, 0xBE, 0xB4, 0xD9 ]
+      magic: [ 0xF9, 0xBE, 0xB4, 0xD9 ] # 0xD9B4BEF9
     # - name: "DASH"
     #   dns-seeders: ["dnsseed.dash.org",
     #         "dnsseed.dashdot.io",
@@ -31,10 +31,12 @@ bccrawler:
     #         "seed.bitprim.org",
     #         "seed.deadalnix.me",
     #         "seeder.criptolayer.net"]
-    # - name: "BSV"
-    #   dns-seeders: ["seed.bitcoinsv.io",
-    #         "seed.cascharia.com",
-    #         "seed.satoshisvision.network"]
+      - name: "BSV"
+        dns-seeders: ["seed.bitcoinsv.io",
+              "seed.cascharia.com",
+              "seed.satoshisvision.network"]
+        magic: [ 0xF9, 0xBE, 0xB4, 0xD9 ] #0xd9b4bef9
+        port: 8333
     # - name: "BTG"
     #   dns-seeders: ["eu-dnsseed.bitcoingold-official.org",
     #         "dnsseed.bitcoingold.org",
