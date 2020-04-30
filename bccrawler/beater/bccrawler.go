@@ -61,6 +61,7 @@ type peerStatus struct {
 
 var addressesVisited map[string]*peerStatus
 var addressesStatusMutex sync.Mutex
+var crawlHappened bool // Indicates whether a trial found peers
 
 func getInfo(aPeer string) (bool, bool) {
   //logp.Info("Testing peer, %v", aPeer)
@@ -339,6 +340,9 @@ func (bt *BcExplorer) checkPoolSizes(){
   for{
     time.Sleep(bt.config.CheckForEndTimer)
     logp.Info("POOLSIZE ADDR %d GOROUTINES %d", addressesToTest, runtime.NumGoroutine())
+    if !crawlHappened && addressesToTest > 5 {
+      crawlHappened = true
+    }
     if (addressesToTest == 0){
         logp.Info("POOL Crawling ends : %v", time.Now().Sub(startTime))
         addressChannel<-DONE
@@ -382,6 +386,7 @@ func (bt *BcExplorer) Run(b *beat.Beat) error {
   logp.Info("bcExplorer is running! Hit CTRL-C to stop it.")
 
   for {
+    crawlHappened = false
     addressesVisited = make(map[string]*peerStatus)
 
     // Récupération d'une adresse d'initialisation
@@ -394,8 +399,10 @@ func (bt *BcExplorer) Run(b *beat.Beat) error {
     if (len(digResponse.Peers)) > 0 {
       logp.Info("Start Loop with %v, %d routines, run #%v", digSrc, runtime.NumGoroutine(), runNumber)
       bt.getPeers(fmt.Sprintf("[%s]:%s", digResponse.Peers[rand.Intn(len(digResponse.Peers))], bt.config.Cryptos[bt.config.ObservedCrypto].Port))
-      logp.Info("POOL Sleeping for %v", bt.config.Period)
-      ticker := time.NewTicker(bt.config.Period)
+      wait, _ := time.ParseDuration("2s")
+      if crawlHappened { wait = bt.config.Period }
+      logp.Info("POOL Sleeping for %v", wait)
+      ticker := time.NewTicker(wait)
       select {
         case <-bt.done:
           return nil
