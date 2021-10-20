@@ -422,7 +422,7 @@ func (bt *BcExplorer) getPeers(startDig string) {
   go bt.checkPoolSizes()
 
   for {
-    newPeer := <-addressChannel
+    newPeer := <- addressChannel
     if newPeer == DONE { // Finished crawled adress
       // fmt.Println("getPeers::Done")
       logp.Info("POOL getPeers :: end")

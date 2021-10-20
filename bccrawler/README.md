@@ -1,3 +1,17 @@
+# Lancement
+
+Elastic -> /Volumes/Macintosh HD2/elasticsearch-7.2.0/bin -> elastic
+Kibana -> /Volumes/Macintosh HD2/kibana -> sudo kibana --allow-root
+
+BTC, BCH, BSV, 
+
+cd repertoire correspondant
+lancement 
+
+
+
+
+
 # Seedallbeat
 
 Welcome to Seedallbeat.
