@@ -26,7 +26,6 @@ struct PeerLogger {
     out_stream: Box<dyn Write + Send>
 }
 
-
 impl PeerLogger {
     fn new() -> PeerLogger {
         let default_logger = PeerLogger {
@@ -95,11 +94,11 @@ const PORT_FIELD_END:usize= 30;
 
 const MILLISECONDS_TIMEOUT: u64 =600;
 
-const NEIGHBOURS: u64 = 5;
+const NEIGHBOURS: u64 = 1000;
 
 const ADDRESSES_RECEIVED_THRESHOLD: u64 = 5;
 
-
+static mut nb_addr: u32 = 0;
 
 #[derive(Debug)]
 #[derive(PartialEq)]
@@ -133,23 +132,23 @@ fn peer_status(status: Status) -> PeerStatus{
 fn is_waiting(a_peer: String) -> bool {
 
     let mut address_visited = ADRESSES_VISITED.lock().unwrap();
-    let test = a_peer.clone();
     // println!("Before {:?}", address_visited);
     let mut is_waiting = false;
     if !address_visited.contains_key(&a_peer) {
         address_visited.insert(a_peer, peer_status(Status::Connecting));
         is_waiting = true
-    } else {
-        let peer = address_visited.get(&a_peer).unwrap();
-        if peer.status == Status::Waiting{
-            let retries:i32 = peer.retries;
-            address_visited.insert(a_peer, generate_peer_status(Status::Connecting, retries));
-            is_waiting = true
-        }
     }
+    // } else {
+    //     let peer = address_visited.get(&a_peer).unwrap();
+    //     if peer.status == Status::Waiting{
+    //         let retries:i32 = peer.retries;
+    //         address_visited.insert(a_peer, generate_peer_status(Status::Connecting, retries));
+    //         is_waiting = true
+    //     }
+    // }
     // println!("After {:?}, recherche : {}:{}", address_visited, test, is_waiting);
     std::mem::drop(address_visited);
-    return is_waiting
+    is_waiting
 }
 
 fn fail(a_peer :String){
@@ -174,6 +173,24 @@ fn get_connected_peers() -> u64 {
     }
     std::mem::drop(address_status);
     return successful_peer as u64;
+}
+
+fn get_peer_status() {
+    let mut done = 0;
+    let mut fail = 0;
+    let mut other = 0;
+    let address_status  = ADRESSES_VISITED.lock().unwrap();
+    for (_, peer_status) in address_status.iter(){
+        if peer_status.status == Status::Done {
+            done += 1;
+        } else if peer_status.status == Status::Failed {
+            fail += 1;
+        } else {
+            other+=1;
+        }
+    }
+    eprintln!("total: {}, Other: {}, Done: {}, Fail: {}", address_status.len(), other, done, fail);
+    std::mem::drop(address_status);
 }
 
 fn get_new_peers_size() -> u64 {
@@ -255,14 +272,13 @@ fn parse_args() -> String {
 fn store_event(msg :&String){
     let beat = BEAT.lock().unwrap();
     if *beat {
-        print!("beat\n");
+        println!("beat\n");
         return;
     }
 
     let mut guard = PEER_LOG_FILE.lock().unwrap();
     guard.log(msg.as_str());
     drop(guard);
-
 }
 
 fn get_compact_int(payload: &Vec<u8>) -> u64 {
@@ -342,9 +358,8 @@ fn process_version_message( target_address: String, payload: &Vec<u8>){
 fn read_addresses(target_address: String, payload: Vec<u8>, address_channel: Sender<String>, addr_number: u64){
 
     let start_byte = get_start_byte(& (addr_number as usize));
-
     let mut read_addr = 0 ;
-
+    let mut new_addr = 0;
     while read_addr < addr_number {
 
         let addr_begins_at = start_byte + (ADDRESS_LEN * read_addr as usize);
@@ -360,29 +375,30 @@ fn read_addresses(target_address: String, payload: Vec<u8>, address_channel: Sen
         array_v4.copy_from_slice(&ip_addr_field[12..]);
         let ip_v4 = IpAddr::from(array_v4);
 
-
         let mut port_field = Cursor::new(payload[addr_begins_at+ IP_FIELD_END..addr_begins_at+ PORT_FIELD_END].to_vec());
         let port = port_field.read_u16::<BigEndian>().unwrap();
 
-        let mut msg:String  = String::new();
-        msg.push_str(format!("PAR address: {:?}\n", ip_v4).as_str());
-        // msg.push_str(format!("PAR address= [ {:?} = {:?}, {:?} = {:?} ]    ", ip_v4, lookup_addr(&ip_v4).unwrap(),  ip_v6, lookup_addr(&ip_v6).unwrap()).as_str());
-        // msg.push_str(format!("port = {:?}   ", port).as_str());
-        // msg.push_str(format!("time = {}  ", date_time.format("%Y-%m-%d %H:%M:%S")).as_str());
-        // msg.push_str(format!("now = {}  ", Into::<DateTime<Utc>>::into(SystemTime::now()).format("%Y-%m-%d %H:%M:%S")).as_str());
-        // msg.push_str(format!("since = {:?}  ",SystemTime::now().duration_since(SystemTime::from(date_time)).unwrap_or_default() ).as_str());
-        // msg.push_str(format!("services = {:?}     ", services ).as_str());
-        // msg.push_str(format!("target address = {}\n", target_address ).as_str());
-
         let new_peer : String = format!("{}:{:?}", ip_v4, port);
-        // println!(" {} -> new peer {} ",target_address, new_peer);
-        address_channel.send(new_peer).unwrap();
+        if is_waiting(new_peer.clone()){
+            new_addr += 1;
 
-        store_event( & msg);
+            let mut msg:String  = String::new();
+            msg.push_str(format!("PAR address: {:?}", ip_v4).as_str());
+            // msg.push_str(format!("PAR address= [ {:?} = {:?}, {:?} = {:?} ]    ", ip_v4, lookup_addr(&ip_v4).unwrap(),  ip_v6, lookup_addr(&ip_v6).unwrap()).as_str());
+            msg.push_str(format!("port = {:?}\n", port).as_str());
+            // msg.push_str(format!("time = {}  ", date_time.format("%Y-%m-%d %H:%M:%S")).as_str());
+            // msg.push_str(format!("now = {}  ", Into::<DateTime<Utc>>::into(SystemTime::now()).format("%Y-%m-%d %H:%M:%S")).as_str());
+            // msg.push_str(format!("since = {:?}  ",SystemTime::now().duration_since(SystemTime::from(date_time)).unwrap_or_default() ).as_str());
+            // msg.push_str(format!("services = {:?}     ", services ).as_str());
+            // msg.push_str(format!("target address = {}\n", target_address ).as_str());
 
+            // println!(" {} -> new peer {} ",target_address, new_peer);
+            store_event(&msg);
+            address_channel.send(new_peer).unwrap();
+        }
         read_addr = read_addr +1;
     }
-
+    eprintln!("--> Ajout {} noeuds", new_addr);
 }
 
 fn process_addr_message(target_address: String, payload: Vec<u8> , address_channel: Sender<String>) -> u64{
@@ -394,7 +410,7 @@ fn process_addr_message(target_address: String, payload: Vec<u8> , address_chann
         return addr_number;
     }
     // thread::spawn(move || {
-        read_addresses(target_address, payload, address_channel, addr_number);
+    read_addresses(target_address, payload, address_channel, addr_number);
     // });
 
     return addr_number;
@@ -405,7 +421,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
     loop {
         let read_result:ReadResult  = bcmessage::read_message(&connection);
         // println!("Lecture de {}", target_address);
-        eprint!("R");
+        // eprint!("R");
         let connection_close = String::from(CONN_CLOSE);
         match read_result.error {
             Some(_error) => {
@@ -445,36 +461,24 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
 
 fn handle_one_peer(connection_start_channel: chan::Receiver<String>, addresses_to_test : Arc<Mutex<i64>>, address_channel_tx: Sender<String>, num: u64){
 
-    // let address_channel_tx = address_channel_tx.clone();
-    // let timeout: Duration = Duration::from_millis(30*MILLISECONDS_TIMEOUT);
-    // let timeout = ; // 20seconds
-    // println!("Duration {:?}", timeout);
-    // std::process::exit(1);
-
-    // let socket_addr = target_address.clone();
-    // println!("-> {}", socket_addr);
-    // let addrs = socket_addr.clone().to_socket_addrs().unwrap().collect_vec();
-    // println!("--> {:?}", addrs);
-    // for addr in addrs {
     loop{ //Nodes Management
-        // let target_address = connection_start_channel.lock().unwrap().recv().unwrap();
-        eprintln!(" {} -> attente", num);
+        // eprintln!(" {} -> attente", num);
         let target_address = connection_start_channel.recv().unwrap();
-        eprintln!("Connexion {}, {}", num, target_address);
+        eprintln!("Debut gestion {}", target_address);
+        // eprintln!("Connexion {}, {}", num, target_address);
         let socket: SocketAddr = target_address.parse().unwrap();
-        let result = TcpStream::connect_timeout(&socket, Duration::from_secs(2));
+        let result = TcpStream::connect_timeout(&socket, Duration::from_secs(10));
         // let result = TcpStream::connect(&socket);
-        eprintln!("Connecté {}, {}", num, target_address);
+        // eprintln!("Connecté {}, {}", num, target_address);
         if result.is_err() {
-            //println!("");
-            println!(" {} -> Fail", target_address);
+            // println!(" {} -> Fail", target_address);
             // println!(" -> Fail to connect {}: {}", target_address, result.err().unwrap());
             // let peer = target_address.clone();
             // retry_address(peer.clone());
-            // break;
+            fail(target_address.clone());
         } else {
             loop { //Connection management
-                println!(" {} -> Success", target_address);
+                // println!(" {} -> Success", target_address);
                 // println!("Fail to connect {}: {}", target_address, result.err().unwrap());
 
                 let connection = Arc::new(result.unwrap());
@@ -492,7 +496,6 @@ fn handle_one_peer(connection_start_channel: chan::Receiver<String>, addresses_t
                     Err(e) => {
                         println!("error sending request: {}", e);
                         fail(target_address.clone());
-                        std::mem::drop(connection);
                         break; // From connexion
                     }
                     _ => {}
@@ -502,7 +505,6 @@ fn handle_one_peer(connection_start_channel: chan::Receiver<String>, addresses_t
                 if received_cmd != String::from(MSG_VERSION) {
                     println!("Version Ack not received {}", received_cmd);
                     fail(target_address.clone());
-                    std::mem::drop(connection);
                     break; // From connexion
                 }
 
@@ -510,7 +512,6 @@ fn handle_one_peer(connection_start_channel: chan::Receiver<String>, addresses_t
                     Err(_) => {
                         println!("error at sending Msg version ack");
                         fail(target_address.clone());
-                        std::mem::drop(connection);
                         break; // From connexion
                     },
                     _ => {}
@@ -520,7 +521,6 @@ fn handle_one_peer(connection_start_channel: chan::Receiver<String>, addresses_t
                 if received_cmd != String::from(MSG_VERSION_ACK) {
                     println!("Version AckAck not received {}", received_cmd);
                     fail(target_address.clone());
-                    std::mem::drop(connection);
                     break; // From connexion
                 }
 
@@ -528,7 +528,6 @@ fn handle_one_peer(connection_start_channel: chan::Receiver<String>, addresses_t
                     Err(_) => {
                         println!("error at sending getaddr");
                         fail(target_address.clone());
-                        std::mem::drop(connection);
                         break; // From connexion
                     },
                     _ => {}
@@ -537,7 +536,6 @@ fn handle_one_peer(connection_start_channel: chan::Receiver<String>, addresses_t
                 let received_cmd = in_chain_receiver.recv().unwrap();
                 if received_cmd == String::from(CONN_CLOSE) {
                     done(target_address.clone());
-                    std::mem::drop(connection);
                     break; // From connexion
                 } else {
                     println!("Bad message {}", received_cmd);
@@ -546,20 +544,35 @@ fn handle_one_peer(connection_start_channel: chan::Receiver<String>, addresses_t
                 }
             }
         }
+        // std::mem::drop(connection);
+        eprintln!("Fin gestion {}", target_address);
+
+        let mut guard = addresses_to_test.lock().unwrap();
+        println!("---> {} avant décompte", guard);
+        *guard += -1;
+
+        unsafe {
+            println!("---> {} avant décompte addr", nb_addr);
+            nb_addr -= 1;
+        }
     }
-    let mut guard = addresses_to_test.lock().unwrap();
-    *guard += -1;
 }
 
 fn check_pool_size(addresses_to_test : Arc<Mutex<i64>>, start_time: SystemTime ){
-    eprint!(".");
+    // eprint!(".");
     loop {
-        thread::sleep(Duration::from_secs(3)); // Previous 3
+        thread::sleep(Duration::from_secs(5)); // Previous 3
 
         let new_peers = get_new_peers_size();
-        // println!("-> UP {}", new_peers);
-        eprint!(".");
-        if *addresses_to_test.lock().unwrap() < 1 || new_peers >10000{
+        let nb = *addresses_to_test.lock().unwrap();
+        // unsafe {
+        //     println!("-> UP {} - {} - add {}", new_peers, nb, nb_addr);
+        // }
+        // eprint!(".");
+        // if *addresses_to_test.lock().unwrap() < 1 || new_peers >10000{
+        get_peer_status();
+        if nb < 1 {
+
             let successful_peers = get_connected_peers();
             let time_spent = SystemTime::now().duration_since(start_time).unwrap_or_default();
             println!("POOL Crawling ends: {:?} new peers in {:?} ", new_peers, time_spent);
@@ -570,6 +583,7 @@ fn check_pool_size(addresses_to_test : Arc<Mutex<i64>>, start_time: SystemTime )
 }
 
 fn main() {
+
     // println!("coucou");
     // std::process::exit(1);
     let start_time: SystemTime = SystemTime::now();
@@ -578,7 +592,7 @@ fn main() {
 
     let (address_channel_sender, address_channel_receiver) = mpsc::channel();
     // let (connecting_start_channel_sender, connecting_start_channel_receiver) = mpsc::channel();
-    let (connecting_start_channel_sender, connecting_start_channel_receiver) = chan::sync(10000);
+    let (connecting_start_channel_sender, connecting_start_channel_receiver) = chan::sync(100000);
 
     let mut thread_handlers = vec![];
 
@@ -612,17 +626,29 @@ fn main() {
 
     loop {
         let new_peer: String = address_channel_receiver.recv().unwrap();
-        // println!("Try TEST -> {}", new_peer);
-        if is_waiting(new_peer.clone()){
-            println!("TEST -> {}", new_peer);
-            connecting_start_channel_sender.send(new_peer);
-            let mut addresses_to_test = addresses_to_test.lock().unwrap();
-            *addresses_to_test += 1;
-            // println!("n = {}, known peer = {} ", addresses_to_test, get_new_peers_size());
+        connecting_start_channel_sender.send(new_peer);
+
+        let mut addresses_to_test = addresses_to_test.lock().unwrap();
+        *addresses_to_test += 1;
+        unsafe {
+            nb_addr += 1;
+            // println!("n = {}, known peer = {}, addr = {} ", addresses_to_test, get_new_peers_size(), nb_addr);
         }
+
+        // println!("Try TEST -> {}", new_peer);
+        // if is_waiting(new_peer.clone()){
+        //     // println!("TEST -> {}", new_peer);
+        //     connecting_start_channel_sender.send(new_peer);
+        //     let mut addresses_to_test = addresses_to_test.lock().unwrap();
+        //     *addresses_to_test += 1;
+        //     unsafe {
+        //         nb_addr += 1;
+        //         // println!("n = {}, known peer = {}, addr = {} ", addresses_to_test, get_new_peers_size(), nb_addr);
+        //     }
+        // }
     }
 
-    for thread in thread_handlers {
-        thread.join().unwrap();
-    }
+    // for thread in thread_handlers {
+    //     thread.join().unwrap();
+    // }
 }

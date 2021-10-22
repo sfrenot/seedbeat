@@ -98,6 +98,7 @@ pub fn read_message(mut connection: &TcpStream) -> ReadResult {
     };
 
     let mut header_buffer = [0 as u8;HEADER_SIZE];
+    connection.set_read_timeout(Some(std::time::Duration::new(120, 0)));
     return match connection.read(&mut header_buffer) {
         Ok(_) => {
             // println!("Lecture faite {:?}", header_buffer);
