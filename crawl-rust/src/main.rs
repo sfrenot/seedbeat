@@ -7,7 +7,7 @@ use std::fs::OpenOptions;
 use std::io::{LineWriter, stderr,stdout, Write, Cursor};
 use std::sync::{mpsc, Arc};
 use std::thread;
-use std::net::{TcpStream, ToSocketAddrs, IpAddr};
+use std::net::{TcpStream, IpAddr};
 use crate::bcmessage::{ReadResult, MSG_VERSION, MSG_VERSION_ACK, MSG_GETADDR, CONN_CLOSE, MSG_ADDR};
 use std::time::{Duration, SystemTime};
 use std::net::SocketAddr;
@@ -15,12 +15,8 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use lazy_static::lazy_static;
 use byteorder::{ReadBytesExt, LittleEndian, BigEndian};
-use dns_lookup::lookup_addr;
-use std::sync::mpsc::Sender;
-use std::sync::mpsc::Receiver;
+use std::sync::mpsc::Sender; // Voir si chan::Receiver n'est pas préférable
 use std::process;
-use itertools::Itertools;
-
 
 struct PeerLogger {
     out_stream: Box<dyn Write + Send>
@@ -38,7 +34,7 @@ impl PeerLogger {
         let logfile = match OpenOptions::new().create(true).truncate(true).write(true).open(outfile) {
             Ok(f)  => Box::new(LineWriter::new(f)) as Box<dyn Write + Send>,
             Err(e) => {
-                println!("Filed to create output file: {}", e );
+                eprintln!("Failed to create output file: {}", e );
                 Box::new(LineWriter::new(stderr())) as Box<dyn Write + Send>
             }
         };
@@ -61,8 +57,6 @@ lazy_static! {
     static ref BEAT: Mutex<bool> = Mutex::new(false);
 }
 
-
-
 // storage length
 const UNIT_16: u8 = 0xFD;
 const UNIT_32: u8 = 0xFE;
@@ -74,7 +68,7 @@ const SIZE_FFFF_FFFF: u64 = 0xFFFFFFFF;
 
 const STORAGE_BYTE :usize= 0;
 const NUM_START :usize= 1;
-const UNIT_8_END: usize = 2;
+//const UNIT_8_END: usize = 2;
 const UNIT_16_END: usize = 3;
 const UNIT_32_END: usize = 5;
 const UNIT_64_END: usize = 9;
@@ -91,19 +85,18 @@ const SERVICES_END:usize = 12;
 const IP_FIELD_END:usize= 28;
 const PORT_FIELD_END:usize= 30;
 
-
-const MILLISECONDS_TIMEOUT: u64 =600;
+const CONNECTION_TIMEOUT:Duration = Duration::from_secs(10);
 
 const NEIGHBOURS: u64 = 1000;
 
 const ADDRESSES_RECEIVED_THRESHOLD: u64 = 5;
 
-static mut nb_addr: u32 = 0;
+static mut NB_ADDR: u32 = 0;
 
 #[derive(Debug)]
 #[derive(PartialEq)]
 enum Status {
-    Waiting,
+    // Waiting,
     Connecting,
     Connected,
     Done,
@@ -115,7 +108,6 @@ struct PeerStatus  {
     pub status: Status,
     pub retries: i32,
 }
-
 
 fn generate_peer_status(status: Status, retries: i32) -> PeerStatus{
     let  peer_status = PeerStatus {
@@ -186,7 +178,7 @@ fn get_peer_status() {
         } else if peer_status.status == Status::Failed {
             fail += 1;
         } else {
-            other+=1;
+            other += 1;
         }
     }
     eprintln!("total: {}, Other: {}, Done: {}, Fail: {}", address_status.len(), other, done, fail);
@@ -200,19 +192,18 @@ fn get_new_peers_size() -> u64 {
     return  size as u64;
 }
 
-
-fn retry_address(a_peer: String)-> bool  {
-    let mut address_status  = ADRESSES_VISITED.lock().unwrap();
-    if address_status[&a_peer].retries > 3  {
-        address_status.insert(a_peer, peer_status(Status::Failed));
-        return false;
-    }
-    //this was different from go code
-    let peer_status =  generate_peer_status(Status::Waiting, address_status[&a_peer].retries + 1);
-    address_status.insert(a_peer,peer_status);
-    std::mem::drop(address_status);
-    return true;
-}
+// fn retry_address(a_peer: String)-> bool  {
+//     let mut address_status  = ADRESSES_VISITED.lock().unwrap();
+//     if address_status[&a_peer].retries > 3  {
+//         address_status.insert(a_peer, peer_status(Status::Failed));
+//         return false;
+//     }
+//     //this was different from go code
+//     let peer_status =  generate_peer_status(Status::Waiting, address_status[&a_peer].retries + 1);
+//     address_status.insert(a_peer,peer_status);
+//     std::mem::drop(address_status);
+//     return true;
+// }
 
 fn register_pvm_connection(a_peer:String) {
     let mut address_status = ADRESSES_VISITED.lock().unwrap();
@@ -323,9 +314,9 @@ fn get_date_time(time_vec: Vec<u8>) -> DateTime<Utc>{
 fn process_version_message( target_address: String, payload: &Vec<u8>){
 
     let mut version_field =  Cursor::new(payload[..VERSION_END].to_vec());
-    let version_number = version_field.read_u32::<LittleEndian>().unwrap() as i64;
-    let services = payload[VERSION_END..SERVICES_END].to_vec();
-    let peer_time = get_date_time(payload[SERVICES_END..TIMESTAMP_END].to_vec());
+    let _version_number = version_field.read_u32::<LittleEndian>().unwrap() as i64;
+    let _services = payload[VERSION_END..SERVICES_END].to_vec();
+    let _peer_time = get_date_time(payload[SERVICES_END..TIMESTAMP_END].to_vec());
 
     let useragent_size = get_compact_int(&payload[USER_AGENT..].to_vec()) as usize;
     let start_byte= get_start_byte(&useragent_size);
@@ -342,7 +333,7 @@ fn process_version_message( target_address: String, payload: &Vec<u8>){
     let mut msg: String  = String::new();
     msg.push_str(format!("Seed: {} \n", target_address).as_ref());
 
-    // msg.push_str(format!("PVM peer = {}  ", target_address).as_ref());
+    // msg.push_str(format!("Seed = {}  ", target_address).as_ref());
     // msg.push_str(format!("version = {}   ", version_number).as_str());
     // msg.push_str(format!("user agent = {}   ", user_agent).as_str());
     // msg.push_str(format!("time = {}  ", peer_time.format("%Y-%m-%d %H:%M:%S")).as_str());
@@ -355,7 +346,7 @@ fn process_version_message( target_address: String, payload: &Vec<u8>){
 
 }
 
-fn read_addresses(target_address: String, payload: Vec<u8>, address_channel: Sender<String>, addr_number: u64){
+fn read_addresses(payload: Vec<u8>, address_channel: Sender<String>, addr_number: u64){
 
     let start_byte = get_start_byte(& (addr_number as usize));
     let mut read_addr = 0 ;
@@ -363,13 +354,13 @@ fn read_addresses(target_address: String, payload: Vec<u8>, address_channel: Sen
     while read_addr < addr_number {
 
         let addr_begins_at = start_byte + (ADDRESS_LEN * read_addr as usize);
-        let date_time = get_date_time(payload[addr_begins_at..addr_begins_at+ TIME_FIELD_END].to_vec());
-        let services = payload[addr_begins_at+ TIME_FIELD_END..addr_begins_at+ SERVICES_END].to_vec();
+        let _date_time = get_date_time(payload[addr_begins_at..addr_begins_at+ TIME_FIELD_END].to_vec());
+        let _services = payload[addr_begins_at+ TIME_FIELD_END..addr_begins_at+ SERVICES_END].to_vec();
         let ip_addr_field = payload[addr_begins_at+ SERVICES_END..addr_begins_at+ IP_FIELD_END].to_vec();
 
         let mut array_v6 = [0; 16];
         array_v6.copy_from_slice(&ip_addr_field[..]);
-        let ip_v6 = IpAddr::from(array_v6);
+        let _ip_v6 = IpAddr::from(array_v6);
 
         let mut array_v4 = [0; 4];
         array_v4.copy_from_slice(&ip_addr_field[12..]);
@@ -384,7 +375,6 @@ fn read_addresses(target_address: String, payload: Vec<u8>, address_channel: Sen
 
             let mut msg:String  = String::new();
             msg.push_str(format!("PAR address: {:?}", ip_v4).as_str());
-            // msg.push_str(format!("PAR address= [ {:?} = {:?}, {:?} = {:?} ]    ", ip_v4, lookup_addr(&ip_v4).unwrap(),  ip_v6, lookup_addr(&ip_v6).unwrap()).as_str());
             msg.push_str(format!("port = {:?}\n", port).as_str());
             // msg.push_str(format!("time = {}  ", date_time.format("%Y-%m-%d %H:%M:%S")).as_str());
             // msg.push_str(format!("now = {}  ", Into::<DateTime<Utc>>::into(SystemTime::now()).format("%Y-%m-%d %H:%M:%S")).as_str());
@@ -401,7 +391,7 @@ fn read_addresses(target_address: String, payload: Vec<u8>, address_channel: Sen
     eprintln!("--> Ajout {} noeuds", new_addr);
 }
 
-fn process_addr_message(target_address: String, payload: Vec<u8> , address_channel: Sender<String>) -> u64{
+fn process_addr_message(payload: Vec<u8> , address_channel: Sender<String>) -> u64{
     if payload.len() == 0 {
         return 0;
     }
@@ -409,9 +399,7 @@ fn process_addr_message(target_address: String, payload: Vec<u8> , address_chann
     if addr_number < 2 {
         return addr_number;
     }
-    // thread::spawn(move || {
-    read_addresses(target_address, payload, address_channel, addr_number);
-    // });
+    read_addresses(payload, address_channel, addr_number);
 
     return addr_number;
 }
@@ -443,9 +431,8 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                     continue;
                 }
                 if command == String::from(MSG_ADDR){
-                    let peer = target_address.clone();
                     let address_channel = sender.clone();
-                    let num_addr = process_addr_message(peer, payload, address_channel);
+                    let num_addr = process_addr_message(payload, address_channel);
                     if num_addr > ADDRESSES_RECEIVED_THRESHOLD {
                         in_chain.send(connection_close).unwrap();
                         break;
@@ -455,11 +442,9 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
             }
         }
     }
-
-
 }
 
-fn handle_one_peer(connection_start_channel: chan::Receiver<String>, addresses_to_test : Arc<Mutex<i64>>, address_channel_tx: Sender<String>, num: u64){
+fn handle_one_peer(connection_start_channel: chan::Receiver<String>, addresses_to_test : Arc<Mutex<i64>>, address_channel_tx: Sender<String>, _num: u64){
 
     loop{ //Nodes Management
         // eprintln!(" {} -> attente", num);
@@ -467,7 +452,7 @@ fn handle_one_peer(connection_start_channel: chan::Receiver<String>, addresses_t
         eprintln!("Debut gestion {}", target_address);
         // eprintln!("Connexion {}, {}", num, target_address);
         let socket: SocketAddr = target_address.parse().unwrap();
-        let result = TcpStream::connect_timeout(&socket, Duration::from_secs(10));
+        let result = TcpStream::connect_timeout(&socket, CONNECTION_TIMEOUT);
         // let result = TcpStream::connect(&socket);
         // eprintln!("Connecté {}, {}", num, target_address);
         if result.is_err() {
@@ -552,8 +537,8 @@ fn handle_one_peer(connection_start_channel: chan::Receiver<String>, addresses_t
         *guard += -1;
 
         unsafe {
-            println!("---> {} avant décompte addr", nb_addr);
-            nb_addr -= 1;
+            println!("---> {} avant décompte addr", NB_ADDR);
+            NB_ADDR -= 1;
         }
     }
 }
@@ -566,7 +551,7 @@ fn check_pool_size(addresses_to_test : Arc<Mutex<i64>>, start_time: SystemTime )
         let new_peers = get_new_peers_size();
         let nb = *addresses_to_test.lock().unwrap();
         // unsafe {
-        //     println!("-> UP {} - {} - add {}", new_peers, nb, nb_addr);
+        //     println!("-> UP {} - {} - add {}", new_peers, nb, NB_ADDR);
         // }
         // eprint!(".");
         // if *addresses_to_test.lock().unwrap() < 1 || new_peers >10000{
@@ -631,8 +616,8 @@ fn main() {
         let mut addresses_to_test = addresses_to_test.lock().unwrap();
         *addresses_to_test += 1;
         unsafe {
-            nb_addr += 1;
-            // println!("n = {}, known peer = {}, addr = {} ", addresses_to_test, get_new_peers_size(), nb_addr);
+            NB_ADDR += 1;
+            // println!("n = {}, known peer = {}, addr = {} ", addresses_to_test, get_new_peers_size(), NB_ADDR);
         }
 
         // println!("Try TEST -> {}", new_peer);
@@ -642,8 +627,8 @@ fn main() {
         //     let mut addresses_to_test = addresses_to_test.lock().unwrap();
         //     *addresses_to_test += 1;
         //     unsafe {
-        //         nb_addr += 1;
-        //         // println!("n = {}, known peer = {}, addr = {} ", addresses_to_test, get_new_peers_size(), nb_addr);
+        //         NB_ADDR += 1;
+        //         // println!("n = {}, known peer = {}, addr = {} ", addresses_to_test, get_new_peers_size(), NB_ADDR);
         //     }
         // }
     }

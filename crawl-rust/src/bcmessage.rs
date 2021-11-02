@@ -1,4 +1,3 @@
-
 use std::sync::Mutex;
 use lazy_static::lazy_static;
 use byteorder::WriteBytesExt;
@@ -7,13 +6,12 @@ use std::time::SystemTime;
 use sha2::{Sha256, Digest};
 use std::net::TcpStream;
 use std::io::{Write, Read, Error, ErrorKind};
-// use std::time::Duration;
-
 
 use std::io::Cursor;
 use byteorder::ReadBytesExt;
 
-
+// Timer
+const MESSAGE_TIMEOUT:std::time::Duration = std::time::Duration::from_secs(120);
 
 // services
 const NODE_NETWORK:u64 = 1;
@@ -74,7 +72,6 @@ pub fn init() {
     let user_agent:&[u8] = "\x0C/bcpc:0.0.1/".as_bytes();
     let height:u32 =580259;
 
-
     TEMPLATE_MESSAGE_PAYLOAD.lock().unwrap().write_u32::<LittleEndian>(version).unwrap();
     TEMPLATE_MESSAGE_PAYLOAD.lock().unwrap().write_u64::<LittleEndian>(services).unwrap();
     TEMPLATE_MESSAGE_PAYLOAD.lock().unwrap().write_u64::<LittleEndian>(date_buffer).unwrap();
@@ -98,7 +95,7 @@ pub fn read_message(mut connection: &TcpStream) -> ReadResult {
     };
 
     let mut header_buffer = [0 as u8;HEADER_SIZE];
-    connection.set_read_timeout(Some(std::time::Duration::new(120, 0)));
+    connection.set_read_timeout(Some(MESSAGE_TIMEOUT)).unwrap();
     return match connection.read(&mut header_buffer) {
         Ok(_) => {
             // println!("Lecture faite {:?}", header_buffer);
@@ -114,7 +111,6 @@ pub fn read_message(mut connection: &TcpStream) -> ReadResult {
             let mut payload_size_reader = Cursor::new(&header_buffer[START_PAYLOAD_LENGTH..END_PAYLOAD_LENGTH]);
             let payload_size = payload_size_reader.read_u32::<LittleEndian>().unwrap();
 
-
             if payload_size <= 0 { return read_result };
 
             let mut payload_buffer = vec![0u8; payload_size as usize];
@@ -124,14 +120,14 @@ pub fn read_message(mut connection: &TcpStream) -> ReadResult {
                     read_result
                 }
                 Err(e) => {
-                    println!("error reading payload");
+                    eprintln!("error reading payload");
                     read_result.error = Some(e);
                     read_result
                 }
             }
         },
         Err(e) => {
-            println!("error reading header {}", e);
+            eprintln!("error reading header {}", e);
             read_result.error = Some(e);
             return read_result
         }
