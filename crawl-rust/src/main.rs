@@ -24,7 +24,6 @@ lazy_static! {
         let addresses_visited= HashMap::new();
         Mutex::new(addresses_visited)
     };
-    static ref BEAT: Mutex<bool> = Mutex::new(false);
     static ref LOGGER: Mutex<LineWriter<Box<dyn Write + Send>>> = Mutex::new(LineWriter::new(Box::new(stdout())));
 }
 
@@ -186,12 +185,6 @@ fn parse_args() -> String {
     let matches = App::new("BC crawl")
         .version("1.0.0")
         .author("Jazmin Ferreiro  <jazminsofiaf@gmail.com>, Stephane Frenot <stephane.frenot@insa-lyon.fr>")
-        .arg(Arg::with_name("beat")
-            .short("-b")
-            .long("beat")
-            .takes_value(false)
-            .required(false)
-            .help("beat mode"))
         .arg(Arg::with_name("file")
             .short("-o")
             .long("output")
@@ -211,18 +204,10 @@ fn parse_args() -> String {
         }
     );
 
-    let arg_beat = matches.is_present("beat");
-    if arg_beat{
-        let mut beat = BEAT.lock().unwrap();
-        *beat = true;
-        String::from(arg_address);
-    }
-
     let arg_file = matches.value_of("file");
-
     let file: File;
     match arg_file {
-        None => panic!("Error parsing file name (not beat flag)"),
+        None => panic!("Error parsing file name"),
         Some(f) =>  {
             file = File::create(f).unwrap();
         }
@@ -235,16 +220,9 @@ fn parse_args() -> String {
 }
 
 fn store_event(msg :&String){
-    let beat = BEAT.lock().unwrap();
-    if *beat {
-        println!("beat\n");
-        return;
-    }
-
     let mut guard = LOGGER.lock().unwrap();
     guard.write_all(msg.as_str().as_ref()).expect("error at logging");
     drop(guard);
-
 }
 
 fn get_compact_int(payload: &Vec<u8>) -> u64 {
