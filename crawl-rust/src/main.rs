@@ -4,6 +4,7 @@ extern crate clap;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use clap::{Arg, App};
 use std::fs::OpenOptions;
+use std::fs::File;
 use std::io::{LineWriter, stderr,stdout, Write, Cursor};
 use std::sync::{mpsc, Arc};
 use std::thread;
@@ -55,6 +56,7 @@ lazy_static! {
     };
     static ref PEER_LOG_FILE : Mutex<PeerLogger> = Mutex::new(PeerLogger::new());
     static ref BEAT: Mutex<bool> = Mutex::new(false);
+    static ref LOGGER: Mutex<LineWriter<Box<dyn Write + Send>>> = Mutex::new(LineWriter::new(Box::new(stdout())));
 }
 
 // storage length
@@ -214,7 +216,7 @@ fn register_pvm_connection(a_peer:String) {
 fn parse_args() -> String {
     let matches = App::new("BC crawl")
         .version("1.0.0")
-        .author("Jazmin Ferreiro  <jazminsofiaf@gmail.com>")
+        .author("Jazmin Ferreiro  <jazminsofiaf@gmail.com>, Stephane Frenot <stephane.frenot@insa-lyon.fr>")
         .arg(Arg::with_name("beat")
             .short("-b")
             .long("beat")
@@ -248,14 +250,23 @@ fn parse_args() -> String {
     }
 
     let arg_file = matches.value_of("file");
+
+    let file: File;
     match arg_file {
         None => panic!("Error parsing file name (not beat flag)"),
         Some(f) =>  {
-            let mut guard = PEER_LOG_FILE.lock().unwrap();
-            guard.set_output_file(f);
-            drop(guard);
+            // unsafe {
+            //     LOG_FILE = Mutex::new(std::fs::File::create("file3.txt").unwrap());
+            // // }
+            // let mut guard = PEER_LOG_FILE.lock().unwrap();
+            // guard.set_output_file(f);
+            // drop(guard);
+            file = File::create(f).unwrap();
         }
     }
+
+    let mut logger = LOGGER.lock().unwrap();
+    *logger = LineWriter::new(Box::new(file));
 
     String::from(arg_address)
 }
@@ -267,9 +278,15 @@ fn store_event(msg :&String){
         return;
     }
 
-    let mut guard = PEER_LOG_FILE.lock().unwrap();
-    guard.log(msg.as_str());
+    // let mut guard = PEER_LOG_FILE.lock().unwrap();
+    // guard.log(msg.as_str());
+    // drop(guard);
+
+    let mut guard = LOGGER.lock().unwrap();
+    guard.write_all(msg.as_str().as_ref()).expect("error at logging");
+    // guard.log(msg.as_str());
     drop(guard);
+
 }
 
 fn get_compact_int(payload: &Vec<u8>) -> u64 {
@@ -407,7 +424,7 @@ fn process_addr_message(payload: Vec<u8> , address_channel: Sender<String>) -> u
 fn handle_incoming_message(connection:& TcpStream, target_address: String, in_chain: Sender<String>, sender: Sender<String>)  {
 
     loop {
-        let read_result:ReadResult  = bcmessage::read_message(&connection);
+        let read_result:ReadResult = bcmessage::read_message(&connection);
         // println!("Lecture de {}", target_address);
         // eprint!("R");
         let connection_close = String::from(CONN_CLOSE);
@@ -581,13 +598,6 @@ fn main() {
 
     let mut thread_handlers = vec![];
 
-    // let first_address_sender = address_channel_sender.clone();
-    // thread_handlers.push(thread::spawn(move || {
-    //     let address = parse_args();
-    //     first_address_sender.send(address).unwrap();
-    // }));
-    // println!("-> {}",parse_args() );
-    // std::process::exit(1);
     let start_adress = parse_args();
     // is_waiting(start_adress.clone());
     // std::process::exit(1);
@@ -598,9 +608,7 @@ fn main() {
         check_pool_size(counter, start_time );
     }));
 
-    // let connecting_start_channel_receiver = Arc::new(Mutex::new(connecting_start_channel_receiver));
     for i in 0..NEIGHBOURS {
-        // let connecting_start_channel_receiver = connecting_start_channel_receiver.clone();
         let counter = Arc::clone(&addresses_to_test);
         let sender = address_channel_sender.clone();
         let recv = connecting_start_channel_receiver.clone();
@@ -619,21 +627,5 @@ fn main() {
             NB_ADDR += 1;
             // println!("n = {}, known peer = {}, addr = {} ", addresses_to_test, get_new_peers_size(), NB_ADDR);
         }
-
-        // println!("Try TEST -> {}", new_peer);
-        // if is_waiting(new_peer.clone()){
-        //     // println!("TEST -> {}", new_peer);
-        //     connecting_start_channel_sender.send(new_peer);
-        //     let mut addresses_to_test = addresses_to_test.lock().unwrap();
-        //     *addresses_to_test += 1;
-        //     unsafe {
-        //         NB_ADDR += 1;
-        //         // println!("n = {}, known peer = {}, addr = {} ", addresses_to_test, get_new_peers_size(), NB_ADDR);
-        //     }
-        // }
     }
-
-    // for thread in thread_handlers {
-    //     thread.join().unwrap();
-    // }
 }
