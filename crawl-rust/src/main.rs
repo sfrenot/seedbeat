@@ -18,12 +18,12 @@ use byteorder::{ReadBytesExt, LittleEndian, BigEndian};
 use std::sync::mpsc::Sender; // Voir si chan::Receiver n'est pas préférable
 use std::process;
 
+const CONNECTION_TIMEOUT:Duration = Duration::from_secs(10);
+const CHECK_TERMINATION:Duration = Duration::from_secs(5);
+const NEIGHBOURS: u64 = 1000;
 
 lazy_static! {
-    static ref ADRESSES_VISITED: Mutex<HashMap<String, PeerStatus>> = {
-        let addresses_visited= HashMap::new();
-        Mutex::new(addresses_visited)
-    };
+    static ref ADRESSES_VISITED: Mutex<HashMap<String, PeerStatus>> = Mutex::new(HashMap::new());
     static ref LOGGER: Mutex<LineWriter<Box<dyn Write + Send>>> = Mutex::new(LineWriter::new(Box::new(stdout())));
 }
 
@@ -55,11 +55,8 @@ const SERVICES_END:usize = 12;
 const IP_FIELD_END:usize= 28;
 const PORT_FIELD_END:usize= 30;
 
-const CONNECTION_TIMEOUT:Duration = Duration::from_secs(10);
-
-const NEIGHBOURS: u64 = 1000;
-
 const ADDRESSES_RECEIVED_THRESHOLD: u64 = 5;
+const MESSAGE_CHANEL_SIZE: usize = 100000;
 
 static mut NB_ADDR: u32 = 0;
 
@@ -221,7 +218,7 @@ fn parse_args() -> String {
 
 fn store_event(msg :&String){
     let mut guard = LOGGER.lock().unwrap();
-    guard.write_all(msg.as_str().as_ref()).expect("error at logging");
+    guard.write_all(msg.as_ref()).expect("error at logging");
     drop(guard);
 }
 
@@ -495,7 +492,7 @@ fn handle_one_peer(connection_start_channel: chan::Receiver<String>, addresses_t
 fn check_pool_size(addresses_to_test : Arc<Mutex<i64>>, start_time: SystemTime ){
     // eprint!(".");
     loop {
-        thread::sleep(Duration::from_secs(5)); // Previous 3
+        thread::sleep(CHECK_TERMINATION);
 
         let new_peers = get_new_peers_size();
         let nb = *addresses_to_test.lock().unwrap();
@@ -524,7 +521,7 @@ fn main() {
     let addresses_to_test:Arc<Mutex<i64>> = Arc::new(Mutex::new(0));
 
     let (address_channel_sender, address_channel_receiver) = mpsc::channel();
-    let (connecting_start_channel_sender, connecting_start_channel_receiver) = chan::sync(100000);
+    let (connecting_start_channel_sender, connecting_start_channel_receiver) = chan::sync(MESSAGE_CHANEL_SIZE);
 
     let mut thread_handlers = vec![];
     let start_adress = parse_args();
