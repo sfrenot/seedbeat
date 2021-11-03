@@ -3,9 +3,8 @@ mod bcmessage;
 extern crate clap;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use clap::{Arg, App};
-use std::fs::OpenOptions;
 use std::fs::File;
-use std::io::{LineWriter, stderr,stdout, Write, Cursor};
+use std::io::{LineWriter, stdout, Write, Cursor};
 use std::sync::{mpsc, Arc};
 use std::thread;
 use std::net::{TcpStream, IpAddr};
@@ -19,42 +18,12 @@ use byteorder::{ReadBytesExt, LittleEndian, BigEndian};
 use std::sync::mpsc::Sender; // Voir si chan::Receiver n'est pas préférable
 use std::process;
 
-struct PeerLogger {
-    out_stream: Box<dyn Write + Send>
-}
-
-impl PeerLogger {
-    fn new() -> PeerLogger {
-        let default_logger = PeerLogger {
-            out_stream:  Box::new(LineWriter::new(stdout())) as Box<dyn Write + Send>
-        };
-        return default_logger;
-    }
-
-    fn set_output_file(&mut self, outfile: &str) {
-        let logfile = match OpenOptions::new().create(true).truncate(true).write(true).open(outfile) {
-            Ok(f)  => Box::new(LineWriter::new(f)) as Box<dyn Write + Send>,
-            Err(e) => {
-                eprintln!("Failed to create output file: {}", e );
-                Box::new(LineWriter::new(stderr())) as Box<dyn Write + Send>
-            }
-        };
-
-        self.out_stream = logfile;
-    }
-
-    fn log(&mut self, msg: &str) {
-        self.out_stream.write_all(msg.as_ref()).expect("error at logging");
-    }
-}
-
 
 lazy_static! {
     static ref ADRESSES_VISITED: Mutex<HashMap<String, PeerStatus>> = {
         let addresses_visited= HashMap::new();
         Mutex::new(addresses_visited)
     };
-    static ref PEER_LOG_FILE : Mutex<PeerLogger> = Mutex::new(PeerLogger::new());
     static ref BEAT: Mutex<bool> = Mutex::new(false);
     static ref LOGGER: Mutex<LineWriter<Box<dyn Write + Send>>> = Mutex::new(LineWriter::new(Box::new(stdout())));
 }
@@ -255,12 +224,6 @@ fn parse_args() -> String {
     match arg_file {
         None => panic!("Error parsing file name (not beat flag)"),
         Some(f) =>  {
-            // unsafe {
-            //     LOG_FILE = Mutex::new(std::fs::File::create("file3.txt").unwrap());
-            // // }
-            // let mut guard = PEER_LOG_FILE.lock().unwrap();
-            // guard.set_output_file(f);
-            // drop(guard);
             file = File::create(f).unwrap();
         }
     }
@@ -278,13 +241,8 @@ fn store_event(msg :&String){
         return;
     }
 
-    // let mut guard = PEER_LOG_FILE.lock().unwrap();
-    // guard.log(msg.as_str());
-    // drop(guard);
-
     let mut guard = LOGGER.lock().unwrap();
     guard.write_all(msg.as_str().as_ref()).expect("error at logging");
-    // guard.log(msg.as_str());
     drop(guard);
 
 }
@@ -391,7 +349,7 @@ fn read_addresses(payload: Vec<u8>, address_channel: Sender<String>, addr_number
             new_addr += 1;
 
             let mut msg:String  = String::new();
-            msg.push_str(format!("PAR address: {:?}", ip_v4).as_str());
+            msg.push_str(format!("PAR address: {:?}, ", ip_v4).as_str());
             msg.push_str(format!("port = {:?}\n", port).as_str());
             // msg.push_str(format!("time = {}  ", date_time.format("%Y-%m-%d %H:%M:%S")).as_str());
             // msg.push_str(format!("now = {}  ", Into::<DateTime<Utc>>::into(SystemTime::now()).format("%Y-%m-%d %H:%M:%S")).as_str());
@@ -470,13 +428,10 @@ fn handle_one_peer(connection_start_channel: chan::Receiver<String>, addresses_t
         // eprintln!("Connexion {}, {}", num, target_address);
         let socket: SocketAddr = target_address.parse().unwrap();
         let result = TcpStream::connect_timeout(&socket, CONNECTION_TIMEOUT);
-        // let result = TcpStream::connect(&socket);
         // eprintln!("Connecté {}, {}", num, target_address);
         if result.is_err() {
             // println!(" {} -> Fail", target_address);
             // println!(" -> Fail to connect {}: {}", target_address, result.err().unwrap());
-            // let peer = target_address.clone();
-            // retry_address(peer.clone());
             fail(target_address.clone());
         } else {
             loop { //Connection management
@@ -546,7 +501,6 @@ fn handle_one_peer(connection_start_channel: chan::Receiver<String>, addresses_t
                 }
             }
         }
-        // std::mem::drop(connection);
         eprintln!("Fin gestion {}", target_address);
 
         let mut guard = addresses_to_test.lock().unwrap();
@@ -585,7 +539,6 @@ fn check_pool_size(addresses_to_test : Arc<Mutex<i64>>, start_time: SystemTime )
 }
 
 fn main() {
-
     // println!("coucou");
     // std::process::exit(1);
     let start_time: SystemTime = SystemTime::now();
@@ -593,14 +546,11 @@ fn main() {
     let addresses_to_test:Arc<Mutex<i64>> = Arc::new(Mutex::new(0));
 
     let (address_channel_sender, address_channel_receiver) = mpsc::channel();
-    // let (connecting_start_channel_sender, connecting_start_channel_receiver) = mpsc::channel();
     let (connecting_start_channel_sender, connecting_start_channel_receiver) = chan::sync(100000);
 
     let mut thread_handlers = vec![];
-
     let start_adress = parse_args();
-    // is_waiting(start_adress.clone());
-    // std::process::exit(1);
+
     address_channel_sender.send(start_adress).unwrap();
 
     let counter = Arc::clone(&addresses_to_test);
