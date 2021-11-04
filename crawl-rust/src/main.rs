@@ -1,6 +1,6 @@
 mod bcmessage;
 
-extern crate clap;
+// extern crate clap;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use clap::{Arg, App};
 use std::fs::File;
@@ -16,6 +16,7 @@ use std::sync::Mutex;
 use lazy_static::lazy_static;
 use byteorder::{ReadBytesExt, LittleEndian, BigEndian};
 use std::sync::mpsc::Sender; // Voir si chan::Receiver n'est pas préférable
+use chan::{self, Receiver};
 use std::process;
 
 const CONNECTION_TIMEOUT:Duration = Duration::from_secs(10);
@@ -394,7 +395,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
     }
 }
 
-fn handle_one_peer(connection_start_channel: chan::Receiver<String>, addresses_to_test : Arc<Mutex<i64>>, address_channel_tx: Sender<String>, _num: u64){
+fn handle_one_peer(connection_start_channel: Receiver<String>, addresses_to_test : Arc<Mutex<i64>>, address_channel_tx: Sender<String>, _num: u64){
 
     loop{ //Nodes Management
         // eprintln!(" {} -> attente", num);

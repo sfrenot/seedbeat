@@ -1,14 +1,12 @@
 use std::sync::Mutex;
 use lazy_static::lazy_static;
-use byteorder::WriteBytesExt;
-use byteorder::LittleEndian;
+use byteorder::{WriteBytesExt, ReadBytesExt, LittleEndian};
 use std::time::SystemTime;
 use sha2::{Sha256, Digest};
 use std::net::TcpStream;
 use std::io::{Write, Read, Error, ErrorKind};
 
 use std::io::Cursor;
-use byteorder::ReadBytesExt;
 
 // Timer
 const MESSAGE_TIMEOUT:std::time::Duration = std::time::Duration::from_secs(120);
