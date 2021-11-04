@@ -514,7 +514,7 @@ fn check_pool_size(addresses_to_test : Arc<Mutex<i64>>, start_time: SystemTime )
 }
 
 fn main() {
-    // println!("coucou");
+    // dbg!("coucou");
     // std::process::exit(1);
     let start_time: SystemTime = SystemTime::now();
     bcmessage::init();

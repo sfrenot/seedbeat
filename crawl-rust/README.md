@@ -23,7 +23,12 @@ for other operation sistem check [rust site](https://www.rust-lang.org/learn/get
 
 After clone this project, open a terminal in the project directory 
 ```
-cargo run -- -o file.txt -s 'seed.btc.petertodd.org:8333'
+dig seed.btc.petertodd.org
+```
+Choose one of the addresses: i.e. '34.136.23.218'
+
+```
+cargo run -- -o file.txt -s '34.136.23.218:8333'
 ```
 
 sometimes can return Error connection timeout
