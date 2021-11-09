@@ -1,3 +1,6 @@
+TODO
+
+
 # Bitcoin Crawl
 
 This program is a bitcoin crawler. Starting with an address look for more peer's addresses in the networks.

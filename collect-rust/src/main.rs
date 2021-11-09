@@ -8,7 +8,7 @@ use std::io::{LineWriter, stdout, Write, Cursor};
 use std::sync::{mpsc, Arc};
 use std::thread;
 use std::net::{TcpStream, IpAddr};
-use crate::bcmessage::{ReadResult, MSG_VERSION, MSG_VERSION_ACK, MSG_GETADDR, CONN_CLOSE, MSG_ADDR};
+use crate::bcmessage::{ReadResult, INV, MSG_VERSION, MSG_VERSION_ACK, MSG_GETADDR, CONN_CLOSE, MSG_ADDR, GET_BLOCKS };
 use std::time::{Duration, SystemTime};
 use std::net::SocketAddr;
 use std::collections::HashMap;
@@ -21,7 +21,8 @@ use std::process;
 
 const CONNECTION_TIMEOUT:Duration = Duration::from_secs(10);
 const CHECK_TERMINATION:Duration = Duration::from_secs(5);
-const NEIGHBOURS: u64 = 1000;
+//const NEIGHBOURS: u64 = 1000;
+const NEIGHBOURS: u64 = 2;
 
 lazy_static! {
     static ref ADRESSES_VISITED: Mutex<HashMap<String, PeerStatus>> = Mutex::new(HashMap::new());
@@ -362,6 +363,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
         // println!("Lecture de {}", target_address);
         // eprint!("R");
         let connection_close = String::from(CONN_CLOSE);
+        let get_blocks = String::from(GET_BLOCKS);
         match read_result.error {
             Some(_error) => {
                 in_chain.send(connection_close).unwrap();
@@ -383,13 +385,24 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                 }
                 if command == String::from(MSG_ADDR){
                     let address_channel = sender.clone();
-                    let num_addr = process_addr_message(payload, address_channel);
+                    let num_addr = process_addr_message(payload.clone(), address_channel);
                     if num_addr > ADDRESSES_RECEIVED_THRESHOLD {
-                        in_chain.send(connection_close).unwrap();
-                        break;
+                        // in_chain.send(connection_close).unwrap();
+                        in_chain.send(get_blocks).unwrap();
                     }
                 }
-                continue;
+                if command == String::from(INV){
+                    let inv_type:&[u8;1] = &[0x02];
+                    if payload[1] == inv_type[0] {
+                        eprintln!("Inventory message found {:02X?}, {}", payload, payload[1]);
+                        process::exit(0);
+                    }
+
+                    // eprintln!("Inventory message found {:02X?}", payload.clone());
+                    // eprintln!("Inv {}", std::str::from_utf8(payload[4..6]));
+                    //eprintln!("Inventory message found {}",std::str::from_utf8(&payload).unwrap());
+                    // process::exit(0);
+                }
             }
         }
     }
@@ -410,20 +423,21 @@ fn handle_one_peer(connection_start_channel: Receiver<String>, addresses_to_test
             // println!(" -> Fail to connect {}: {}", target_address, result.err().unwrap());
             fail(target_address.clone());
         } else {
+            // println!(" {} -> Success", target_address);
+            // println!("Fail to connect {}: {}", target_address, result.err().unwrap());
+
+            let connection = Arc::new(result.unwrap());
+            let peer = target_address.clone();
+
+            let (in_chain_sender, in_chain_receiver) = mpsc::channel();
+
+            let connection_clone = connection.clone();
+            let sender = address_channel_tx.clone();
+            thread::spawn(move || {
+                handle_incoming_message(&connection_clone, peer, in_chain_sender, sender);
+            });
+
             loop { //Connection management
-                // println!(" {} -> Success", target_address);
-                // println!("Fail to connect {}: {}", target_address, result.err().unwrap());
-
-                let connection = Arc::new(result.unwrap());
-                let peer = target_address.clone();
-
-                let (in_chain_sender, in_chain_receiver) = mpsc::channel();
-
-                let connection_clone = connection.clone();
-                let sender = address_channel_tx.clone();
-                thread::spawn(move || {
-                    handle_incoming_message(&connection_clone, peer, in_chain_sender, sender);
-                });
 
                 match bcmessage::send_request(&connection, MSG_VERSION) {
                     Err(e) => {
@@ -434,6 +448,11 @@ fn handle_one_peer(connection_start_channel: Receiver<String>, addresses_to_test
                     _ => {}
                 }
 
+                // let received_cmd: String;
+                // match in_chain_receiver.recv() {
+                //     Err(e) => { panic!("Erreur, {}", e);},
+                //     Ok(val) => {received_cmd = val;}
+                // }
                 let received_cmd: String = in_chain_receiver.recv().unwrap();
                 if received_cmd != String::from(MSG_VERSION) {
                     println!("Version Ack not received {}", received_cmd);
@@ -466,8 +485,31 @@ fn handle_one_peer(connection_start_channel: Receiver<String>, addresses_to_test
                     _ => {}
                 }
 
+                // let received_cmd = in_chain_receiver.recv().unwrap();
+                // if received_cmd == String::from(GET_BLOCKS) {
+                //     match bcmessage::send_request(&connection, GET_BLOCKS) {
+                //         Err(_) => {
+                //             println!("error at sending getaddr");
+                //             fail(target_address.clone());
+                //             break; // From connexion
+                //         },
+                //         _ => {}
+                //     }
+                // }
+
                 let received_cmd = in_chain_receiver.recv().unwrap();
-                if received_cmd == String::from(CONN_CLOSE) {
+                eprintln!("==> {}", received_cmd);
+                if received_cmd == String::from(GET_BLOCKS) {
+                    match bcmessage::send_request(&connection, GET_BLOCKS) {
+                        Err(_) => {
+                            println!("error at sending getaddr");
+                            fail(target_address.clone());
+                            break; // From connexion
+                        },
+                        _ => {}
+                    }
+                } else if received_cmd == String::from(CONN_CLOSE) {
+                    eprintln!("Fermeture {}", &target_address);
                     done(target_address.clone());
                     break; // From connexion
                 } else {

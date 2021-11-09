@@ -44,14 +44,15 @@ pub const MSG_VERSION:&str = "version";
 pub const MSG_VERSION_ACK:&str = "verack";
 pub const MSG_GETADDR:&str = "getaddr";
 pub const MSG_ADDR:&str = "addr";
+pub const INV:&str = "inv";
 pub const CONN_CLOSE:&str = "CONNCLOSED";
+pub const GET_BLOCKS:&str = "getblocks";
 
 pub struct ReadResult {
     pub command: String,
     pub payload: Vec<u8>,
     pub error: Option<std::io::Error>
 }
-
 
 pub fn init() {
     let version:u32 = 70015;
@@ -96,7 +97,7 @@ pub fn read_message(mut connection: &TcpStream) -> ReadResult {
     connection.set_read_timeout(Some(MESSAGE_TIMEOUT)).unwrap();
     return match connection.read(&mut header_buffer) {
         Ok(_) => {
-            // println!("Lecture faite {:?}", header_buffer);
+            // println!("Lecture faite {:02X?}", header_buffer);
             if header_buffer[START_MAGIC..END_MAGIC] != MAGIC[..] {
                 //println!("Error in Magic message header: {:?}", &header_buffer[START_MAGIC..END_MAGIC]);
                 read_result.error = Some(Error::new(ErrorKind::Other, "Magic error"));
