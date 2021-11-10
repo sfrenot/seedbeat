@@ -22,7 +22,7 @@ use std::process;
 const CONNECTION_TIMEOUT:Duration = Duration::from_secs(10);
 const CHECK_TERMINATION:Duration = Duration::from_secs(5);
 //const NEIGHBOURS: u64 = 1000;
-const NEIGHBOURS: u64 = 2;
+const NEIGHBOURS: u64 = 1000;
 
 lazy_static! {
     static ref ADRESSES_VISITED: Mutex<HashMap<String, PeerStatus>> = Mutex::new(HashMap::new());
@@ -302,7 +302,7 @@ fn read_addresses(payload: Vec<u8>, address_channel: Sender<String>, addr_number
 
     let start_byte = get_start_byte(& (addr_number as usize));
     let mut read_addr = 0 ;
-    let mut new_addr = 0;
+    // let mut new_addr = 0;
     while read_addr < addr_number {
 
         let addr_begins_at = start_byte + (ADDRESS_LEN * read_addr as usize);
@@ -323,7 +323,7 @@ fn read_addresses(payload: Vec<u8>, address_channel: Sender<String>, addr_number
 
         let new_peer : String = format!("{}:{:?}", ip_v4, port);
         if is_waiting(new_peer.clone()){
-            new_addr += 1;
+            // new_addr += 1;
 
             let mut msg:String  = String::new();
             msg.push_str(format!("PAR address: {:?}, ", ip_v4).as_str());
@@ -340,7 +340,7 @@ fn read_addresses(payload: Vec<u8>, address_channel: Sender<String>, addr_number
         }
         read_addr = read_addr +1;
     }
-    eprintln!("--> Ajout {} noeuds", new_addr);
+    // eprintln!("--> Ajout {} noeuds", new_addr);
 }
 
 fn process_addr_message(payload: Vec<u8> , address_channel: Sender<String>) -> u64{
@@ -365,7 +365,8 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
         let connection_close = String::from(CONN_CLOSE);
         let get_blocks = String::from(GET_BLOCKS);
         match read_result.error {
-            Some(_error) => {
+            Some(error) => {
+                eprintln!("Erreur Lecture {}", error);
                 in_chain.send(connection_close).unwrap();
                 break;
             }
@@ -395,6 +396,11 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                     let inv_type:&[u8;1] = &[0x02];
                     if payload[1] == inv_type[0] {
                         eprintln!("Inventory message found {:02X?}, {}", payload, payload[1]);
+                        for val in 0..(payload.len()-5) {
+                            eprint!("{:02X?}", payload[payload.len()-val-1]);
+                        }
+                        eprintln!();
+
                         process::exit(0);
                     }
 
@@ -413,7 +419,7 @@ fn handle_one_peer(connection_start_channel: Receiver<String>, addresses_to_test
     loop{ //Nodes Management
         // eprintln!(" {} -> attente", num);
         let target_address = connection_start_channel.recv().unwrap();
-        eprintln!("Debut gestion {}", target_address);
+        // eprintln!("Debut gestion {}", target_address);
         // eprintln!("Connexion {}, {}", num, target_address);
         let socket: SocketAddr = target_address.parse().unwrap();
         let result = TcpStream::connect_timeout(&socket, CONNECTION_TIMEOUT);
@@ -485,21 +491,9 @@ fn handle_one_peer(connection_start_channel: Receiver<String>, addresses_to_test
                     _ => {}
                 }
 
-                // let received_cmd = in_chain_receiver.recv().unwrap();
-                // if received_cmd == String::from(GET_BLOCKS) {
-                //     match bcmessage::send_request(&connection, GET_BLOCKS) {
-                //         Err(_) => {
-                //             println!("error at sending getaddr");
-                //             fail(target_address.clone());
-                //             break; // From connexion
-                //         },
-                //         _ => {}
-                //     }
-                // }
-
                 let received_cmd = in_chain_receiver.recv().unwrap();
-                eprintln!("==> {}", received_cmd);
                 if received_cmd == String::from(GET_BLOCKS) {
+                    eprintln!("==> Envoi GET_BLOCKS {}", received_cmd);
                     match bcmessage::send_request(&connection, GET_BLOCKS) {
                         Err(_) => {
                             println!("error at sending getaddr");
@@ -519,14 +513,14 @@ fn handle_one_peer(connection_start_channel: Receiver<String>, addresses_to_test
                 }
             }
         }
-        eprintln!("Fin gestion {}", target_address);
+        // eprintln!("Fin gestion {}", target_address);
 
         let mut guard = addresses_to_test.lock().unwrap();
-        println!("---> {} avant décompte", guard);
+        // eprintln!("---> {} avant décompte", guard);
         *guard += -1;
 
         unsafe {
-            println!("---> {} avant décompte addr", NB_ADDR);
+            // eprintln!("---> {} avant décompte addr", NB_ADDR);
             NB_ADDR -= 1;
         }
     }
@@ -557,6 +551,11 @@ fn check_pool_size(addresses_to_test : Arc<Mutex<i64>>, start_time: SystemTime )
 }
 
 fn main() {
+    // let gen:Vec<u8> = vec![0x00, 0x01, 0x02];
+    // let gen2 = Vec::from_hex("000102").unwrap();
+    //
+    // eprintln!("{:02X?}",gen);
+    // eprintln!("{:02X?}",gen2);
     // dbg!("coucou");
     // std::process::exit(1);
     let start_time: SystemTime = SystemTime::now();
