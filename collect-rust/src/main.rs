@@ -366,7 +366,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
         let get_blocks = String::from(GET_BLOCKS);
         match read_result.error {
             Some(error) => {
-                eprintln!("Erreur Lecture {}", error);
+                // eprintln!("Erreur Lecture {}", error);
                 in_chain.send(connection_close).unwrap();
                 break;
             }
@@ -402,9 +402,11 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                     let mut offset = 0;
                     for _i in 0..inv_size {
                         if payload[offset+1] == 0x02 {
-                            found = true;
+                            if (inv_size > 1) {
+                                found = true;
+                            }
                             for val in 0..block_length {
-                                eprint!("{:02X?}", payload[offset+inv_length-val]);
+                                eprint!("BLOCK !=> {:02X?}", payload[offset+inv_length-val]);
                             }
                             eprintln!();
                         }
@@ -472,7 +474,7 @@ fn handle_one_peer(connection_start_channel: Receiver<String>, addresses_to_test
                 // }
                 let received_cmd: String = in_chain_receiver.recv().unwrap();
                 if received_cmd != String::from(MSG_VERSION) {
-                    println!("Version Ack not received {}", received_cmd);
+                    // println!("Version Ack not received {}", received_cmd);
                     fail(target_address.clone());
                     break; // From connexion
                 }
@@ -514,7 +516,7 @@ fn handle_one_peer(connection_start_channel: Receiver<String>, addresses_to_test
                         _ => {}
                     }
                 } else if received_cmd == String::from(CONN_CLOSE) {
-                    eprintln!("Fermeture {}", &target_address);
+                    // eprintln!("Fermeture {}", &target_address);
                     done(target_address.clone());
                     break; // From connexion
                 } else {

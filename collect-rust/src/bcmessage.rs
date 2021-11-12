@@ -99,7 +99,9 @@ pub fn init() {
     let hash_stop:Vec<u8> =     Vec::from_hex("0000000000000000000000000000000000000000000000000000000000000000").unwrap();
 
     TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().write_u32::<LittleEndian>(version).unwrap();
-    TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().extend(vec![0x12]);
+    TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().extend(vec![0x14]);
+    TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().extend(Vec::from_hex("000000000000000000055988c1b0ab4440f0f7583056c580e9a0aa6ac8683b57").unwrap()); //709388
+    TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().extend(Vec::from_hex("0000000000000000000387F16D9853CA4CCA63B7BC0AA7FBBB2268DF7FB0B3FD").unwrap()); //709387
     TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().extend(Vec::from_hex("00000000000000000003A0B28AC8C3BE728FD8446CC68C6C3E1CD53A2A79E034").unwrap()); //709386
     TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().extend(Vec::from_hex("0000000000000000000a482bf62cd477fd422ef92fa2a7e5e68038ecbbff5775").unwrap()); //709082
     TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().extend(Vec::from_hex("0000000000000000000883AED93761D3DEECE45AE975D23FE408DA8D2A4EBEDD").unwrap()); //709082
@@ -157,7 +159,7 @@ pub fn read_message(mut connection: &TcpStream) -> ReadResult {
             }
         },
         Err(e) => {
-            eprintln!("error reading header {}", e);
+            // eprintln!("error reading header {}", e);
             read_result.error = Some(e);
             return read_result
         }
