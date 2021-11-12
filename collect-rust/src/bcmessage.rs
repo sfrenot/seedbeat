@@ -95,18 +95,19 @@ pub fn init() {
     // let genesis_block:Vec<u8> = vec![0x6f, 0xe2, 0x8c, 0x0a, 0xb6, 0xf1, 0xb3, 0x72, 0xc1, 0xa6, 0xa2, 0x46, 0xae, 0x63, 0xf7, 0x4f, 0x93, 0x1e, 0x83, 0x65, 0xe1, 0x5a, 0x08, 0x9c, 0x68, 0xd6, 0x19, 0x00, 0x00, 0x00, 0x00, 0x00];
     // let hash_stop:Vec<u8> =     vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
 
-    let genesis_block:Vec<u8> = Vec::from_hex("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f").unwrap();
+    // let genesis_block:Vec<u8> = Vec::from_hex("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f").unwrap();
     let hash_stop:Vec<u8> =     Vec::from_hex("0000000000000000000000000000000000000000000000000000000000000000").unwrap();
 
     TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().write_u32::<LittleEndian>(version).unwrap();
-    TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().extend(vec![0x09]);
-
+    TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().extend(vec![0x12]);
+    TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().extend(Vec::from_hex("00000000000000000003A0B28AC8C3BE728FD8446CC68C6C3E1CD53A2A79E034").unwrap()); //709386
     TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().extend(Vec::from_hex("0000000000000000000a482bf62cd477fd422ef92fa2a7e5e68038ecbbff5775").unwrap()); //709082
     TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().extend(Vec::from_hex("0000000000000000000883AED93761D3DEECE45AE975D23FE408DA8D2A4EBEDD").unwrap()); //709082
     TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().extend(Vec::from_hex("0000000000000000000381EB49D93C588D60A377A9BE00A3FAE6827856B7735E").unwrap()); //709081
     TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().extend(Vec::from_hex("0000000000000000000017E3E40294241F45D1D9FB201A57E296588BF3A129C9").unwrap()); //709077
     TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().extend(Vec::from_hex("0000000000000000000A66661135CC362AAB9D3A64837BC4A13C76957A0A4CD9").unwrap()); //709076
     TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().extend(Vec::from_hex("0000000000000000000950D380817357CC6E9425B13098904B8192EAC4849198").unwrap()); //709043
+    TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().extend(Vec::from_hex("000000000000000000DA4BFF4FE47B622A37E51B13B44768C3B013D006FC0173").unwrap()); //460602
     TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().extend(Vec::from_hex("000000006A625F06636B8BB6AC7B960A8D03705D1ACE08B1A19DA3FDCC99DDBD").unwrap()); //2
     TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().extend(Vec::from_hex("00000000839A8E6886AB5951D76F411475428AFC90947EE320161BBF18EB6048").unwrap()); //1
     TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().extend(Vec::from_hex("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f").unwrap()); //0

@@ -393,15 +393,26 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                     }
                 }
                 if command == String::from(INV){
-                    let inv_type:&[u8;1] = &[0x02];
-                    if payload[1] == inv_type[0] {
-                        eprintln!("Inventory message found {:02X?}, {}", payload, payload[1]);
-                        for val in 0..(payload.len()-5) {
-                            eprint!("{:02X?}", payload[payload.len()-val-1]);
+                    // let vec....
+                    // let inv_type:&[u8;1] = &[0x02];
+                    let inv_size = payload[0];
+                    let inv_length = 36;
+                    let block_length = 32;
+                    let mut found = false;
+                    let mut offset = 0;
+                    for _i in 0..inv_size {
+                        if payload[offset+1] == 0x02 {
+                            found = true;
+                            for val in 0..block_length {
+                                eprint!("{:02X?}", payload[offset+inv_length-val]);
+                            }
+                            eprintln!();
                         }
-                        eprintln!();
-
-                        process::exit(0);
+                        offset+=inv_length;
+                    }
+                    if found {
+                        eprintln!("Inventory message found {:02X?}, {}", payload, payload[1]);
+                        std::process::exit(1);
                     }
 
                     // eprintln!("Inventory message found {:02X?}", payload.clone());
