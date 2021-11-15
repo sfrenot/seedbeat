@@ -99,7 +99,8 @@ pub fn init() {
     let hash_stop:Vec<u8> =     Vec::from_hex("0000000000000000000000000000000000000000000000000000000000000000").unwrap();
 
     TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().write_u32::<LittleEndian>(version).unwrap();
-    TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().extend(vec![0x14]);
+    TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().extend(vec![0x15]);
+    TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().extend(Vec::from_hex("0000000000000000000c36d591ad8c0c7330e84458ffde6c6c024d7ae888cffe").unwrap()); //709845
     TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().extend(Vec::from_hex("000000000000000000055988c1b0ab4440f0f7583056c580e9a0aa6ac8683b57").unwrap()); //709388
     TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().extend(Vec::from_hex("0000000000000000000387F16D9853CA4CCA63B7BC0AA7FBBB2268DF7FB0B3FD").unwrap()); //709387
     TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().extend(Vec::from_hex("00000000000000000003A0B28AC8C3BE728FD8446CC68C6C3E1CD53A2A79E034").unwrap()); //709386

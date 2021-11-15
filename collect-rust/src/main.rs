@@ -365,7 +365,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
         let connection_close = String::from(CONN_CLOSE);
         let get_blocks = String::from(GET_BLOCKS);
         match read_result.error {
-            Some(error) => {
+            Some(_error) => {
                 // eprintln!("Erreur Lecture {}", error);
                 in_chain.send(connection_close).unwrap();
                 break;
@@ -402,13 +402,17 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                     let mut offset = 0;
                     for _i in 0..inv_size {
                         if payload[offset+1] == 0x02 {
-                            if (inv_size > 1) {
+                            if inv_size > 1 {
                                 found = true;
                             }
+                            let mut toto:[u8; 32] = [0x00; 32] ;
+                            eprint!("BLOCK ==> ");
                             for val in 0..block_length {
-                                eprint!("BLOCK !=> {:02X?}", payload[offset+inv_length-val]);
+                                toto[val] = payload[offset+inv_length-val];
+                                eprint!("{:02X?}", payload[offset+inv_length-val]);
                             }
                             eprintln!();
+                            eprintln!("Result {}", hex::encode(toto));
                         }
                         offset+=inv_length;
                     }
@@ -566,10 +570,12 @@ fn check_pool_size(addresses_to_test : Arc<Mutex<i64>>, start_time: SystemTime )
 fn main() {
     // let gen:Vec<u8> = vec![0x00, 0x01, 0x02];
     // let gen2 = Vec::from_hex("000102").unwrap();
+    // let toto = hex::encode([0x00, 0x02, 0xFF]);
     //
     // eprintln!("{:02X?}",gen);
     // eprintln!("{:02X?}",gen2);
     // dbg!("coucou");
+    // eprintln!("{}", toto);
     // std::process::exit(1);
     let start_time: SystemTime = SystemTime::now();
     bcmessage::init();
