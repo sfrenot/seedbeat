@@ -27,6 +27,7 @@ const NEIGHBOURS: u64 = 1000;
 lazy_static! {
     static ref ADRESSES_VISITED: Mutex<HashMap<String, PeerStatus>> = Mutex::new(HashMap::new());
     static ref LOGGER: Mutex<LineWriter<Box<dyn Write + Send>>> = Mutex::new(LineWriter::new(Box::new(stdout())));
+    static ref BLOCK_VISITED: Mutex<HashMap<String, bool>> = Mutex::new(HashMap::new());
 }
 
 // storage length
@@ -398,26 +399,37 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                     let inv_size = payload[0];
                     let inv_length = 36;
                     let block_length = 32;
-                    let mut found = false;
+                    let mut found = 0;
                     let mut offset = 0;
+                    let mut block_visited = BLOCK_VISITED.lock().unwrap();
                     for _i in 0..inv_size {
                         if payload[offset+1] == 0x02 {
                             if inv_size > 1 {
-                                found = true;
+                                found+=1;
                             }
                             let mut toto:[u8; 32] = [0x00; 32] ;
                             eprint!("BLOCK ==> ");
                             for val in 0..block_length {
                                 toto[val] = payload[offset+inv_length-val];
-                                eprint!("{:02X?}", payload[offset+inv_length-val]);
+                                // eprint!("{:02X?}", payload[offset+inv_length-val]);
                             }
-                            eprintln!();
-                            eprintln!("Result {}", hex::encode(toto));
+                            let block_name = hex::encode(toto);
+                            // eprintln!();
+
+                            eprintln!("Test Block ==> {}", &block_name);
+                            match block_visited.get(&block_name) {
+                                None => {
+                                    eprintln!("Ajout");
+                                    block_visited.insert(block_name, true);
+                                }
+                                _ => {}
+                            }
+                            eprintln!("Hash {:?}", &block_visited);
                         }
                         offset+=inv_length;
                     }
-                    if found {
-                        eprintln!("Inventory message found {:02X?}, {}", payload, payload[1]);
+                    if found > 1 {
+                        eprintln!("Inventory message block found {:02X?}, {}", payload, payload[1]);
                         std::process::exit(1);
                     }
 
@@ -488,7 +500,7 @@ fn handle_one_peer(connection_start_channel: Receiver<String>, addresses_to_test
                         println!("error at sending Msg version ack");
                         fail(target_address.clone());
                         break; // From connexion
-                    },
+                    }
                     _ => {}
                 }
 
@@ -504,7 +516,7 @@ fn handle_one_peer(connection_start_channel: Receiver<String>, addresses_to_test
                         println!("error at sending getaddr");
                         fail(target_address.clone());
                         break; // From connexion
-                    },
+                    }
                     _ => {}
                 }
 
@@ -516,7 +528,7 @@ fn handle_one_peer(connection_start_channel: Receiver<String>, addresses_to_test
                             println!("error at sending getaddr");
                             fail(target_address.clone());
                             break; // From connexion
-                        },
+                        }
                         _ => {}
                     }
                 } else if received_cmd == String::from(CONN_CLOSE) {
