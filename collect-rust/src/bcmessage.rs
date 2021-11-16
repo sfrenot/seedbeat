@@ -1,12 +1,10 @@
 use std::sync::Mutex;
 use lazy_static::lazy_static;
-use byteorder::{WriteBytesExt, ReadBytesExt, LittleEndian};
 use std::time::SystemTime;
 use sha2::{Sha256, Digest};
 use std::net::TcpStream;
 use std::io::{Write, Read, Error, ErrorKind};
-
-use std::io::Cursor;
+use std::convert::TryInto;
 use hex::FromHex;
 
 const VERSION:u32 = 70015;
@@ -90,7 +88,7 @@ pub struct ReadResult {
 pub fn create_block_message_payload() {
     let mut block_message = TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap();
 
-    block_message.extend(VERSION.swap_bytes().to_be_bytes());
+    block_message.extend(VERSION.to_le_bytes());
     block_message.extend([BLOCKS_ID.len() as u8]);
     for elem in BLOCKS_ID {
         block_message.extend(Vec::from_hex(elem).unwrap());
@@ -117,18 +115,22 @@ pub fn create_init_message_payload() {
     let height:u32 = 708998;
 
     let mut message_payload = TEMPLATE_MESSAGE_PAYLOAD.lock().unwrap();
-    message_payload.extend(VERSION.swap_bytes().to_be_bytes());
-    message_payload.extend(services.swap_bytes().to_be_bytes());
-    message_payload.extend(date_buffer.swap_bytes().to_be_bytes());
-    message_payload.extend(address_buffer.swap_bytes().to_be_bytes());
-    message_payload.extend(services.swap_bytes().to_be_bytes());
+
+    message_payload.extend(VERSION.to_le_bytes());
+    message_payload.extend(services.to_le_bytes());
+    message_payload.extend(date_buffer.to_le_bytes());
+    message_payload.extend(address_buffer.to_le_bytes());
+    message_payload.extend(services.to_le_bytes());
     message_payload.extend(&address_from);
-    message_payload.extend(services.swap_bytes().to_be_bytes());
+    message_payload.extend(services.to_le_bytes());
     message_payload.extend(&address_from);
     message_payload.extend(node_id);
     message_payload.extend(user_agent);
-    message_payload.extend(height.swap_bytes().to_be_bytes());
+    message_payload.extend(height.to_le_bytes());
 
+    // drop(message_payload);
+    // eprintln!("{:02x?}", hex::encode(TEMPLATE_MESSAGE_PAYLOAD.lock().unwrap().to_vec()));
+    // std::process::exit(1);
 }
 
 // Read message from a peer return command, payload, err
@@ -154,8 +156,8 @@ pub fn read_message(mut connection: &TcpStream) -> ReadResult {
             let cmd = String::from_utf8_lossy(&header_buffer[START_CMD..END_CMD]);
             let command = cmd.trim_matches(char::from(0));
             read_result.command = String::from(command);
-            let mut payload_size_reader = Cursor::new(&header_buffer[START_PAYLOAD_LENGTH..END_PAYLOAD_LENGTH]);
-            let payload_size = payload_size_reader.read_u32::<LittleEndian>().unwrap();
+
+            let payload_size = u32::from_le_bytes((&header_buffer[START_PAYLOAD_LENGTH..END_PAYLOAD_LENGTH]).try_into().unwrap());
 
             if payload_size <= 0 { return read_result };
 
@@ -218,7 +220,7 @@ fn get_payload_with_current_date() -> Vec<u8> {
     let mut payload :Vec<u8>  = TEMPLATE_MESSAGE_PAYLOAD.lock().unwrap().clone();
     let mut date :Vec<u8> = Vec::new();
     let unix_timestamp:u64 = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
-    date.write_u64::<LittleEndian>(unix_timestamp).unwrap();
+    date.extend(unix_timestamp.swap_bytes().to_be_bytes());
     payload.splice(START_DATE..END_DATE, date.iter().cloned());
     return payload;
 }
@@ -232,7 +234,7 @@ fn build_request_message_header(header: & mut Vec<u8>, command_name :&str, paylo
 
     let payload_len :u32 = payload.len() as u32;
     let mut payload_len_buffer = Vec::new();
-    payload_len_buffer.write_u32::<LittleEndian>(payload_len).unwrap();
+    payload_len_buffer.extend(payload_len.swap_bytes().to_be_bytes());
     let slice:&[u8] =&payload_len_buffer[..];
     header.splice(START_PAYLOAD_LENGTH..END_PAYLOAD_LENGTH, slice.iter().cloned());
 
