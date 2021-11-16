@@ -9,6 +9,8 @@ use std::io::{Write, Read, Error, ErrorKind};
 use std::io::Cursor;
 use hex::FromHex;
 
+const VERSION:u32 = 70015;
+
 // Timer
 const MESSAGE_TIMEOUT:std::time::Duration = std::time::Duration::from_secs(120);
 
@@ -26,7 +28,6 @@ lazy_static! {
 
 const START_DATE:usize = 12;
 const END_DATE:usize= 20;
-
 
 // HEADER STRUCT
 const HEADER_SIZE:usize = 24;
@@ -50,14 +51,46 @@ pub const INV:&str = "inv";
 pub const CONN_CLOSE:&str = "CONNCLOSED";
 pub const GET_BLOCKS:&str = "getblocks";
 
+
+// TO BE SUPPRESSED
+const BLOCKS_ID:[&str;17] = [
+"000000000000000000084c07de5f063c4e1312584640499433a65f636eb86e2d",
+"000000000000000000020ddbbfb413f1deda472fcf7cb801f3088b8f322bf866",
+"0000000000000000000c36d591ad8c0c7330e84458ffde6c6c024d7ae888cffe",
+"000000000000000000055988c1b0ab4440f0f7583056c580e9a0aa6ac8683b57",
+"0000000000000000000387F16D9853CA4CCA63B7BC0AA7FBBB2268DF7FB0B3FD",
+"00000000000000000003A0B28AC8C3BE728FD8446CC68C6C3E1CD53A2A79E034",
+"0000000000000000000a482bf62cd477fd422ef92fa2a7e5e68038ecbbff5775",
+"0000000000000000000883AED93761D3DEECE45AE975D23FE408DA8D2A4EBEDD",
+"0000000000000000000381EB49D93C588D60A377A9BE00A3FAE6827856B7735E",
+"0000000000000000000017E3E40294241F45D1D9FB201A57E296588BF3A129C9",
+"0000000000000000000A66661135CC362AAB9D3A64837BC4A13C76957A0A4CD9",
+"0000000000000000000950D380817357CC6E9425B13098904B8192EAC4849198",
+"000000000000000000DA4BFF4FE47B622A37E51B13B44768C3B013D006FC0173",
+"000000006A625F06636B8BB6AC7B960A8D03705D1ACE08B1A19DA3FDCC99DDBD",
+"00000000839A8E6886AB5951D76F411475428AFC90947EE320161BBF18EB6048",
+"000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
+"0000000000000000000000000000000000000000000000000000000000000000"
+];
+
 pub struct ReadResult {
     pub command: String,
     pub payload: Vec<u8>,
     pub error: Option<std::io::Error>
 }
 
-pub fn init() {
-    let version:u32 = 70015;
+pub fn create_block_message_payload() {
+    let mut block_message = TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap();
+
+    block_message.write_u32::<LittleEndian>(VERSION).unwrap();
+    block_message.extend([BLOCKS_ID.len() as u8]);
+    for elem in BLOCKS_ID {
+        block_message.extend(Vec::from_hex(elem).unwrap());
+    }
+}
+
+pub fn create_init_message_payload() {
+
     let services:u64 = NODE_NETWORK | NODE_BLOOM | NODE_WITNESS | NODE_NETWORK_LIMITED;
     let date_buffer :u64 = 0;
     let address_buffer:u64 = 0;
@@ -74,7 +107,7 @@ pub fn init() {
     // let height:u32 =580259;
     let height:u32 = 708998;
 
-    TEMPLATE_MESSAGE_PAYLOAD.lock().unwrap().write_u32::<LittleEndian>(version).unwrap();
+    TEMPLATE_MESSAGE_PAYLOAD.lock().unwrap().write_u32::<LittleEndian>(VERSION).unwrap();
     TEMPLATE_MESSAGE_PAYLOAD.lock().unwrap().write_u64::<LittleEndian>(services).unwrap();
     TEMPLATE_MESSAGE_PAYLOAD.lock().unwrap().write_u64::<LittleEndian>(date_buffer).unwrap();
     TEMPLATE_MESSAGE_PAYLOAD.lock().unwrap().write_u64::<LittleEndian>(address_buffer).unwrap();
@@ -85,36 +118,6 @@ pub fn init() {
     TEMPLATE_MESSAGE_PAYLOAD.lock().unwrap().extend(node_id);
     TEMPLATE_MESSAGE_PAYLOAD.lock().unwrap().extend(user_agent);
     TEMPLATE_MESSAGE_PAYLOAD.lock().unwrap().write_u32::<LittleEndian>( height).unwrap();
-
-    eprintln!("-> {:?}", &TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap());
-
-    let mut block_message = TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap();
-    block_message.write_u32::<LittleEndian>(version).unwrap();
-
-    block_message.extend([5]);
-    // block_message.extend(vec![0xf2]);
-    /*
-    block_message.extend(Vec::from_hex("000000000000000000084c07de5f063c4e1312584640499433a65f636eb86e2d").unwrap());
-    block_message.extend(Vec::from_hex("000000000000000000020ddbbfb413f1deda472fcf7cb801f3088b8f322bf866").unwrap());
-    block_message.extend(Vec::from_hex("0000000000000000000c36d591ad8c0c7330e84458ffde6c6c024d7ae888cffe").unwrap()); //709845
-    block_message.extend(Vec::from_hex("000000000000000000055988c1b0ab4440f0f7583056c580e9a0aa6ac8683b57").unwrap()); //709388
-    block_message.extend(Vec::from_hex("0000000000000000000387F16D9853CA4CCA63B7BC0AA7FBBB2268DF7FB0B3FD").unwrap()); //709387
-    block_message.extend(Vec::from_hex("00000000000000000003A0B28AC8C3BE728FD8446CC68C6C3E1CD53A2A79E034").unwrap()); //709386
-    block_message.extend(Vec::from_hex("0000000000000000000a482bf62cd477fd422ef92fa2a7e5e68038ecbbff5775").unwrap()); //709082
-    block_message.extend(Vec::from_hex("0000000000000000000883AED93761D3DEECE45AE975D23FE408DA8D2A4EBEDD").unwrap()); //709082
-    block_message.extend(Vec::from_hex("0000000000000000000381EB49D93C588D60A377A9BE00A3FAE6827856B7735E").unwrap()); //709081
-    block_message.extend(Vec::from_hex("0000000000000000000017E3E40294241F45D1D9FB201A57E296588BF3A129C9").unwrap()); //709077
-    block_message.extend(Vec::from_hex("0000000000000000000A66661135CC362AAB9D3A64837BC4A13C76957A0A4CD9").unwrap()); //709076
-    block_message.extend(Vec::from_hex("0000000000000000000950D380817357CC6E9425B13098904B8192EAC4849198").unwrap()); //709043
-    */
-    block_message.extend(Vec::from_hex("000000000000000000DA4BFF4FE47B622A37E51B13B44768C3B013D006FC0173").unwrap()); //460602
-    block_message.extend(Vec::from_hex("000000006A625F06636B8BB6AC7B960A8D03705D1ACE08B1A19DA3FDCC99DDBD").unwrap()); //2
-    block_message.extend(Vec::from_hex("00000000839A8E6886AB5951D76F411475428AFC90947EE320161BBF18EB6048").unwrap()); //1
-    block_message.extend(Vec::from_hex("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f").unwrap()); //0
-    block_message.extend(Vec::from_hex("0000000000000000000000000000000000000000000000000000000000000000").unwrap());
-
-    eprintln!("-> {:02x?}", &block_message);
-    std::process::exit(1);
 
 }
 
