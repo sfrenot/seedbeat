@@ -10,6 +10,7 @@ use std::io::Cursor;
 use hex::FromHex;
 
 const VERSION:u32 = 70015;
+const PORT:u16 = 8333;
 
 // Timer
 const MESSAGE_TIMEOUT:std::time::Duration = std::time::Duration::from_secs(120);
@@ -53,23 +54,30 @@ pub const GET_BLOCKS:&str = "getblocks";
 
 
 // TO BE SUPPRESSED
-const BLOCKS_ID:[&str;17] = [
-"000000000000000000084c07de5f063c4e1312584640499433a65f636eb86e2d",
-"000000000000000000020ddbbfb413f1deda472fcf7cb801f3088b8f322bf866",
-"0000000000000000000c36d591ad8c0c7330e84458ffde6c6c024d7ae888cffe",
-"000000000000000000055988c1b0ab4440f0f7583056c580e9a0aa6ac8683b57",
-"0000000000000000000387F16D9853CA4CCA63B7BC0AA7FBBB2268DF7FB0B3FD",
-"00000000000000000003A0B28AC8C3BE728FD8446CC68C6C3E1CD53A2A79E034",
-"0000000000000000000a482bf62cd477fd422ef92fa2a7e5e68038ecbbff5775",
-"0000000000000000000883AED93761D3DEECE45AE975D23FE408DA8D2A4EBEDD",
-"0000000000000000000381EB49D93C588D60A377A9BE00A3FAE6827856B7735E",
-"0000000000000000000017E3E40294241F45D1D9FB201A57E296588BF3A129C9",
-"0000000000000000000A66661135CC362AAB9D3A64837BC4A13C76957A0A4CD9",
-"0000000000000000000950D380817357CC6E9425B13098904B8192EAC4849198",
-"000000000000000000DA4BFF4FE47B622A37E51B13B44768C3B013D006FC0173",
-"000000006A625F06636B8BB6AC7B960A8D03705D1ACE08B1A19DA3FDCC99DDBD",
-"00000000839A8E6886AB5951D76F411475428AFC90947EE320161BBF18EB6048",
-"000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f",
+const BLOCKS_ID:[&str;24] = [
+"00000000000000000003430b1f8420b08d1e6f2bd28b739f4cec1e8de14507c8",
+"00000000000000000002d3cec43724718cb473883c0b4b444a713e53cd27e085", //709982
+"00000000000000000003ecbd35408b3f3bf44be841d464fa42174958f6cc99e1", //709981
+"000000000000000000076ed16078f50ded3a5ef31902e229e01a35bdd43093c1", //709980
+"00000000000000000005617eb7255be4dcd9096694c559e462e7c0456ab968a6", //709956
+"00000000000000000002d28921f079781a992e44ac753e4d4e7b91b2be6e78e3", //709955
+"000000000000000000084c07de5f063c4e1312584640499433a65f636eb86e2d", //709868
+"000000000000000000020ddbbfb413f1deda472fcf7cb801f3088b8f322bf866", //709867
+"0000000000000000000c36d591ad8c0c7330e84458ffde6c6c024d7ae888cffe", //709845
+"000000000000000000055988c1b0ab4440f0f7583056c580e9a0aa6ac8683b57", //709388
+"0000000000000000000387F16D9853CA4CCA63B7BC0AA7FBBB2268DF7FB0B3FD", //709387
+"00000000000000000003A0B28AC8C3BE728FD8446CC68C6C3E1CD53A2A79E034", //709386
+"0000000000000000000a482bf62cd477fd422ef92fa2a7e5e68038ecbbff5775", //709083
+"0000000000000000000883AED93761D3DEECE45AE975D23FE408DA8D2A4EBEDD", //709082
+"0000000000000000000381EB49D93C588D60A377A9BE00A3FAE6827856B7735E", //709081
+"0000000000000000000017E3E40294241F45D1D9FB201A57E296588BF3A129C9", //709077
+"0000000000000000000A66661135CC362AAB9D3A64837BC4A13C76957A0A4CD9", //709076
+"0000000000000000000950D380817357CC6E9425B13098904B8192EAC4849198", //709043
+"0000000000000000000f5922af9ae7762d251db95e17c9586fbbc2e89c66a9b7", //692917
+"000000000000000000DA4BFF4FE47B622A37E51B13B44768C3B013D006FC0173", //460602
+"000000006A625F06636B8BB6AC7B960A8D03705D1ACE08B1A19DA3FDCC99DDBD", //2
+"00000000839A8E6886AB5951D76F411475428AFC90947EE320161BBF18EB6048", //1
+"000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f", //0
 "0000000000000000000000000000000000000000000000000000000000000000"
 ];
 
@@ -82,42 +90,44 @@ pub struct ReadResult {
 pub fn create_block_message_payload() {
     let mut block_message = TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap();
 
-    block_message.write_u32::<LittleEndian>(VERSION).unwrap();
+    block_message.extend(VERSION.swap_bytes().to_be_bytes());
     block_message.extend([BLOCKS_ID.len() as u8]);
     for elem in BLOCKS_ID {
         block_message.extend(Vec::from_hex(elem).unwrap());
     }
+    // drop(block_message);
+    // eprintln!("{:02x?}", hex::encode(TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().to_vec()));
+    // std::process::exit(1);
 }
 
 pub fn create_init_message_payload() {
 
     let services:u64 = NODE_NETWORK | NODE_BLOOM | NODE_WITNESS | NODE_NETWORK_LIMITED;
-    let date_buffer :u64 = 0;
+    let date_buffer:u64 = 0;
     let address_buffer:u64 = 0;
-    let address_prefix:Vec<u8>  =  vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF];
-    let binary_ip:Vec<u8>  = vec![127, 0, 0, 1];
-    let mut binary_port:Vec<u8>  =  vec![];
-    binary_port.write_u16::<LittleEndian>(8333).unwrap();
-    let mut address_from:Vec<u8>  = address_prefix.clone();
-    address_from.extend(binary_ip);
-    address_from.extend(binary_port);
 
-    let node_id:Vec<u8> =  vec![0x14, 0x14, 0x14, 0x14, 0x14, 0x14, 0x14, 0x12];
+    let binary_ip  = [127, 0, 0, 1];
+
+    let mut address_from = Vec::from_hex("00000000000000000000ffff").unwrap();
+    address_from.extend(binary_ip);
+    address_from.extend(PORT.swap_bytes().to_be_bytes());
+
+    let node_id = Vec::from_hex("1414141414141412").unwrap();
     let user_agent:&[u8] = "\x0C/bcpc:0.0.1/".as_bytes();
-    // let height:u32 =580259;
     let height:u32 = 708998;
 
-    TEMPLATE_MESSAGE_PAYLOAD.lock().unwrap().write_u32::<LittleEndian>(VERSION).unwrap();
-    TEMPLATE_MESSAGE_PAYLOAD.lock().unwrap().write_u64::<LittleEndian>(services).unwrap();
-    TEMPLATE_MESSAGE_PAYLOAD.lock().unwrap().write_u64::<LittleEndian>(date_buffer).unwrap();
-    TEMPLATE_MESSAGE_PAYLOAD.lock().unwrap().write_u64::<LittleEndian>(address_buffer).unwrap();
-    TEMPLATE_MESSAGE_PAYLOAD.lock().unwrap().write_u64::<LittleEndian>(services).unwrap();
-    TEMPLATE_MESSAGE_PAYLOAD.lock().unwrap().extend(address_from.clone());
-    TEMPLATE_MESSAGE_PAYLOAD.lock().unwrap().write_u64::<LittleEndian>(services).unwrap();
-    TEMPLATE_MESSAGE_PAYLOAD.lock().unwrap().extend(address_from.clone());
-    TEMPLATE_MESSAGE_PAYLOAD.lock().unwrap().extend(node_id);
-    TEMPLATE_MESSAGE_PAYLOAD.lock().unwrap().extend(user_agent);
-    TEMPLATE_MESSAGE_PAYLOAD.lock().unwrap().write_u32::<LittleEndian>( height).unwrap();
+    let mut message_payload = TEMPLATE_MESSAGE_PAYLOAD.lock().unwrap();
+    message_payload.extend(VERSION.swap_bytes().to_be_bytes());
+    message_payload.extend(services.swap_bytes().to_be_bytes());
+    message_payload.extend(date_buffer.swap_bytes().to_be_bytes());
+    message_payload.extend(address_buffer.swap_bytes().to_be_bytes());
+    message_payload.extend(services.swap_bytes().to_be_bytes());
+    message_payload.extend(&address_from);
+    message_payload.extend(services.swap_bytes().to_be_bytes());
+    message_payload.extend(&address_from);
+    message_payload.extend(node_id);
+    message_payload.extend(user_agent);
+    message_payload.extend(height.swap_bytes().to_be_bytes());
 
 }
 
