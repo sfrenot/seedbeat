@@ -4,7 +4,7 @@ mod bcmessage;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use clap::{Arg, App};
 use std::fs::File;
-use std::io::{LineWriter, stdout, Write, Cursor};
+use std::io::{LineWriter, stdout, Write};
 use std::sync::{mpsc, Arc};
 use std::thread;
 use std::net::{TcpStream, IpAddr};
@@ -14,10 +14,10 @@ use std::net::SocketAddr;
 use std::collections::HashMap;
 use std::sync::Mutex;
 use lazy_static::lazy_static;
-use byteorder::{ReadBytesExt, LittleEndian, BigEndian};
 use std::sync::mpsc::Sender; // Voir si chan::Receiver n'est pas préférable
 use chan::{self, Receiver};
 use std::process;
+use std::convert::TryInto;
 
 const CONNECTION_TIMEOUT:Duration = Duration::from_secs(10);
 const CHECK_TERMINATION:Duration = Duration::from_secs(5);
@@ -27,7 +27,7 @@ const NEIGHBOURS: u64 = 1000;
 lazy_static! {
     static ref ADRESSES_VISITED: Mutex<HashMap<String, PeerStatus>> = Mutex::new(HashMap::new());
     static ref LOGGER: Mutex<LineWriter<Box<dyn Write + Send>>> = Mutex::new(LineWriter::new(Box::new(stdout())));
-    static ref BLOCK_VISITED: Mutex<HashMap<String, bool>> = Mutex::new(HashMap::new());
+    static ref KNOWN_BLOCK: Mutex<HashMap<String, bool>> = Mutex::new(HashMap::new());
 }
 
 // storage length
@@ -227,21 +227,17 @@ fn store_event(msg :&String){
 
 fn get_compact_int(payload: &Vec<u8>) -> u64 {
     let storage_length: u8 = payload[STORAGE_BYTE];
-
+    // TODO: Try with match construct
     if storage_length == UNIT_16 {
-        let mut bytes_reader = Cursor::new(payload[NUM_START..UNIT_16_END].to_vec());
-        return bytes_reader.read_u16::<LittleEndian>().unwrap() as u64;
+        return u16::from_le_bytes((&payload[NUM_START..UNIT_16_END]).try_into().unwrap()) as u64;
     }
     if storage_length == UNIT_32 {
-        let mut bytes_reader = Cursor::new(payload[NUM_START..UNIT_32_END].to_vec());
-        return bytes_reader.read_u32::<LittleEndian>().unwrap() as u64;
+        return u32::from_le_bytes((&payload[NUM_START..UNIT_32_END]).try_into().unwrap()) as u64;
     }
     if storage_length == UNIT_64 {
-        let mut bytes_reader = Cursor::new(payload[NUM_START..UNIT_64_END].to_vec());
-        return bytes_reader.read_u64::<LittleEndian>().unwrap() as u64;
+        return u64::from_le_bytes((&payload[NUM_START..UNIT_64_END]).try_into().unwrap()) as u64;
     }
     return storage_length as u64;
-
 }
 
 fn get_start_byte(variable_length_int: & usize) -> usize {
@@ -258,16 +254,18 @@ fn get_start_byte(variable_length_int: & usize) -> usize {
     return UNIT_64_END
 }
 
-fn get_date_time(time_vec: Vec<u8>) -> DateTime<Utc>{
-    let mut time_field =  Cursor::new(time_vec);
-    let time_int = time_field.read_u32::<LittleEndian>().unwrap() as i64;
-    return DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(time_int, 0), Utc);
+fn get_date_time(mut time_vec: Vec<u8>) -> DateTime<Utc>{
+    if time_vec.len() == 4 {
+        /* La taille du champ varie dans le protocole de 4 à 8 octets */
+        time_vec.append(&mut vec![0,0,0,0]);
+    }
+
+    return DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(i64::from_le_bytes(time_vec.try_into().unwrap()), 0), Utc);
 }
 
 fn process_version_message( target_address: String, payload: &Vec<u8>){
 
-    let mut version_field =  Cursor::new(payload[..VERSION_END].to_vec());
-    let _version_number = version_field.read_u32::<LittleEndian>().unwrap() as i64;
+    let _version_number = u32::from_le_bytes((&payload[..VERSION_END]).try_into().unwrap());
     let _services = payload[VERSION_END..SERVICES_END].to_vec();
     let _peer_time = get_date_time(payload[SERVICES_END..TIMESTAMP_END].to_vec());
 
@@ -319,8 +317,7 @@ fn read_addresses(payload: Vec<u8>, address_channel: Sender<String>, addr_number
         array_v4.copy_from_slice(&ip_addr_field[12..]);
         let ip_v4 = IpAddr::from(array_v4);
 
-        let mut port_field = Cursor::new(payload[addr_begins_at+ IP_FIELD_END..addr_begins_at+ PORT_FIELD_END].to_vec());
-        let port = port_field.read_u16::<BigEndian>().unwrap();
+        let port = u16::from_be_bytes((&payload[addr_begins_at+ IP_FIELD_END..addr_begins_at+ PORT_FIELD_END]).try_into().unwrap());
 
         let new_peer : String = format!("{}:{:?}", ip_v4, port);
         if is_waiting(new_peer.clone()){
@@ -401,7 +398,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                     let block_length = 32;
                     let mut found = 0;
                     let mut offset = 0;
-                    let mut block_visited = BLOCK_VISITED.lock().unwrap();
+                    let mut known_block = KNOWN_BLOCK.lock().unwrap();
                     for _i in 0..inv_size {
                         if payload[offset+1] == 0x02 {
                             if inv_size > 1 {
@@ -417,14 +414,14 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                             // eprintln!();
 
                             eprintln!("Test Block ==> {}", &block_name);
-                            match block_visited.get(&block_name) {
+                            match known_block.get(&block_name) {
                                 None => {
                                     eprintln!("Ajout");
-                                    block_visited.insert(block_name, true);
+                                    known_block.insert(block_name, true);
                                 }
                                 _ => {}
                             }
-                            eprintln!("Hash {:?}", &block_visited);
+                            eprintln!("Hash {:?}", &known_block);
                         }
                         offset+=inv_length;
                     }
