@@ -424,7 +424,8 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                             match known_block.get(&block_name) {
                                 None => {
                                     eprintln!("Ajout");
-                                    known_block.insert(block_name, true);
+                                    known_block.insert(block_name.clone(), true);
+                                    bcmessage::create_block_message_payload(Some(block_name));
                                 }
                                 _ => {}
                             }
@@ -595,7 +596,7 @@ fn main() {
     // std::process::exit(1);
     let start_time: SystemTime = SystemTime::now();
     bcmessage::create_init_message_payload();
-    bcmessage::create_block_message_payload();
+    bcmessage::create_block_message_payload(None);
     let addresses_to_test:Arc<Mutex<i64>> = Arc::new(Mutex::new(0));
 
     let (address_channel_sender, address_channel_receiver) = mpsc::channel();
