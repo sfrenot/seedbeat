@@ -1,4 +1,5 @@
 mod bcmessage;
+mod bcblocks;
 
 // extern crate clap;
 use chrono::{DateTime, NaiveDateTime, Utc};
@@ -27,7 +28,6 @@ const NEIGHBOURS: u64 = 1000;
 lazy_static! {
     static ref ADRESSES_VISITED: Mutex<HashMap<String, PeerStatus>> = Mutex::new(HashMap::new());
     static ref LOGGER: Mutex<LineWriter<Box<dyn Write + Send>>> = Mutex::new(LineWriter::new(Box::new(stdout())));
-    static ref KNOWN_BLOCK: Mutex<HashMap<String, bool>> = Mutex::new(HashMap::new());
 }
 
 // storage length
@@ -405,7 +405,6 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                     let block_length = 32;
                     let mut found = 0;
                     let mut offset = 0;
-                    let mut known_block = KNOWN_BLOCK.lock().unwrap();
                     for _i in 0..inv_size {
                         if payload[offset+1] == 0x02 {
                             if inv_size > 1 {
@@ -419,17 +418,8 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                             }
                             let block_name = hex::encode(toto);
                             // eprintln!();
+                            bcblocks::add_block(block_name);
 
-                            eprintln!("Test Block ==> {}", &block_name);
-                            match known_block.get(&block_name) {
-                                None => {
-                                    eprintln!("Ajout");
-                                    known_block.insert(block_name.clone(), true);
-                                    bcmessage::create_block_message_payload(Some(block_name));
-                                }
-                                _ => {}
-                            }
-                            eprintln!("Hash {:?}", &known_block);
                         }
                         offset+=inv_length;
                     }
@@ -596,7 +586,7 @@ fn main() {
     // std::process::exit(1);
     let start_time: SystemTime = SystemTime::now();
     bcmessage::create_init_message_payload();
-    bcmessage::create_block_message_payload(None);
+    bcblocks::create_block_message_payload(None);
     let addresses_to_test:Arc<Mutex<i64>> = Arc::new(Mutex::new(0));
 
     let (address_channel_sender, address_channel_receiver) = mpsc::channel();
