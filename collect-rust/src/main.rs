@@ -387,7 +387,14 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                     let num_addr = process_addr_message(payload.clone(), address_channel);
                     if num_addr > ADDRESSES_RECEIVED_THRESHOLD {
                         // in_chain.send(connection_close).unwrap();
-                        in_chain.send(get_blocks).unwrap();
+                        // in_chain.send(get_blocks).unwrap();
+                        match in_chain.send(get_blocks) {
+                            Err(error) => {
+                                eprintln!("Erreur Send chan {}", error);
+                                std::process::exit(1);
+                            }
+                            _ => {}
+                        }
                     }
                 }
                 if command == String::from(INV){
@@ -529,7 +536,7 @@ fn handle_one_peer(connection_start_channel: Receiver<String>, addresses_to_test
                         _ => {}
                     }
                 } else if received_cmd == String::from(CONN_CLOSE) {
-                    // eprintln!("Fermeture {}", &target_address);
+                    eprintln!("Fermeture {}", &target_address);
                     done(target_address.clone());
                     break; // From connexion
                 } else {
