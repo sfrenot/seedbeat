@@ -3,12 +3,11 @@ use lazy_static::lazy_static;
 use std::time::SystemTime;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use sha2::{Sha256, Digest};
-use std::net::TcpStream;
+use std::net::{TcpStream, IpAddr};
 use std::io::{Write, Read, Error, ErrorKind};
 use std::convert::TryInto;
 use hex::FromHex;
 use crate::bcblocks;
-
 
 pub const VERSION:u32 = 70015;
 const PORT:u16 = 8333;
@@ -231,7 +230,6 @@ fn build_request_message_header(header: & mut Vec<u8>, command_name :&str, paylo
 
     let checksum = compute_checksum(payload);
     header.splice(START_CHECKSUM..END_CHECKSUM, checksum.iter().cloned());
-
 }
 
 pub fn process_version_message(payload: &Vec<u8>) -> (u32, Vec<u8>, DateTime<Utc>, String) {
@@ -254,15 +252,46 @@ pub fn process_version_message(payload: &Vec<u8>) -> (u32, Vec<u8>, DateTime<Utc
     (version_number, services, peer_time, user_agent)
 }
 
-pub fn get_date_time(mut time_vec: Vec<u8>) -> DateTime<Utc>{
-    if time_vec.len() == 4 {
-        /* La taille du champ varie dans le protocole de 4 à 8 octets */
-        time_vec.append(&mut vec![0,0,0,0]);
+pub fn process_addr_message(payload: Vec<u8>) -> Vec<String>{
+    if payload.len() == 0 {
+        return vec![];
     }
-    return DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(i64::from_le_bytes(time_vec.try_into().unwrap()), 0), Utc);
+    let addr_number = get_compact_int(&payload);
+    if addr_number < 2 {
+        return vec![];
+    }
+
+    let mut addr = vec![];
+    let start_byte = get_start_byte(& (addr_number as usize));
+    let mut read_addr = 0 ;
+    // let mut new_addr = 0;
+    while read_addr < addr_number {
+
+        let addr_begins_at = start_byte + (ADDRESS_LEN * read_addr as usize);
+        let _date_time = get_date_time(payload[addr_begins_at..addr_begins_at+ TIME_FIELD_END].to_vec());
+        let _services = payload[addr_begins_at+ TIME_FIELD_END..addr_begins_at+ SERVICES_END].to_vec();
+        let ip_addr_field = payload[addr_begins_at+ SERVICES_END..addr_begins_at+ IP_FIELD_END].to_vec();
+
+        let mut array_v6 = [0; 16];
+        array_v6.copy_from_slice(&ip_addr_field[..]);
+        let _ip_v6 = IpAddr::from(array_v6);
+
+        let mut array_v4 = [0; 4];
+        array_v4.copy_from_slice(&ip_addr_field[12..]);
+        let ip_v4 = IpAddr::from(array_v4);
+
+        let port = u16::from_be_bytes((&payload[addr_begins_at+ IP_FIELD_END..addr_begins_at+ PORT_FIELD_END]).try_into().unwrap());
+        let new_peer: String = format!("{}:{:?}", ip_v4, port);
+
+        addr.push(new_peer);
+        read_addr = read_addr +1;
+    }
+    // eprintln!("--> Ajout {} noeuds", new_addr);
+    addr
 }
 
-pub fn get_compact_int(payload: &Vec<u8>) -> u64 {
+//// COMMON SERVICES
+fn get_compact_int(payload: &Vec<u8>) -> u64 {
     let storage_length: u8 = payload[STORAGE_BYTE];
     // TODO: Try with match construct
     if storage_length == UNIT_16 {
@@ -277,7 +306,25 @@ pub fn get_compact_int(payload: &Vec<u8>) -> u64 {
     return storage_length as u64;
 }
 
-pub fn get_start_byte(variable_length_int: & usize) -> usize {
+fn get_date_time(mut time_vec: Vec<u8>) -> DateTime<Utc>{
+    if time_vec.len() == 4 {
+        /* La taille du champ varie dans le protocole de 4 à 8 octets */
+        time_vec.append(&mut vec![0,0,0,0]);
+    }
+    return DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(i64::from_le_bytes(time_vec.try_into().unwrap()), 0), Utc);
+}
+
+fn compute_checksum(payload : &Vec<u8>) -> Vec<u8> {
+    let mut hasher = Sha256::new();
+    hasher.input(payload);
+    let sum = hasher.result();
+    let mut hasher2 = Sha256::new();
+    hasher2.input(sum);
+    let result = hasher2.result();
+    return result[0..4].to_vec();
+}
+
+fn get_start_byte(variable_length_int: & usize) -> usize {
     let size = *variable_length_int as u64;
     if size < SIZE_FD {
         return NUM_START;
@@ -289,14 +336,4 @@ pub fn get_start_byte(variable_length_int: & usize) -> usize {
         return  UNIT_32_END
     }
     return UNIT_64_END
-}
-
-fn compute_checksum(payload : &Vec<u8>) -> Vec<u8> {
-    let mut hasher = Sha256::new();
-    hasher.input(payload);
-    let sum = hasher.result();
-    let mut hasher2 = Sha256::new();
-    hasher2.input(sum);
-    let result = hasher2.result();
-    return result[0..4].to_vec();
 }

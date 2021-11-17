@@ -7,8 +7,8 @@ use std::fs::File;
 use std::io::{LineWriter, stdout, Write};
 use std::sync::{mpsc, Arc};
 use std::thread;
-use std::net::{TcpStream, IpAddr};
-use crate::bcmessage::{ReadResult, INV, MSG_VERSION, MSG_VERSION_ACK, MSG_GETADDR, CONN_CLOSE, MSG_ADDR, GET_BLOCKS, SERVICES_END, ADDRESS_LEN, TIME_FIELD_END, IP_FIELD_END, PORT_FIELD_END };
+use std::net::{TcpStream};
+use crate::bcmessage::{ReadResult, INV, MSG_VERSION, MSG_VERSION_ACK, MSG_GETADDR, CONN_CLOSE, MSG_ADDR, GET_BLOCKS};
 use std::time::{Duration, SystemTime};
 use std::net::SocketAddr;
 use std::collections::HashMap;
@@ -17,7 +17,6 @@ use lazy_static::lazy_static;
 use std::sync::mpsc::Sender; // Voir si chan::Receiver n'est pas préférable
 use chan::{self, Receiver};
 use std::process;
-use std::convert::TryInto;
 
 const CONNECTION_TIMEOUT:Duration = Duration::from_secs(10);
 const CHECK_TERMINATION:Duration = Duration::from_secs(5);
@@ -29,7 +28,7 @@ lazy_static! {
     static ref LOGGER: Mutex<LineWriter<Box<dyn Write + Send>>> = Mutex::new(LineWriter::new(Box::new(stdout())));
 }
 
-const ADDRESSES_RECEIVED_THRESHOLD: u64 = 5;
+const ADDRESSES_RECEIVED_THRESHOLD: usize = 5;
 const MESSAGE_CHANEL_SIZE: usize = 100000;
 
 static mut NB_ADDR: u32 = 0;
@@ -197,6 +196,7 @@ fn store_event(msg :&String){
 }
 
 fn store_version_message(target_address: String, payload: &Vec<u8>){
+    //TODO: supprimer le &VEc
     let (_, _, _, _) = bcmessage::process_version_message(payload);
     let mut msg: String  = String::new();
     msg.push_str(format!("Seed: {} \n", target_address).as_ref());
@@ -211,35 +211,19 @@ fn store_version_message(target_address: String, payload: &Vec<u8>){
     register_pvm_connection(target_address);
 }
 
-fn read_addresses(payload: Vec<u8>, address_channel: Sender<String>, addr_number: u64){
-
-    let start_byte = bcmessage::get_start_byte(& (addr_number as usize));
-    let mut read_addr = 0 ;
-    // let mut new_addr = 0;
-    while read_addr < addr_number {
-
-        let addr_begins_at = start_byte + (ADDRESS_LEN * read_addr as usize);
-        let _date_time = bcmessage::get_date_time(payload[addr_begins_at..addr_begins_at+ TIME_FIELD_END].to_vec());
-        let _services = payload[addr_begins_at+ TIME_FIELD_END..addr_begins_at+ SERVICES_END].to_vec();
-        let ip_addr_field = payload[addr_begins_at+ SERVICES_END..addr_begins_at+ IP_FIELD_END].to_vec();
-
-        let mut array_v6 = [0; 16];
-        array_v6.copy_from_slice(&ip_addr_field[..]);
-        let _ip_v6 = IpAddr::from(array_v6);
-
-        let mut array_v4 = [0; 4];
-        array_v4.copy_from_slice(&ip_addr_field[12..]);
-        let ip_v4 = IpAddr::from(array_v4);
-
-        let port = u16::from_be_bytes((&payload[addr_begins_at+ IP_FIELD_END..addr_begins_at+ PORT_FIELD_END]).try_into().unwrap());
-
-        let new_peer : String = format!("{}:{:?}", ip_v4, port);
-        if is_waiting(new_peer.clone()){
+fn store_addr_messages(payload: Vec<u8>, address_channel: Sender<String>) -> usize {
+    if payload.len() == 0 {
+        return 0;
+    }
+    let new_addresses = bcmessage::process_addr_message(payload);
+    for new_peer in &new_addresses {
+        if is_waiting(new_peer.clone()) {
             // new_addr += 1;
 
             let mut msg:String  = String::new();
-            msg.push_str(format!("PAR address: {:?}, ", ip_v4).as_str());
-            msg.push_str(format!("port = {:?}\n", port).as_str());
+            msg.push_str(format!("PAR address: {:?}\n", new_peer).as_str());
+            // msg.push_str(format!("PAR address: {:?}, ", ip_v4).as_str());
+            // msg.push_str(format!("port = {:?}\n", port).as_str());
             // msg.push_str(format!("time = {}  ", date_time.format("%Y-%m-%d %H:%M:%S")).as_str());
             // msg.push_str(format!("now = {}  ", Into::<DateTime<Utc>>::into(SystemTime::now()).format("%Y-%m-%d %H:%M:%S")).as_str());
             // msg.push_str(format!("since = {:?}  ",SystemTime::now().duration_since(SystemTime::from(date_time)).unwrap_or_default() ).as_str());
@@ -248,25 +232,10 @@ fn read_addresses(payload: Vec<u8>, address_channel: Sender<String>, addr_number
 
             // println!(" {} -> new peer {} ",target_address, new_peer);
             store_event(&msg);
-            address_channel.send(new_peer).unwrap();
+            address_channel.send(new_peer.to_string()).unwrap();
         }
-        read_addr = read_addr +1;
     }
-    // eprintln!("--> Ajout {} noeuds", new_addr);
-}
-
-fn process_addr_message(payload: Vec<u8> , address_channel: Sender<String>) -> u64{
-    //TODO: Put in bcmessage
-    if payload.len() == 0 {
-        return 0;
-    }
-    let addr_number = bcmessage::get_compact_int(&payload);
-    if addr_number < 2 {
-        return addr_number;
-    }
-    read_addresses(payload, address_channel, addr_number);
-
-    return addr_number;
+    new_addresses.len()
 }
 
 fn handle_incoming_message(connection:& TcpStream, target_address: String, in_chain: Sender<String>, sender: Sender<String>)  {
@@ -298,9 +267,10 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                     continue;
                 }
                 if command == String::from(MSG_ADDR){
-                    let address_channel = sender.clone();
-                    let num_addr = process_addr_message(payload.clone(), address_channel);
-                    if num_addr > ADDRESSES_RECEIVED_THRESHOLD {
+                    //let address_channel = sender.clone();
+                    // let num_addr = bcmessage::process_addr_message(payload.clone(), address_channel);
+
+                    if store_addr_messages(payload.clone(),sender.clone()) > ADDRESSES_RECEIVED_THRESHOLD {
                         // in_chain.send(connection_close).unwrap();
                         // in_chain.send(get_blocks).unwrap();
                         match in_chain.send(get_blocks) {
