@@ -1,6 +1,7 @@
 use std::sync::Mutex;
 use lazy_static::lazy_static;
 use std::time::SystemTime;
+use chrono::{DateTime, NaiveDateTime, Utc};
 use sha2::{Sha256, Digest};
 use std::net::TcpStream;
 use std::io::{Write, Read, Error, ErrorKind};
@@ -12,6 +13,23 @@ use crate::bcblocks;
 pub const VERSION:u32 = 70015;
 const PORT:u16 = 8333;
 
+// storage length
+const UNIT_16: u8 = 0xFD;
+const UNIT_32: u8 = 0xFE;
+const UNIT_64: u8 = 0xFF;
+
+const SIZE_FD: u64 = 0xFD;
+const SIZE_FFFF: u64 = 0xFFFF;
+const SIZE_FFFF_FFFF: u64 = 0xFFFFFFFF;
+
+const STORAGE_BYTE :usize= 0;
+const NUM_START :usize= 1;
+
+//const UNIT_8_END: usize = 2;
+const UNIT_16_END: usize = 3;
+const UNIT_32_END: usize = 5;
+const UNIT_64_END: usize = 9;
+
 // Timer
 const MESSAGE_TIMEOUT:std::time::Duration = std::time::Duration::from_secs(120);
 
@@ -20,6 +38,19 @@ const NODE_NETWORK:u64 = 1;
 const NODE_BLOOM:u64 = 4;
 const NODE_WITNESS:u64 = 8;
 const NODE_NETWORK_LIMITED:u64  = 1024;
+
+// offset for addr cmd
+pub const ADDRESS_LEN: usize =30;
+pub const TIME_FIELD_END: usize =4;
+pub const SERVICES_END:usize = 12;
+pub const IP_FIELD_END:usize= 28;
+pub const PORT_FIELD_END:usize= 30;
+
+// offset for version cmd
+const VERSION_END: usize =4;
+
+const USER_AGENT: usize = 80;
+const TIMESTAMP_END:usize= 20;
 
 // payload struct
 lazy_static! {
@@ -201,6 +232,63 @@ fn build_request_message_header(header: & mut Vec<u8>, command_name :&str, paylo
     let checksum = compute_checksum(payload);
     header.splice(START_CHECKSUM..END_CHECKSUM, checksum.iter().cloned());
 
+}
+
+pub fn process_version_message(payload: &Vec<u8>) -> (u32, Vec<u8>, DateTime<Utc>, String) {
+
+    let version_number = u32::from_le_bytes((&payload[..VERSION_END]).try_into().unwrap());
+    let services = payload[VERSION_END..SERVICES_END].to_vec();
+    let peer_time = get_date_time(payload[SERVICES_END..TIMESTAMP_END].to_vec());
+
+    let useragent_size = get_compact_int(&payload[USER_AGENT..].to_vec()) as usize;
+    let start_byte= get_start_byte(&useragent_size);
+
+    let mut user_agent = String::new();
+    if USER_AGENT + start_byte + useragent_size < payload.len() {
+        if useragent_size > 0 {
+            let user_agent_slice = &payload[(USER_AGENT + start_byte)..(USER_AGENT + start_byte + useragent_size)];
+            user_agent.push_str(String::from_utf8(user_agent_slice.to_vec()).unwrap().as_str() );
+
+        }
+    }
+    (version_number, services, peer_time, user_agent)
+}
+
+pub fn get_date_time(mut time_vec: Vec<u8>) -> DateTime<Utc>{
+    if time_vec.len() == 4 {
+        /* La taille du champ varie dans le protocole de 4 à 8 octets */
+        time_vec.append(&mut vec![0,0,0,0]);
+    }
+    return DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(i64::from_le_bytes(time_vec.try_into().unwrap()), 0), Utc);
+}
+
+pub fn get_compact_int(payload: &Vec<u8>) -> u64 {
+    let storage_length: u8 = payload[STORAGE_BYTE];
+    // TODO: Try with match construct
+    if storage_length == UNIT_16 {
+        return u16::from_le_bytes((&payload[NUM_START..UNIT_16_END]).try_into().unwrap()) as u64;
+    }
+    if storage_length == UNIT_32 {
+        return u32::from_le_bytes((&payload[NUM_START..UNIT_32_END]).try_into().unwrap()) as u64;
+    }
+    if storage_length == UNIT_64 {
+        return u64::from_le_bytes((&payload[NUM_START..UNIT_64_END]).try_into().unwrap()) as u64;
+    }
+    return storage_length as u64;
+}
+
+pub fn get_start_byte(variable_length_int: & usize) -> usize {
+    let size = *variable_length_int as u64;
+    if size < SIZE_FD {
+        return NUM_START;
+    }
+    if size <= SIZE_FFFF {
+        return  UNIT_16_END;
+    }
+    if size <= SIZE_FFFF_FFFF {
+        return  UNIT_32_END
+    }
+    return UNIT_64_END
 }
 
 fn compute_checksum(payload : &Vec<u8>) -> Vec<u8> {

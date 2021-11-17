@@ -2,14 +2,13 @@ mod bcmessage;
 mod bcblocks;
 
 // extern crate clap;
-use chrono::{DateTime, NaiveDateTime, Utc};
 use clap::{Arg, App};
 use std::fs::File;
 use std::io::{LineWriter, stdout, Write};
 use std::sync::{mpsc, Arc};
 use std::thread;
 use std::net::{TcpStream, IpAddr};
-use crate::bcmessage::{ReadResult, INV, MSG_VERSION, MSG_VERSION_ACK, MSG_GETADDR, CONN_CLOSE, MSG_ADDR, GET_BLOCKS };
+use crate::bcmessage::{ReadResult, INV, MSG_VERSION, MSG_VERSION_ACK, MSG_GETADDR, CONN_CLOSE, MSG_ADDR, GET_BLOCKS, SERVICES_END, ADDRESS_LEN, TIME_FIELD_END, IP_FIELD_END, PORT_FIELD_END };
 use std::time::{Duration, SystemTime};
 use std::net::SocketAddr;
 use std::collections::HashMap;
@@ -29,34 +28,6 @@ lazy_static! {
     static ref ADRESSES_VISITED: Mutex<HashMap<String, PeerStatus>> = Mutex::new(HashMap::new());
     static ref LOGGER: Mutex<LineWriter<Box<dyn Write + Send>>> = Mutex::new(LineWriter::new(Box::new(stdout())));
 }
-
-// storage length
-const UNIT_16: u8 = 0xFD;
-const UNIT_32: u8 = 0xFE;
-const UNIT_64: u8 = 0xFF;
-
-const SIZE_FD: u64 = 0xFD;
-const SIZE_FFFF: u64 = 0xFFFF;
-const SIZE_FFFF_FFFF: u64 = 0xFFFFFFFF;
-
-const STORAGE_BYTE :usize= 0;
-const NUM_START :usize= 1;
-//const UNIT_8_END: usize = 2;
-const UNIT_16_END: usize = 3;
-const UNIT_32_END: usize = 5;
-const UNIT_64_END: usize = 9;
-
-// offset for version cmd
-const VERSION_END: usize =4;
-const TIMESTAMP_END:usize= 20;
-const USER_AGENT: usize = 80;
-
-// offset for addr cmd
-const ADDRESS_LEN: usize =30;
-const TIME_FIELD_END: usize =4;
-const SERVICES_END:usize = 12;
-const IP_FIELD_END:usize= 28;
-const PORT_FIELD_END:usize= 30;
 
 const ADDRESSES_RECEIVED_THRESHOLD: u64 = 5;
 const MESSAGE_CHANEL_SIZE: usize = 100000;
@@ -225,65 +196,10 @@ fn store_event(msg :&String){
     drop(guard);
 }
 
-fn get_compact_int(payload: &Vec<u8>) -> u64 {
-    let storage_length: u8 = payload[STORAGE_BYTE];
-    // TODO: Try with match construct
-    if storage_length == UNIT_16 {
-        return u16::from_le_bytes((&payload[NUM_START..UNIT_16_END]).try_into().unwrap()) as u64;
-    }
-    if storage_length == UNIT_32 {
-        return u32::from_le_bytes((&payload[NUM_START..UNIT_32_END]).try_into().unwrap()) as u64;
-    }
-    if storage_length == UNIT_64 {
-        return u64::from_le_bytes((&payload[NUM_START..UNIT_64_END]).try_into().unwrap()) as u64;
-    }
-    return storage_length as u64;
-}
-
-fn get_start_byte(variable_length_int: & usize) -> usize {
-    let size = *variable_length_int as u64;
-    if size < SIZE_FD {
-        return NUM_START;
-    }
-    if size <= SIZE_FFFF {
-        return  UNIT_16_END;
-    }
-    if size <= SIZE_FFFF_FFFF {
-        return  UNIT_32_END
-    }
-    return UNIT_64_END
-}
-
-fn get_date_time(mut time_vec: Vec<u8>) -> DateTime<Utc>{
-    if time_vec.len() == 4 {
-        /* La taille du champ varie dans le protocole de 4 à 8 octets */
-        time_vec.append(&mut vec![0,0,0,0]);
-    }
-
-    return DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(i64::from_le_bytes(time_vec.try_into().unwrap()), 0), Utc);
-}
-
-fn process_version_message( target_address: String, payload: &Vec<u8>){
-
-    let _version_number = u32::from_le_bytes((&payload[..VERSION_END]).try_into().unwrap());
-    let _services = payload[VERSION_END..SERVICES_END].to_vec();
-    let _peer_time = get_date_time(payload[SERVICES_END..TIMESTAMP_END].to_vec());
-
-    let useragent_size = get_compact_int(&payload[USER_AGENT..].to_vec()) as usize;
-    let start_byte= get_start_byte(&useragent_size);
-
-    let mut user_agent = String::new();
-    if USER_AGENT + start_byte + useragent_size < payload.len() {
-        if useragent_size > 0 {
-            let user_agent_slice = &payload[(USER_AGENT + start_byte)..(USER_AGENT + start_byte + useragent_size)];
-            user_agent.push_str(String::from_utf8(user_agent_slice.to_vec()).unwrap().as_str() );
-
-        }
-    }
-
+fn store_version_message(target_address: String, payload: &Vec<u8>){
+    let (_, _, _, _) = bcmessage::process_version_message(payload);
     let mut msg: String  = String::new();
     msg.push_str(format!("Seed: {} \n", target_address).as_ref());
-
     // msg.push_str(format!("Seed = {}  ", target_address).as_ref());
     // msg.push_str(format!("version = {}   ", version_number).as_str());
     // msg.push_str(format!("user agent = {}   ", user_agent).as_str());
@@ -291,21 +207,19 @@ fn process_version_message( target_address: String, payload: &Vec<u8>){
     // msg.push_str(format!("now = {}  ", Into::<DateTime<Utc>>::into(SystemTime::now()).format("%Y-%m-%d %H:%M:%S")).as_str());
     // msg.push_str(format!("since = {:?}  ",SystemTime::now().duration_since(SystemTime::from(peer_time)).unwrap_or_default() ).as_str());
     // msg.push_str(format!("services = {:?}\n", services ).as_str());
-
     store_event(&msg);
     register_pvm_connection(target_address);
-
 }
 
 fn read_addresses(payload: Vec<u8>, address_channel: Sender<String>, addr_number: u64){
 
-    let start_byte = get_start_byte(& (addr_number as usize));
+    let start_byte = bcmessage::get_start_byte(& (addr_number as usize));
     let mut read_addr = 0 ;
     // let mut new_addr = 0;
     while read_addr < addr_number {
 
         let addr_begins_at = start_byte + (ADDRESS_LEN * read_addr as usize);
-        let _date_time = get_date_time(payload[addr_begins_at..addr_begins_at+ TIME_FIELD_END].to_vec());
+        let _date_time = bcmessage::get_date_time(payload[addr_begins_at..addr_begins_at+ TIME_FIELD_END].to_vec());
         let _services = payload[addr_begins_at+ TIME_FIELD_END..addr_begins_at+ SERVICES_END].to_vec();
         let ip_addr_field = payload[addr_begins_at+ SERVICES_END..addr_begins_at+ IP_FIELD_END].to_vec();
 
@@ -342,10 +256,11 @@ fn read_addresses(payload: Vec<u8>, address_channel: Sender<String>, addr_number
 }
 
 fn process_addr_message(payload: Vec<u8> , address_channel: Sender<String>) -> u64{
+    //TODO: Put in bcmessage
     if payload.len() == 0 {
         return 0;
     }
-    let addr_number = get_compact_int(&payload);
+    let addr_number = bcmessage::get_compact_int(&payload);
     if addr_number < 2 {
         return addr_number;
     }
@@ -374,7 +289,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
 
                 if command  == String::from(MSG_VERSION) && payload.len() > 0 {
                     let peer = target_address.clone();
-                    process_version_message(peer, &payload);
+                    store_version_message(peer, &payload);
                     in_chain.send(command).unwrap();
                     continue;
                 }
