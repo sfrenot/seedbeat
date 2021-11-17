@@ -390,8 +390,8 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                         // in_chain.send(get_blocks).unwrap();
                         match in_chain.send(get_blocks) {
                             Err(error) => {
-                                eprintln!("Erreur Send chan {}", error);
-                                std::process::exit(1);
+                                eprintln!("Erreur Send chan : {} ip : {}", error, &target_address);
+                                // std::process::exit(1);
                             }
                             _ => {}
                         }
@@ -526,7 +526,7 @@ fn handle_one_peer(connection_start_channel: Receiver<String>, addresses_to_test
 
                 let received_cmd = in_chain_receiver.recv().unwrap();
                 if received_cmd == String::from(GET_BLOCKS) {
-                    eprintln!("==> Envoi GET_BLOCKS {}", received_cmd);
+                    eprintln!("==> Envoi GET_BLOCKS {} to: {}", received_cmd, target_address);
                     match bcmessage::send_request(&connection, GET_BLOCKS) {
                         Err(_) => {
                             println!("error at sending getaddr");
