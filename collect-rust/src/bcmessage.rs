@@ -80,6 +80,8 @@ pub const MSG_ADDR:&str = "addr";
 pub const INV:&str = "inv";
 pub const CONN_CLOSE:&str = "CONNCLOSED";
 pub const GET_BLOCKS:&str = "getblocks";
+pub const GET_DATA:&str = "getdata";
+pub const BLOCK: &str = "block";
 
 pub struct ReadResult {
     pub command: String,
@@ -183,17 +185,28 @@ pub fn send_request(mut connection: & TcpStream, message_name: &str) -> std::io:
 }
 
 
-fn build_request(message_name : &str) -> Vec<u8>{
+fn build_request(message : &str) -> Vec<u8>{
     let mut payload_bytes: Vec<u8> = Vec::new();
-    if message_name == MSG_VERSION {
+    let mut message_name = message;
+    if message == MSG_VERSION {
         payload_bytes = get_payload_with_current_date();
         // eprintln!("->MSG_VERSION : {:02X?}", payload_bytes);
-    } else if message_name == GET_BLOCKS {
+    } else if message == GET_BLOCKS {
         // payload_bytes = TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().clone();
         payload_bytes = bcblocks::get_getblock_message_payload();
         // eprintln!("==> GET_BLOCKS : {:02X?}", payload_bytes);
         // std::process::exit(1);
+    } else if message.len() > GET_DATA.len() && &message[..GET_DATA.len()] == String::from(GET_DATA) {
+
+        payload_bytes = bcblocks::get_getdata_message_payload(&message[GET_DATA.len()+1..]);
+        message_name = GET_DATA;
+        println!("Build for getData : {}", message_name);
+
+        // eprintln!("Build for getData : {:02x?}", payload_bytes);
+        // std::process::exit(1);
     }
+    // eprintln!("{} <-> {}", &message, &message_name);
+
     let mut header :Vec<u8> = vec![0; HEADER_SIZE];
     build_request_message_header(& mut header, message_name, &payload_bytes);
     let mut request = vec![];
@@ -203,6 +216,7 @@ fn build_request(message_name : &str) -> Vec<u8>{
     //     // eprintln!("==> BEFORE SEND GET_BLOCKS: {:02X?}", request);
     //     // std::process::exit(1);
     // }
+
     return request;
 }
 

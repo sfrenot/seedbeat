@@ -57,6 +57,17 @@ pub fn get_getblock_message_payload() -> Vec<u8> {
     TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().clone()
 }
 
+pub fn get_getdata_message_payload(search_block: &str) -> Vec<u8> {
+    let mut block_message = Vec::with_capacity(37);
+
+    block_message.extend([0x01]); //Number of Inventory vectors
+    block_message.extend([0x02, 0x00, 0x00, 0x00]);
+    let mut block = Vec::from_hex(search_block).unwrap();
+    block.reverse();
+    block_message.extend(block);
+    block_message
+}
+
 pub fn create_block_message_payload(new_block_t: Option<String>) {
     let mut blocks_id = BLOCKS_ID.lock().unwrap();
 
@@ -84,19 +95,24 @@ pub fn create_block_message_payload(new_block_t: Option<String>) {
     //     }
     //     None => {}
     // }
-
 }
 
-pub fn add_block(block_name: String) {
+pub fn is_new(block_name: String) -> bool {
+    // true: needs search
+    let res: bool;
     let mut known_block = KNOWN_BLOCK.lock().unwrap();
-    eprintln!("Test Block ==> {}", &block_name);
+    // eprintln!("Test Block ==> {}", &block_name);
     match known_block.get(&block_name) {
         None => {
             eprintln!("Ajout");
             known_block.insert(block_name.clone(), true);
             create_block_message_payload(Some(block_name));
+            res = true;
         }
-        _ => {}
+        Some(found) => {
+            res = *found;
+        }
     }
     eprintln!("Hash {:?}", &known_block);
+    res
 }

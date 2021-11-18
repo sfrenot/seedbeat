@@ -8,7 +8,7 @@ use std::io::{LineWriter, stdout, Write};
 use std::sync::{mpsc, Arc};
 use std::thread;
 use std::net::{TcpStream};
-use crate::bcmessage::{ReadResult, INV, MSG_VERSION, MSG_VERSION_ACK, MSG_GETADDR, CONN_CLOSE, MSG_ADDR, GET_BLOCKS};
+use crate::bcmessage::{ReadResult, INV, MSG_VERSION, MSG_VERSION_ACK, MSG_GETADDR, CONN_CLOSE, MSG_ADDR, GET_BLOCKS, GET_DATA, BLOCK};
 use std::time::{Duration, SystemTime};
 use std::net::SocketAddr;
 use std::collections::HashMap;
@@ -273,6 +273,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                     if store_addr_messages(payload.clone(),sender.clone()) > ADDRESSES_RECEIVED_THRESHOLD {
                         // in_chain.send(connection_close).unwrap();
                         // in_chain.send(get_blocks).unwrap();
+
                         match in_chain.send(get_blocks) {
                             Err(error) => {
                                 eprintln!("Erreur Send chan : {} ip : {}", error, &target_address);
@@ -285,39 +286,60 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                 if command == String::from(INV){
                     // let vec....
                     // let inv_type:&[u8;1] = &[0x02];
+                    // eprintln!("{:?}", payload);
                     let inv_size = payload[0];
                     let inv_length = 36;
                     let block_length = 32;
-                    let mut found = 0;
+                    // let mut found = 0;
                     let mut offset = 0;
                     for _i in 0..inv_size {
                         if payload[offset+1] == 0x02 {
-                            if inv_size > 1 {
-                                found+=1;
-                            }
+                            eprintln!("{:02x?}", payload);
+
+                            // if inv_size > 1 {
+                            //     found+=1;
+                            // }
                             let mut toto:[u8; 32] = [0x00; 32] ;
                             eprint!("BLOCK ==> ");
                             for val in 0..block_length {
                                 toto[val] = payload[offset+inv_length-val];
                                 // eprint!("{:02X?}", payload[offset+inv_length-val]);
                             }
-                            let block_name = hex::encode(toto);
+                            let block_name = hex::encode(&toto);
                             // eprintln!();
-                            bcblocks::add_block(block_name);
+                            if bcblocks::is_new(block_name.clone()) {
+
+                                let get_data = format_args!("{msg}/{block}", msg=GET_DATA, block=block_name).to_string();
+                                eprintln!("Recherche du block {}", get_data);
+
+                                match in_chain.send(get_data) {
+                                    Err(error) => {
+                                        eprintln!("Erreur Send chan : {} ip : {}", error, &target_address);
+                                        // std::process::exit(1);
+                                    }
+                                    _ => {}
+                                }
+                            }
 
                         }
                         offset+=inv_length;
                     }
-                    if found > 1 {
-                        eprintln!("Inventory message block found {:02X?}, {}", payload, payload[1]);
-                        std::process::exit(1);
-                    }
+                    // if found > 1 {
+                    //     eprintln!("Inventory message block found {:02X?}, {}", payload, payload[1]);
+                    //     std::process::exit(1);
+                    // }
 
                     // eprintln!("Inventory message found {:02X?}", payload.clone());
                     // eprintln!("Inv {}", std::str::from_utf8(payload[4..6]));
                     //eprintln!("Inventory message found {}",std::str::from_utf8(&payload).unwrap());
-                    // process::exit(0);
+                    // std::process::exit(0);
                 }
+
+                if command == String::from(BLOCK){
+                    eprintln!("{:?}", payload);
+                    std::process::exit(1);
+                }
+
             }
         }
     }
@@ -400,26 +422,40 @@ fn handle_one_peer(connection_start_channel: Receiver<String>, addresses_to_test
                     _ => {}
                 }
 
-                let received_cmd = in_chain_receiver.recv().unwrap();
-                if received_cmd == String::from(GET_BLOCKS) {
-                    eprintln!("==> Envoi GET_BLOCKS {} to: {}", received_cmd, target_address);
-                    match bcmessage::send_request(&connection, GET_BLOCKS) {
-                        Err(_) => {
-                            println!("error at sending getaddr");
-                            fail(target_address.clone());
-                            break; // From connexion
+                loop { // Handle block Exchanges
+                    let received_cmd = in_chain_receiver.recv().unwrap();
+                    if received_cmd == String::from(GET_BLOCKS) {
+                        eprintln!("==> Envoi GET_BLOCKS {} to: {}", received_cmd, target_address);
+                        match bcmessage::send_request(&connection, GET_BLOCKS) {
+                            Err(_) => {
+                                println!("error at sending getaddr");
+                                fail(target_address.clone());
+                                break; // From connexion
+                            }
+                            _ => {}
                         }
-                        _ => {}
+                    } else if &received_cmd[..GET_DATA.len()] == String::from(GET_DATA) {
+                        eprintln!("Recherche info block {}", &received_cmd[GET_DATA.len()+1..]);
+                        match bcmessage::send_request(&connection, &received_cmd) {
+                            Err(_) => {
+                                println!("error at sending getData");
+                                fail(target_address.clone());
+                                break; // From connexion
+                            }
+                            _ => {}
+                        }
+                    }else if received_cmd == String::from(CONN_CLOSE) {
+                        eprintln!("Fermeture {}", &target_address);
+                        done(target_address.clone());
+                        break; // From connexion
+                    } else {
+                        println!("Bad message {}", received_cmd);
+                        std::mem::drop(connection);
+                        std::process::exit(1);
                     }
-                } else if received_cmd == String::from(CONN_CLOSE) {
-                    eprintln!("Fermeture {}", &target_address);
-                    done(target_address.clone());
-                    break; // From connexion
-                } else {
-                    println!("Bad message {}", received_cmd);
-                    std::mem::drop(connection);
-                    std::process::exit(1);
                 }
+
+                break;
             }
         }
         // eprintln!("Fin gestion {}", target_address);
@@ -462,6 +498,12 @@ fn check_pool_size(addresses_to_test : Arc<Mutex<i64>>, start_time: SystemTime )
 fn main() {
     // let gen:Vec<u8> = vec![0x00, 0x01, 0x02];
     // let gen2 = Vec::from_hex("000102").unwrap();
+    // // block_message.extend((Vec::from_hex(search_block).unwrap()).to_be_bytes());
+    // let mut tmp = Vec::hex::from_hex("0000000000000000000c1c499d6f1e87e199633a8c811f18a8e5a86f40b3fb50").unwrap();
+    // tmp.reverse();
+    // eprintln!("{:02x?}", tmp);
+    // std::process::exit(1);
+
     // let toto = hex::encode([0x00, 0x02, 0xFF]);
     //
     // eprintln!("{:02X?}",gen);
