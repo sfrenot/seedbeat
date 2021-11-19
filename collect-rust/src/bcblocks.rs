@@ -57,6 +57,10 @@ pub fn get_getblock_message_payload() -> Vec<u8> {
     TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().clone()
 }
 
+pub fn get_getheaders_message_payload() -> Vec<u8> {
+    get_getblock_message_payload()
+}
+
 pub fn get_getdata_message_payload(search_block: &str) -> Vec<u8> {
     let mut block_message = Vec::with_capacity(37);
 
