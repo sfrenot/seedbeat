@@ -82,7 +82,7 @@ pub const CONN_CLOSE:&str = "CONNCLOSED";
 pub const GET_HEADERS:&str = "getheaders";
 pub const HEADERS:&str = "headers";
 
-// pub const GET_BLOCKS:&str = "getblocks";
+pub const GET_BLOCKS:&str = "getblocks";
 pub const GET_DATA:&str = "getdata";
 pub const BLOCK: &str = "block";
 
@@ -197,9 +197,9 @@ fn build_request(message : &str) -> Vec<u8>{
     // } else if message == GET_BLOCKS {
     //     payload_bytes = bcblocks::get_getblock_message_payload();
     } else if message == GET_HEADERS {
-        // payload_bytes = TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().clone();
         payload_bytes = bcblocks::get_getheaders_message_payload();
-        // eprintln!("==> GET_BLOCKS : {:02X?}", payload_bytes);
+        //
+        // eprintln!("==> GET_HEADERS : {:02X?}", payload_bytes);
         // std::process::exit(1);
     } else if message.len() > GET_DATA.len() && &message[..GET_DATA.len()] == String::from(GET_DATA) {
 

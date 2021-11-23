@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 lazy_static! {
     // static ref TEMPLATE_MESSAGE_PAYLOAD: Mutex<Vec<u8>> = Mutex::new(Vec::with_capacity(105));
-    pub static ref TEMPLATE_GETBLOCK_PAYLOAD: Mutex<Vec<u8>> = Mutex::new(Vec::with_capacity(197));
+    static ref TEMPLATE_GETBLOCK_PAYLOAD: Mutex<Vec<u8>> = Mutex::new(Vec::with_capacity(197));
     static ref BLOCKS_ID: Mutex<Vec<String>> = {
         let mut m = Vec::with_capacity(5);
         m.push(String::from("0000000000000000000000000000000000000000000000000000000000000000"));
@@ -108,7 +108,7 @@ pub fn is_new(block_name: String) -> bool {
     // eprintln!("Test Block ==> {}", &block_name);
     match known_block.get(&block_name) {
         None => {
-            eprintln!("Ajout");
+            eprintln!("Ajout {:02x?}", block_name);
             known_block.insert(block_name.clone(), true);
             create_block_message_payload(Some(block_name));
             res = true;
@@ -117,6 +117,10 @@ pub fn is_new(block_name: String) -> bool {
             res = *found;
         }
     }
+    // if res ==  true {
+    //     eprintln!("{:02x?}", hex::encode(TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().to_vec()));
+    //     std::process::exit(1);
+    // }
     eprintln!("Hash {:?}", &known_block);
     res
 }
