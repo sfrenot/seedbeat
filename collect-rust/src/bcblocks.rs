@@ -1,7 +1,7 @@
 use std::sync::Mutex;
 use lazy_static::lazy_static;
 use hex::FromHex;
-use crate::bcmessage::{VERSION};
+use crate::bcmessage::VERSION;
 use std::collections::HashMap;
 
 lazy_static! {
@@ -10,12 +10,12 @@ lazy_static! {
     static ref BLOCKS_ID: Mutex<Vec<String>> = {
         let mut m = Vec::with_capacity(5);
         m.push(String::from("0000000000000000000000000000000000000000000000000000000000000000"));
-        m.push(String::from("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f")); //0
-        m.push(String::from("00000000839A8E6886AB5951D76F411475428AFC90947EE320161BBF18EB6048")); //1
-        m.push(String::from("000000006A625F06636B8BB6AC7B960A8D03705D1ACE08B1A19DA3FDCC99DDBD")); //2
-        m.push(String::from("00000000000000000bf9a116fc80506cc10962ed753a0d5dd0ad71339b59e5df")); //360902
-        m.push(String::from("00000000000000000009177dcfc80ebd31d20a7abcfd515019d9737fa09a68d3")); //710015
-        m.push(String::from("000000000000000000086e525463f00da70f517593cdf4f2b1416af398423a8a")); //710139
+        // m.push(String::from("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f")); //0
+        // m.push(String::from("00000000839A8E6886AB5951D76F411475428AFC90947EE320161BBF18EB6048")); //1
+        // m.push(String::from("000000006A625F06636B8BB6AC7B960A8D03705D1ACE08B1A19DA3FDCC99DDBD")); //2
+        // m.push(String::from("00000000000000000bf9a116fc80506cc10962ed753a0d5dd0ad71339b59e5df")); //360902
+        // m.push(String::from("00000000000000000009177dcfc80ebd31d20a7abcfd515019d9737fa09a68d3")); //710015
+        // m.push(String::from("000000000000000000086e525463f00da70f517593cdf4f2b1416af398423a8a")); //710139
         Mutex::new(m)
     };
     static ref KNOWN_BLOCK: Mutex<HashMap<String, bool>> = Mutex::new(HashMap::new());
@@ -75,10 +75,12 @@ pub fn get_getdata_message_payload(search_block: &str) -> Vec<u8> {
 pub fn create_block_message_payload(new_block_t: Option<String>) {
     let mut blocks_id = BLOCKS_ID.lock().unwrap();
 
+    // match new_block_t.clone() {
     match new_block_t {
         Some(new_block) => blocks_id.push(new_block),
         None => {}
     }
+
     let mut block_message = TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap();
 
     *block_message = Vec::with_capacity(block_message.len()+32);
@@ -97,7 +99,11 @@ pub fn create_block_message_payload(new_block_t: Option<String>) {
     //         eprintln!("{:02x?}", hex::encode(TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().to_vec()));
     //         std::process::exit(1);
     //     }
-    //     None => {}
+    //     None => {
+    //         drop(block_message);
+    //         eprintln!("{:02x?}", hex::encode(TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().to_vec()));
+    //         std::process::exit(1);
+    //     }
     // }
 }
 
