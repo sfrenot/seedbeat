@@ -392,11 +392,6 @@ fn handle_one_peer(connection_start_channel: Receiver<String>, addresses_to_test
                     _ => {}
                 }
 
-                // let received_cmd: String;
-                // match in_chain_receiver.recv() {
-                //     Err(e) => { panic!("Erreur, {}", e);},
-                //     Ok(val) => {received_cmd = val;}
-                // }
                 let received_cmd: String = in_chain_receiver.recv().unwrap();
                 if received_cmd != String::from(MSG_VERSION) {
                     // eprintln!("Version Ack not received {}, {}", received_cmd, target_address);
@@ -523,11 +518,12 @@ fn main() {
 
     let start_time: SystemTime = SystemTime::now();
     bcmessage::create_init_message_payload();
-    bcblocks::create_block_message_payload(None);
     let blocks = bcfile::load_blocks();
     for item in blocks {
-        bcblocks::create_block_message_payload(Some(item.elem));
+        bcblocks::create_block_message_payload(item.elem);
     }
+
+    // eprintln!("{:02x?}", hex::encode(bcblocks::get_getblock_message_payload()));
 
     let addresses_to_test:Arc<Mutex<i64>> = Arc::new(Mutex::new(0));
 

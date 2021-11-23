@@ -72,14 +72,9 @@ pub fn get_getdata_message_payload(search_block: &str) -> Vec<u8> {
     block_message
 }
 
-pub fn create_block_message_payload(new_block_t: Option<String>) {
+pub fn create_block_message_payload(new_block: String) {
     let mut blocks_id = BLOCKS_ID.lock().unwrap();
-
-    // match new_block_t.clone() {
-    match new_block_t {
-        Some(new_block) => blocks_id.push(new_block),
-        None => {}
-    }
+    blocks_id.push(new_block);
 
     let mut block_message = TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap();
 
@@ -92,19 +87,6 @@ pub fn create_block_message_payload(new_block_t: Option<String>) {
         let val = &blocks_id[size-i];
         block_message.extend(Vec::from_hex(val).unwrap());
     }
-
-    // match new_block_t {
-    //     Some(_) => {
-    //         drop(block_message);
-    //         eprintln!("{:02x?}", hex::encode(TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().to_vec()));
-    //         std::process::exit(1);
-    //     }
-    //     None => {
-    //         drop(block_message);
-    //         eprintln!("{:02x?}", hex::encode(TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().to_vec()));
-    //         std::process::exit(1);
-    //     }
-    // }
 }
 
 pub fn is_new(block_name: String) -> bool {
@@ -116,7 +98,7 @@ pub fn is_new(block_name: String) -> bool {
         None => {
             eprintln!("Ajout {:02x?}", block_name);
             known_block.insert(block_name.clone(), true);
-            create_block_message_payload(Some(block_name));
+            create_block_message_payload(block_name);
             res = true;
         }
         Some(found) => {
