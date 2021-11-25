@@ -204,14 +204,9 @@ fn store_version_message(target_address: String, payload: &Vec<u8>){
     register_pvm_connection(target_address);
 }
 
-fn store_addr_messages(payload: Vec<u8>, address_channel: Sender<String>) -> usize {
-    if payload.len() == 0 {
-        return 0;
-    }
-    let new_addresses = bcmessage::process_addr_message(payload);
+fn check_addr_messages(new_addresses: Vec<String>, address_channel: Sender<String>) -> usize {
     for new_peer in &new_addresses {
         if is_waiting(new_peer.clone()) {
-            // new_addr += 1;
 
             let mut msg:String  = String::new();
             msg.push_str(format!("PAR address: {:?}\n", new_peer).as_str());
@@ -261,16 +256,10 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                     continue;
                 }
                 if command == String::from(MSG_ADDR){
-                    if store_addr_messages(payload.clone(),sender.clone()) > ADDRESSES_RECEIVED_THRESHOLD {
+                    if check_addr_messages(bcmessage::process_addr_message(&payload), sender.clone()) > ADDRESSES_RECEIVED_THRESHOLD {
                         // eprintln!("GET_BLOCKS {}", target_address);
-                        // match in_chain.send(String::from(GET_BLOCKS)) {
-                        match in_chain.send(String::from(GET_HEADERS)) {
-                            Err(error) => {
-                                eprintln!("Erreur blocks: {} ip : {}", error, &target_address);
-                                // std::process::exit(1);
-                            }
-                            _ => {}
-                        }
+                        // in_chain.send(String::from(GET_BLOCKS));
+                        in_chain.send(String::from(GET_HEADERS));
                     }
                 }
 

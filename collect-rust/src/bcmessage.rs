@@ -273,10 +273,7 @@ pub fn process_version_message(payload: &Vec<u8>) -> (u32, Vec<u8>, DateTime<Utc
     (version_number, services, peer_time, user_agent)
 }
 
-pub fn process_addr_message(payload: Vec<u8>) -> Vec<String>{
-    if payload.len() == 0 {
-        return vec![];
-    }
+pub fn process_addr_message(payload: &Vec<u8>) -> Vec<String>{
     let (addr_number, _) = get_compact_int(&payload);
     if addr_number < 2 {
         return vec![];
