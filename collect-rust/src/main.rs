@@ -259,7 +259,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                     if check_addr_messages(bcmessage::process_addr_message(&payload), sender.clone()) > ADDRESSES_RECEIVED_THRESHOLD {
                         // eprintln!("GET_BLOCKS {}", target_address);
                         // in_chain.send(String::from(GET_BLOCKS));
-                        in_chain.send(String::from(GET_HEADERS));
+                        in_chain.send(String::from(GET_HEADERS)).unwrap();
                     }
                 }
 
@@ -500,20 +500,27 @@ fn main() {
     let start_time: SystemTime = SystemTime::now();
     bcmessage::create_init_message_payload();
     let blocks = bcfile::load_blocks();
-    let mut i:u32 = 0;
+    let mut idx:u32 = 1;
     let mut known_block = bcblocks::KNOWN_BLOCK.lock().unwrap();
+    let mut previous: String = "".to_string();
 
     for item in blocks {
         // eprintln!("-> {}", item.elem);
-        known_block.insert(item.elem.clone(), true);
-        bcblocks::create_block_message_payload(item.elem);
-        i+=1;
+        known_block.insert(item.elem.clone(), bcblocks::BlockDesc{previous, idx});
+        if item.next {
+            previous = item.elem.clone();
+        } else {
+            previous = "".to_string();
+        }
+        bcblocks::create_block_message_payload(item.elem, item.next);
+        idx+=1;
     }
 
     // eprintln!("{}", hex::encode(bcblocks::get_getblock_message_payload()));
     // eprintln!("{}", hex::encode(bcblocks::get_getheaders_message_payload()));
-    eprintln!("{:?}", known_block);
-    std::process::exit(1);
+    // eprintln!("{:?}", known_block);
+    // eprintln!("{:?}", bcblocks::BLOCKS_ID.lock().unwrap());
+    // std::process::exit(1);
 
 
     let addresses_to_test:Arc<Mutex<i64>> = Arc::new(Mutex::new(0));

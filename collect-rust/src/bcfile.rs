@@ -8,13 +8,13 @@ use std::sync::Mutex;
 lazy_static! {
     pub static ref LOGGER: Mutex<LineWriter<Box<dyn Write + Send>>> = Mutex::new(LineWriter::new(Box::new(stdout())));
     // pub static ref BLOCKS: Mutex<LineWriter<Box<dyn Write + Send>>> = Mutex::new(LineWriter::new(Box::new(File::create("./blocks.raw").unwrap())));
-    pub static ref sortie:LineWriter<File> = LineWriter::new(File::create("./blocks.raw").unwrap());
+    pub static ref SORTIE:LineWriter<File> = LineWriter::new(File::create("./blocks.raw").unwrap());
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Block {
     pub elem: String,
-    pub previous_idx: u32
+    pub next: bool
 }
 
 pub fn load_blocks() -> Vec<Block> {

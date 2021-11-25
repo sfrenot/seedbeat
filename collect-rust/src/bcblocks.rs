@@ -5,7 +5,7 @@ use crate::bcmessage::VERSION;
 use std::collections::HashMap;
 
 #[derive(Debug)]
-pub struct Block_Desc {
+pub struct BlockDesc {
     pub previous: String,
     pub idx: u32
 }
@@ -13,9 +13,9 @@ pub struct Block_Desc {
 lazy_static! {
     // static ref TEMPLATE_MESSAGE_PAYLOAD: Mutex<Vec<u8>> = Mutex::new(Vec::with_capacity(105));
     static ref TEMPLATE_GETBLOCK_PAYLOAD: Mutex<Vec<u8>> = Mutex::new(Vec::with_capacity(197));
-    static ref BLOCKS_ID: Mutex<Vec<String>> = {
+    pub static ref BLOCKS_ID: Mutex<Vec<(String, bool)>> = {
         let mut m = Vec::with_capacity(5);
-        m.push(String::from("0000000000000000000000000000000000000000000000000000000000000000"));
+        m.push((String::from("0000000000000000000000000000000000000000000000000000000000000000"), false));
         // m.push(String::from("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f")); //0
         // m.push(String::from("00000000839A8E6886AB5951D76F411475428AFC90947EE320161BBF18EB6048")); //1
         // m.push(String::from("000000006A625F06636B8BB6AC7B960A8D03705D1ACE08B1A19DA3FDCC99DDBD")); //2
@@ -24,7 +24,7 @@ lazy_static! {
         // m.push(String::from("000000000000000000086e525463f00da70f517593cdf4f2b1416af398423a8a")); //710139
         Mutex::new(m)
     };
-    pub static ref KNOWN_BLOCK: Mutex<HashMap<String, bool>> = Mutex::new(HashMap::new());
+    pub static ref KNOWN_BLOCK: Mutex<HashMap<String, BlockDesc>> = Mutex::new(HashMap::new());
 }
 
 // TO BE SUPPRESSED
@@ -78,9 +78,9 @@ pub fn get_getdata_message_payload(search_block: &str) -> Vec<u8> {
     block_message
 }
 
-pub fn create_block_message_payload(new_block: String) {
+pub fn create_block_message_payload(new_block: String, next: bool) {
     let mut blocks_id = BLOCKS_ID.lock().unwrap();
-    blocks_id.push(new_block);
+    blocks_id.push((new_block, next));
 
     let mut block_message = TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap();
     *block_message = Vec::with_capacity(block_message.len()+32);
@@ -88,7 +88,8 @@ pub fn create_block_message_payload(new_block: String) {
     block_message.extend([blocks_id.len() as u8-1]);
     let size = blocks_id.len()-1;
     for i in 0..blocks_id.len() {
-        let mut val = Vec::from_hex(&blocks_id[size-i]).unwrap();
+        let (bloc, next) = &blocks_id[size-i];
+        let mut val = Vec::from_hex(bloc).unwrap();
         val.reverse();
         block_message.extend(val);
     }
@@ -97,26 +98,29 @@ pub fn create_block_message_payload(new_block: String) {
     // std::process::exit(1);
 }
 
-pub fn is_new(block_name: String) -> bool {
-    // true: needs search
-    let res: bool;
-    let mut known_block = KNOWN_BLOCK.lock().unwrap();
-    // eprintln!("Test Block ==> {}", &block_name);
-    match known_block.get(&block_name) {
-        None => {
-            eprintln!("Ajout {:02x?}", block_name);
-            known_block.insert(block_name.clone(), true);
-            create_block_message_payload(block_name);
-            res = true;
-        }
-        Some(found) => {
-            res = *found;
-        }
-    }
-    // if res ==  true {
-    //     eprintln!("{:02x?}", hex::encode(TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().to_vec()));
-    //     std::process::exit(1);
-    // }
-    eprintln!("Hash {:?}", &known_block);
-    res
-}
+// pub fn is_new(block_name: String) -> BlockDesc {
+//     // true: needs search
+//     let res: BlockDesc;
+//     let mut known_block = KNOWN_BLOCK.lock().unwrap();
+//     // eprintln!("Test Block ==> {}", &block_name);
+//     match known_block.get(&block_name) {
+//         None => {
+//             eprintln!("Ajout {:02x?}", block_name);
+//             // known_block.insert(block_name.clone(), true);
+//             // TODO : create_block_message_payload(block_name);
+//             eprintln!("A FAIRE");
+//             std::process::exit(1);
+//             // res = true;
+//         }
+//         Some(found) => {
+//             // res = *found;
+//         }
+//     }
+//     // if res ==  true {
+//     //     eprintln!("{:02x?}", hex::encode(TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().to_vec()));
+//     //     std::process::exit(1);
+//     // }
+//     eprintln!("Hash {:?}", &known_block);
+//     // res
+//
+// }
