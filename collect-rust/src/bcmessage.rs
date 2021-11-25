@@ -8,6 +8,7 @@ use std::io::{Write, Read, Error, ErrorKind};
 use std::convert::TryInto;
 use hex::FromHex;
 use crate::bcblocks;
+use bitcoin_hashes::{sha256d, Hash};
 
 pub const VERSION:u32 = 70015;
 const PORT:u16 = 8333;

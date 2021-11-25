@@ -17,7 +17,6 @@ use lazy_static::lazy_static;
 use std::sync::mpsc::Sender; // Voir si chan::Receiver n'est pas préférable
 use chan::{self, Receiver};
 use std::process;
-use bitcoin_hashes::{sha256d, Hash};
 
 // use crate::bcmessage::{ReadResult, INV, MSG_VERSION, MSG_VERSION_ACK, MSG_GETADDR, CONN_CLOSE, MSG_ADDR, HEADERS, GET_BLOCKS, BLOCK, GET_DATA};
 use crate::bcmessage::{ReadResult, INV, MSG_VERSION, MSG_VERSION_ACK, MSG_GETADDR, CONN_CLOSE, MSG_ADDR, GET_HEADERS, HEADERS, GET_BLOCKS, BLOCK, GET_DATA};
@@ -262,12 +261,8 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                     continue;
                 }
                 if command == String::from(MSG_ADDR){
-                    //let address_channel = sender.clone();
-                    // let num_addr = bcmessage::process_addr_message(payload.clone(), address_channel);
-
                     if store_addr_messages(payload.clone(),sender.clone()) > ADDRESSES_RECEIVED_THRESHOLD {
                         // eprintln!("GET_BLOCKS {}", target_address);
-
                         // match in_chain.send(String::from(GET_BLOCKS)) {
                         match in_chain.send(String::from(GET_HEADERS)) {
                             Err(error) => {
@@ -278,6 +273,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                         }
                     }
                 }
+
                 //Testing incoming message
                 // if command == String::from(GET_HEADERS){
                 //     eprintln!("GET-HEADERS {}", hex::encode(&payload));
@@ -285,46 +281,50 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                 // }
 
                 if command == String::from(HEADERS){
-                    process_headers_message(&payload);
+                    bcmessage::process_headers_message(payload);
                     std::process::exit(1);
                 }
-                
-                if command == String::from(INV){
-                    let inv_size = payload[0];
-                    let inv_length = 36;
-                    let block_length = 32;
-                    let mut offset = 0;
-                    for _i in 0..inv_size {
-                        if payload[offset+1] == 0x02 {
-                            let mut toto:[u8; 32] = [0x00; 32] ;
-                            // eprint!("BLOCK ==> ");
-                            for val in 0..block_length {
-                                toto[val] = payload[offset+inv_length-val];
-                            }
-                            if toto[0] != 0x00 {
-                                eprintln!("Etrange {:02x?}", payload);
-                                // std::process::exit(1);
-                            } else {
-                                let block_name = hex::encode(&toto);
-                                if bcblocks::is_new(block_name.clone()) {
 
-                                    let get_data = format_args!("{msg}/{block}", msg=GET_DATA, block=block_name).to_string();
-                                    eprintln!("Recherche du block {}", get_data);
+                // if command == String::from(INV){
+                //     //TODO: must migrate to bcmessage::process_inv_message
+                //     //TODO: check inv_size -> get_compact_int
+                //
+                //     let inv_size = payload[0];
+                //     let inv_length = 36;
+                //     let block_length = 32;
+                //     let mut offset = 0;
+                //     for _i in 0..inv_size {
+                //         if payload[offset+1] == 0x02 {
+                //             let mut toto:[u8; 32] = [0x00; 32] ;
+                //             // eprint!("BLOCK ==> ");
+                //             for val in 0..block_length {
+                //                 toto[val] = payload[offset+inv_length-val];
+                //             }
+                //             if toto[0] != 0x00 {
+                //                 eprintln!("Etrange {:02x?}", payload);
+                //                 // std::process::exit(1);
+                //             } else {
+                //                 let block_name = hex::encode(&toto);
+                //                 if bcblocks::is_new(block_name.clone()) {
+                //
+                //                     let get_data = format_args!("{msg}/{block}", msg=GET_DATA, block=block_name).to_string();
+                //                     eprintln!("Recherche du block {}", get_data);
+                //
+                //                     match in_chain.send(get_data) {
+                //                         Err(error) => {
+                //                             eprintln!("Erreur Send chan : {} ip : {}", error, &target_address);
+                //                         }
+                //                         _ => {}
+                //                     }
+                //                 }
+                //             }
+                //         }
+                //         offset+=inv_length;
+                //     }
+                // }
 
-                                    match in_chain.send(get_data) {
-                                        Err(error) => {
-                                            eprintln!("Erreur Send chan : {} ip : {}", error, &target_address);
-                                        }
-                                        _ => {}
-                                    }
-                                }
-                            }
-
-                        }
-                        offset+=inv_length;
-                    }
-                }
                 // if command == String::from(BLOCK){
+                //     //TODO: must migrate to bcmessage
                 //     eprintln!("BLOCK : {:02x?}", &payload[..100]);
                 //
                 //     let hash = sha256d::Hash::hash(&payload[..80]);
