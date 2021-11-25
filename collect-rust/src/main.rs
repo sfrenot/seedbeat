@@ -285,23 +285,35 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                 // }
 
                 if command == String::from(HEADERS){
-                    eprintln!("HEADERS {:02x?}, {:02x?}", &payload[..81], &payload[0]);
-                    std::process::exit(1);
+                    // eprintln!("HEADERS {}", hex::encode(&payload[..182]));
+                    // let (size, start_byte) = bcmessage::get_compact_int(&payload);
+                    //
+                    // eprintln!("-> nb blocks {}", size);
+                    // eprintln!("-> start {}", start_byte);
+                    //
+                    // eprintln!("-> block version {}", hex::encode(&payload[start_byte..start_byte+4]));
+                    // let mut previous_block = [0;32];
+                    // previous_block.clone_from_slice(&payload[start_byte+4..start_byte+4+32]);
+                    // previous_block.reverse();
+                    // eprintln!("-> previous block {}", hex::encode(previous_block));
+                    //
+                    // let block = sha256d::Hash::hash(&payload[start_byte..start_byte+80]);
+                    // eprintln!("-> current block {}", block.to_string());
+                    //
+                    // std::process::exit(1);
 
-                    let header_size = payload[0];
-                    let header_length = 81;
+                    let (nb_headers, mut offset) = bcmessage::get_compact_int(&payload);
+                    let header_length = 80;
+                    for _i in 0..nb_headers {
+                        let mut previous_block = [0;32];
+                        previous_block.clone_from_slice(&payload[offset+4..offset+4+32]);
+                        previous_block.reverse();
 
-                    // let block_length = 32;
-                    // // let mut found = 0;
-                    let mut offset = 0;
+                        let current_block = sha256d::Hash::hash(&payload[offset..offset+header_length]);
+                        eprintln!("Gen -> {} --> {}", hex::encode(previous_block), current_block.to_string());
 
-                    for _i in 0..header_size {
-                        let prev_block = &payload[offset+4..offset+4+32];
-                        eprintln!("{}", hex::encode(&prev_block));
-                        offset+=header_length
+                        offset+=header_length+1
                     }
-
-                    eprintln!("{} blocks", header_size);
                     std::process::exit(1);
 
                 }

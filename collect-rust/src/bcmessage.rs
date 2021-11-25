@@ -24,7 +24,7 @@ const SIZE_FFFF_FFFF: u64 = 0xFFFFFFFF;
 const STORAGE_BYTE :usize= 0;
 const NUM_START :usize= 1;
 
-//const UNIT_8_END: usize = 2;
+const UNIT_8_END: usize = 1;
 const UNIT_16_END: usize = 3;
 const UNIT_32_END: usize = 5;
 const UNIT_64_END: usize = 9;
@@ -257,7 +257,8 @@ pub fn process_version_message(payload: &Vec<u8>) -> (u32, Vec<u8>, DateTime<Utc
     let services = payload[VERSION_END..SERVICES_END].to_vec();
     let peer_time = get_date_time(payload[SERVICES_END..TIMESTAMP_END].to_vec());
 
-    let useragent_size = get_compact_int(&payload[USER_AGENT..].to_vec()) as usize;
+    let (tmp, _) = get_compact_int(&payload[USER_AGENT..].to_vec());
+    let useragent_size = tmp as usize;
     let start_byte= get_start_byte(&useragent_size);
 
     let mut user_agent = String::new();
@@ -275,7 +276,7 @@ pub fn process_addr_message(payload: Vec<u8>) -> Vec<String>{
     if payload.len() == 0 {
         return vec![];
     }
-    let addr_number = get_compact_int(&payload);
+    let (addr_number, _) = get_compact_int(&payload);
     if addr_number < 2 {
         return vec![];
     }
@@ -310,19 +311,19 @@ pub fn process_addr_message(payload: Vec<u8>) -> Vec<String>{
 }
 
 //// COMMON SERVICES
-fn get_compact_int(payload: &Vec<u8>) -> u64 {
+pub fn get_compact_int(payload: &Vec<u8>) -> (u64, usize) {
     let storage_length: u8 = payload[STORAGE_BYTE];
     // TODO: Try with match construct
     if storage_length == UNIT_16 {
-        return u16::from_le_bytes((&payload[NUM_START..UNIT_16_END]).try_into().unwrap()) as u64;
+        return (u16::from_le_bytes((&payload[NUM_START..UNIT_16_END]).try_into().unwrap()) as u64, UNIT_16_END);
     }
     if storage_length == UNIT_32 {
-        return u32::from_le_bytes((&payload[NUM_START..UNIT_32_END]).try_into().unwrap()) as u64;
+        return (u32::from_le_bytes((&payload[NUM_START..UNIT_32_END]).try_into().unwrap()) as u64, UNIT_32_END);
     }
     if storage_length == UNIT_64 {
-        return u64::from_le_bytes((&payload[NUM_START..UNIT_64_END]).try_into().unwrap()) as u64;
+        return (u64::from_le_bytes((&payload[NUM_START..UNIT_64_END]).try_into().unwrap()) as u64, UNIT_64_END);
     }
-    return storage_length as u64;
+    return (storage_length as u64, UNIT_8_END);
 }
 
 fn get_date_time(mut time_vec: Vec<u8>) -> DateTime<Utc>{
