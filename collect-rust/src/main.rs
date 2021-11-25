@@ -285,7 +285,8 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                 // }
 
                 if command == String::from(HEADERS){
-                    // eprintln!("HEADERS {:02x?}, {:02x?}", &payload[..81], &payload[0]);
+                    eprintln!("HEADERS {:02x?}, {:02x?}", &payload[..81], &payload[0]);
+                    std::process::exit(1);
 
                     let header_size = payload[0];
                     let header_length = 81;
