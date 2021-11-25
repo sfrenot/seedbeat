@@ -81,12 +81,16 @@ pub fn create_block_message_payload(new_block: String) {
     *block_message = Vec::with_capacity(block_message.len()+32);
 
     block_message.extend(VERSION.to_le_bytes());
-    block_message.extend([blocks_id.len() as u8]);
+    block_message.extend([blocks_id.len() as u8-1]);
     let size = blocks_id.len()-1;
     for i in 0..blocks_id.len() {
-        let val = &blocks_id[size-i];
-        block_message.extend(Vec::from_hex(val).unwrap());
+        let mut val = Vec::from_hex(&blocks_id[size-i]).unwrap();
+        val.reverse();
+        block_message.extend(val);
     }
+    // drop(block_message);
+    // eprintln!("{}",hex::encode(&get_getheaders_message_payload()));
+    // std::process::exit(1);
 }
 
 pub fn is_new(block_name: String) -> bool {

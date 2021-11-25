@@ -19,8 +19,8 @@ use chan::{self, Receiver};
 use std::process;
 use bitcoin_hashes::{sha256d, Hash};
 
-use crate::bcmessage::{ReadResult, INV, MSG_VERSION, MSG_VERSION_ACK, MSG_GETADDR, CONN_CLOSE, MSG_ADDR, HEADERS, GET_BLOCKS, GET_DATA, BLOCK};
-// use crate::bcmessage::{ReadResult, INV, MSG_VERSION, MSG_VERSION_ACK, MSG_GETADDR, CONN_CLOSE, MSG_ADDR, GET_HEADERS, HEADERS, GET_DATA, BLOCK};
+// use crate::bcmessage::{ReadResult, INV, MSG_VERSION, MSG_VERSION_ACK, MSG_GETADDR, CONN_CLOSE, MSG_ADDR, HEADERS, GET_BLOCKS, BLOCK, GET_DATA};
+use crate::bcmessage::{ReadResult, INV, MSG_VERSION, MSG_VERSION_ACK, MSG_GETADDR, CONN_CLOSE, MSG_ADDR, GET_HEADERS, HEADERS, GET_BLOCKS, BLOCK, GET_DATA};
 use crate::bcfile::LOGGER;
 
 const CONNECTION_TIMEOUT:Duration = Duration::from_secs(10);
@@ -248,7 +248,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
             _ => {
                 let command = read_result.command;
                 let payload = read_result.payload;
-                // eprintln!("Command From : {} --> {}", &target_address, &command);
+                eprintln!("Command From : {} --> {}", &target_address, &command);
                 if command  == String::from(MSG_VERSION) && payload.len() > 0 {
                     let peer = target_address.clone();
                     store_version_message(peer, &payload);
@@ -268,8 +268,8 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                     if store_addr_messages(payload.clone(),sender.clone()) > ADDRESSES_RECEIVED_THRESHOLD {
                         // eprintln!("GET_BLOCKS {}", target_address);
 
-                        match in_chain.send(String::from(GET_BLOCKS)) {
-                        // match in_chain.send(String::from(GET_HEADERS)) {
+                        // match in_chain.send(String::from(GET_BLOCKS)) {
+                        match in_chain.send(String::from(GET_HEADERS)) {
                             Err(error) => {
                                 eprintln!("Erreur blocks: {} ip : {}", error, &target_address);
                                 // std::process::exit(1);
@@ -278,8 +278,14 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                         }
                     }
                 }
+                //Testing incoming message
+                // if command == String::from(GET_HEADERS){
+                //     eprintln!("GET-HEADERS {}", hex::encode(&payload));
+                //     std::process::exit(1);
+                // }
+
                 if command == String::from(HEADERS){
-                    eprintln!("HEADERS {:02x?}, {:02x?}", &payload[..81], &payload[0]);
+                    // eprintln!("HEADERS {:02x?}, {:02x?}", &payload[..81], &payload[0]);
 
                     let header_size = payload[0];
                     let header_length = 81;
@@ -333,20 +339,20 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                         offset+=inv_length;
                     }
                 }
-                if command == String::from(BLOCK){
-                    eprintln!("BLOCK : {:02x?}", &payload[..100]);
-
-                    let hash = sha256d::Hash::hash(&payload[..80]);
-
-                    let mut previous_block = [0;32];
-                    previous_block.clone_from_slice(&payload[4..36]);
-                    previous_block.reverse();
-
-                    eprintln!("previous: {}, current: {:?}", hex::encode(&previous_block), hash.to_string());
-
-                    // !!!!!!!!!!
-                    std::process::exit(1);
-                }
+                // if command == String::from(BLOCK){
+                //     eprintln!("BLOCK : {:02x?}", &payload[..100]);
+                //
+                //     let hash = sha256d::Hash::hash(&payload[..80]);
+                //
+                //     let mut previous_block = [0;32];
+                //     previous_block.clone_from_slice(&payload[4..36]);
+                //     previous_block.reverse();
+                //
+                //     eprintln!("previous: {}, current: {:?}", hex::encode(&previous_block), hash.to_string());
+                //
+                //     // !!!!!!!!!!
+                //     std::process::exit(1);
+                // }
 
             }
         }
@@ -434,16 +440,17 @@ fn handle_one_peer(connection_start_channel: Receiver<String>, addresses_to_test
                     };
                     // eprintln!("CMD -> {}", received_cmd);
 
-                    // if received_cmd == String::from(GET_HEADERS) {
-                    //     eprintln!("==> Envoi GET_HEADERS {} to: {}", received_cmd, target_address);
-                    //     match bcmessage::send_request(&connection, GET_HEADERS) {
-                    //         Err(_) => {
-                    //             println!("error at sending getHeaders");
-                    //             fail(target_address.clone());
-                    //             break; // From connexion
-                    //         }
-                    //         _ => {}
-                    //     }
+                    if received_cmd == String::from(GET_HEADERS) {
+                        // eprintln!("==> Envoi GET_HEADERS {} to: {}", received_cmd, target_address);
+                        match bcmessage::send_request(&connection, GET_HEADERS) {
+                            Err(_) => {
+                                println!("error at sending getHeaders");
+                                fail(target_address.clone());
+                                break; // From connexion
+                            }
+                            _ => {}
+                        }
+                    } else
                     if received_cmd == String::from(GET_BLOCKS) {
                         // eprintln!("==> Envoi GET_BLOCKS {} to: {}", received_cmd, target_address);
                         match bcmessage::send_request(&connection, GET_BLOCKS) {
@@ -520,10 +527,14 @@ fn main() {
     bcmessage::create_init_message_payload();
     let blocks = bcfile::load_blocks();
     for item in blocks {
+        // eprintln!("-> {}", item.elem);
         bcblocks::create_block_message_payload(item.elem);
     }
 
-    // eprintln!("{:02x?}", hex::encode(bcblocks::get_getblock_message_payload()));
+    // eprintln!("{}", hex::encode(bcblocks::get_getblock_message_payload()));
+    // eprintln!("{}", hex::encode(bcblocks::get_getheaders_message_payload()));
+    // std::process::exit(1);
+
 
     let addresses_to_test:Arc<Mutex<i64>> = Arc::new(Mutex::new(0));
 
