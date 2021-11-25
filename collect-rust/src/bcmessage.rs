@@ -309,9 +309,21 @@ pub fn process_addr_message(payload: Vec<u8>) -> Vec<String>{
     // eprintln!("--> Ajout {} noeuds", new_addr);
     addr
 }
+pub fn process_headers_message(payload: Vec<u8>) {
+    let (nb_headers, mut offset) = get_compact_int(&payload);
+    let header_length = 80;
+    for _i in 0..nb_headers {
+        let mut previous_block = [0;32];
+        previous_block.clone_from_slice(&payload[offset+4..offset+4+32]);
+        previous_block.reverse();
+        let current_block = sha256d::Hash::hash(&payload[offset..offset+header_length]);
+        eprintln!("Gen -> {} --> {}", hex::encode(previous_block), current_block.to_string());
+        offset+=header_length+1
+    }
+}
 
 //// COMMON SERVICES
-pub fn get_compact_int(payload: &Vec<u8>) -> (u64, usize) {
+fn get_compact_int(payload: &Vec<u8>) -> (u64, usize) {
     let storage_length: u8 = payload[STORAGE_BYTE];
     // TODO: Try with match construct
     if storage_length == UNIT_16 {

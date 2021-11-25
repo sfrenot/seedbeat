@@ -285,38 +285,10 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                 // }
 
                 if command == String::from(HEADERS){
-                    // eprintln!("HEADERS {}", hex::encode(&payload[..182]));
-                    // let (size, start_byte) = bcmessage::get_compact_int(&payload);
-                    //
-                    // eprintln!("-> nb blocks {}", size);
-                    // eprintln!("-> start {}", start_byte);
-                    //
-                    // eprintln!("-> block version {}", hex::encode(&payload[start_byte..start_byte+4]));
-                    // let mut previous_block = [0;32];
-                    // previous_block.clone_from_slice(&payload[start_byte+4..start_byte+4+32]);
-                    // previous_block.reverse();
-                    // eprintln!("-> previous block {}", hex::encode(previous_block));
-                    //
-                    // let block = sha256d::Hash::hash(&payload[start_byte..start_byte+80]);
-                    // eprintln!("-> current block {}", block.to_string());
-                    //
-                    // std::process::exit(1);
-
-                    let (nb_headers, mut offset) = bcmessage::get_compact_int(&payload);
-                    let header_length = 80;
-                    for _i in 0..nb_headers {
-                        let mut previous_block = [0;32];
-                        previous_block.clone_from_slice(&payload[offset+4..offset+4+32]);
-                        previous_block.reverse();
-
-                        let current_block = sha256d::Hash::hash(&payload[offset..offset+header_length]);
-                        eprintln!("Gen -> {} --> {}", hex::encode(previous_block), current_block.to_string());
-
-                        offset+=header_length+1
-                    }
+                    process_headers_message(&payload);
                     std::process::exit(1);
-
                 }
+                
                 if command == String::from(INV){
                     let inv_size = payload[0];
                     let inv_length = 36;
