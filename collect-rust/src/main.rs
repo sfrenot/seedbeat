@@ -500,14 +500,20 @@ fn main() {
     let start_time: SystemTime = SystemTime::now();
     bcmessage::create_init_message_payload();
     let blocks = bcfile::load_blocks();
+    let mut i:u32 = 0;
+    let mut known_block = bcblocks::KNOWN_BLOCK.lock().unwrap();
+
     for item in blocks {
         // eprintln!("-> {}", item.elem);
+        known_block.insert(item.elem.clone(), true);
         bcblocks::create_block_message_payload(item.elem);
+        i+=1;
     }
 
     // eprintln!("{}", hex::encode(bcblocks::get_getblock_message_payload()));
     // eprintln!("{}", hex::encode(bcblocks::get_getheaders_message_payload()));
-    // std::process::exit(1);
+    eprintln!("{:?}", known_block);
+    std::process::exit(1);
 
 
     let addresses_to_test:Arc<Mutex<i64>> = Arc::new(Mutex::new(0));

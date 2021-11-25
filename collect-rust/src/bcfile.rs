@@ -7,12 +7,14 @@ use std::sync::Mutex;
 
 lazy_static! {
     pub static ref LOGGER: Mutex<LineWriter<Box<dyn Write + Send>>> = Mutex::new(LineWriter::new(Box::new(stdout())));
+    // pub static ref BLOCKS: Mutex<LineWriter<Box<dyn Write + Send>>> = Mutex::new(LineWriter::new(Box::new(File::create("./blocks.raw").unwrap())));
+    pub static ref sortie:LineWriter<File> = LineWriter::new(File::create("./blocks.raw").unwrap());
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Block {
     pub elem: String,
-    pub previous_idx: u8
+    pub previous_idx: u32
 }
 
 pub fn load_blocks() -> Vec<Block> {
@@ -28,7 +30,6 @@ pub fn open_logfile(arg_file: Option<&str>) {
             file = File::create(f).unwrap();
         }
     }
-
     let mut logger = LOGGER.lock().unwrap();
     *logger = LineWriter::new(Box::new(file));
 }

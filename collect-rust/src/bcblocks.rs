@@ -4,6 +4,12 @@ use hex::FromHex;
 use crate::bcmessage::VERSION;
 use std::collections::HashMap;
 
+#[derive(Debug)]
+pub struct Block_Desc {
+    pub previous: String,
+    pub idx: u32
+}
+
 lazy_static! {
     // static ref TEMPLATE_MESSAGE_PAYLOAD: Mutex<Vec<u8>> = Mutex::new(Vec::with_capacity(105));
     static ref TEMPLATE_GETBLOCK_PAYLOAD: Mutex<Vec<u8>> = Mutex::new(Vec::with_capacity(197));
@@ -18,7 +24,7 @@ lazy_static! {
         // m.push(String::from("000000000000000000086e525463f00da70f517593cdf4f2b1416af398423a8a")); //710139
         Mutex::new(m)
     };
-    static ref KNOWN_BLOCK: Mutex<HashMap<String, bool>> = Mutex::new(HashMap::new());
+    pub static ref KNOWN_BLOCK: Mutex<HashMap<String, bool>> = Mutex::new(HashMap::new());
 }
 
 // TO BE SUPPRESSED
@@ -77,9 +83,7 @@ pub fn create_block_message_payload(new_block: String) {
     blocks_id.push(new_block);
 
     let mut block_message = TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap();
-
     *block_message = Vec::with_capacity(block_message.len()+32);
-
     block_message.extend(VERSION.to_le_bytes());
     block_message.extend([blocks_id.len() as u8-1]);
     let size = blocks_id.len()-1;
