@@ -6,8 +6,8 @@ use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct BlockDesc {
-    pub previous: String,
-    pub idx: u32
+    pub idx: usize,
+    pub previous: String
 }
 
 lazy_static! {
@@ -88,7 +88,7 @@ pub fn create_block_message_payload(new_block: String, next: bool) {
     block_message.extend([blocks_id.len() as u8-1]);
     let size = blocks_id.len()-1;
     for i in 0..blocks_id.len() {
-        let (bloc, next) = &blocks_id[size-i];
+        let (bloc, _) = &blocks_id[size-i];
         let mut val = Vec::from_hex(bloc).unwrap();
         val.reverse();
         block_message.extend(val);
@@ -98,29 +98,79 @@ pub fn create_block_message_payload(new_block: String, next: bool) {
     // std::process::exit(1);
 }
 
-// pub fn is_new(block_name: String) -> BlockDesc {
-//     // true: needs search
-//     let res: BlockDesc;
-//     let mut known_block = KNOWN_BLOCK.lock().unwrap();
-//     // eprintln!("Test Block ==> {}", &block_name);
-//     match known_block.get(&block_name) {
-//         None => {
-//             eprintln!("Ajout {:02x?}", block_name);
-//             // known_block.insert(block_name.clone(), true);
-//             // TODO : create_block_message_payload(block_name);
-//             eprintln!("A FAIRE");
-//             std::process::exit(1);
-//             // res = true;
-//         }
-//         Some(found) => {
-//             // res = *found;
-//         }
-//     }
-//     // if res ==  true {
-//     //     eprintln!("{:02x?}", hex::encode(TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().to_vec()));
-//     //     std::process::exit(1);
-//     // }
-//     eprintln!("Hash {:?}", &known_block);
-//     // res
-//
-// }
+pub fn is_new(block: String, previous: String ) -> bool {
+    // let mut new = false;
+    let mut known_block = KNOWN_BLOCK.lock().unwrap();
+
+    let mut blocks_id = BLOCKS_ID.lock().unwrap();
+
+    let search_block =  known_block.get(&block);
+    let search_previous = known_block.get(&previous);
+
+    match search_previous {
+        Some(previous_block) => {
+            match search_block {
+                None => {
+                    let (val, _) = blocks_id.get(previous_block.idx).unwrap();
+                    blocks_id[previous_block.idx] =  (val.to_string(), true);                    // std::mem::replace(&mut blocks_id[previous_block.idx], (val.to_string(), true));
+                    blocks_id.insert((previous_block.idx+1) as usize, (block.clone(), false));
+
+                    let idx = previous_block.idx + 1;
+                    known_block.insert(block, BlockDesc{idx, previous});
+                    // eprintln!("Trouvé previous, Pas trouvé block");
+                    // eprintln!("{:?}", blocks_id);
+                    // eprintln!("{:?}", known_block);
+                    // std::process::exit(1);
+                    true
+                }
+                _ => {
+                    false
+                }
+            }
+        }
+        _ => {
+            match search_block {
+                Some(found_block) => {
+                    // eprintln!("Previous {} non trouvé, Block trouvé {}", &previous, &block);
+                    let idx = found_block.idx;
+                    // let key = ;
+                    let val = BlockDesc{idx, previous: previous.clone()};
+                    known_block.insert(block, val);
+
+                    blocks_id.insert(idx, (previous, true));
+                    eprintln!("{:?}", blocks_id);
+                    eprintln!("{:?}", known_block);
+                    std::process::exit(1);
+                    true
+                }
+                _ => {
+                    eprintln!("Previous {} non trouvé", &previous);
+                    // std::process::exit(1);
+                    false
+                }
+            }
+        }
+    }
+
+    // match known_block.get(&block_name) {
+    //     None => {
+    //         blocks_id.push((block_name, ))
+    //         eprintln!("Ajout {:02x?}", block_name);
+    //         // known_block.insert(block_name.clone(), true);
+    //         // TODO : create_block_message_payload(block_name);
+    //         eprintln!("A FAIRE");
+    //         std::process::exit(1);
+    //         // res = true;
+    //     }
+    //     Some(found) => {
+    //         // res = *found;
+    //     }
+    // }
+    // // if res ==  true {
+    // //     eprintln!("{:02x?}", hex::encode(TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().to_vec()));
+    // //     std::process::exit(1);
+    // // }
+    // eprintln!("Hash {:?}", &known_block);
+    // // res
+
+}

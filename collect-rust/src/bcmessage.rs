@@ -315,7 +315,8 @@ pub fn process_headers_message(payload: Vec<u8>) {
         previous_block.clone_from_slice(&payload[offset+4..offset+4+32]);
         previous_block.reverse();
         let current_block = sha256d::Hash::hash(&payload[offset..offset+header_length]);
-        eprintln!("Gen -> {} --> {}", hex::encode(previous_block), current_block.to_string());
+        // eprintln!("Gen -> {} --> {}", hex::encode(previous_block), current_block.to_string());
+        bcblocks::is_new(current_block.to_string(), hex::encode(previous_block));
         offset+=header_length+1
     }
 }

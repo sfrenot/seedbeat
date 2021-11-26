@@ -242,7 +242,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
             _ => {
                 let command = read_result.command;
                 let payload = read_result.payload;
-                eprintln!("Command From : {} --> {}", &target_address, &command);
+                // eprintln!("Command From : {} --> {}", &target_address, &command);
                 if command  == String::from(MSG_VERSION) && payload.len() > 0 {
                     let peer = target_address.clone();
                     store_version_message(peer, &payload);
@@ -271,6 +271,8 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
 
                 if command == String::from(HEADERS){
                     bcmessage::process_headers_message(payload);
+                    eprintln!("{:?}", bcblocks::BLOCKS_ID.lock().unwrap());
+                    eprintln!("{:?}", bcblocks::KNOWN_BLOCK.lock().unwrap());
                     std::process::exit(1);
                 }
 
@@ -500,13 +502,13 @@ fn main() {
     let start_time: SystemTime = SystemTime::now();
     bcmessage::create_init_message_payload();
     let blocks = bcfile::load_blocks();
-    let mut idx:u32 = 1;
+    let mut idx:usize = 1;
     let mut known_block = bcblocks::KNOWN_BLOCK.lock().unwrap();
     let mut previous: String = "".to_string();
 
     for item in blocks {
         // eprintln!("-> {}", item.elem);
-        known_block.insert(item.elem.clone(), bcblocks::BlockDesc{previous, idx});
+        known_block.insert(item.elem.clone(), bcblocks::BlockDesc{idx, previous});
         if item.next {
             previous = item.elem.clone();
         } else {
@@ -518,10 +520,10 @@ fn main() {
 
     // eprintln!("{}", hex::encode(bcblocks::get_getblock_message_payload()));
     // eprintln!("{}", hex::encode(bcblocks::get_getheaders_message_payload()));
-    // eprintln!("{:?}", known_block);
-    // eprintln!("{:?}", bcblocks::BLOCKS_ID.lock().unwrap());
+    eprintln!("{:?}", known_block);
+    eprintln!("{:?}", bcblocks::BLOCKS_ID.lock().unwrap());
     // std::process::exit(1);
-
+    drop(known_block);
 
     let addresses_to_test:Arc<Mutex<i64>> = Arc::new(Mutex::new(0));
 
