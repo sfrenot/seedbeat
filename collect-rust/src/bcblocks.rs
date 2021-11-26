@@ -78,7 +78,7 @@ pub fn get_getdata_message_payload(search_block: &str) -> Vec<u8> {
     block_message
 }
 
-pub fn create_block_message_payload(new_block: String, next: bool) {
+pub fn _create_block_message_payload(new_block: String, next: bool) {
     let mut blocks_id = BLOCKS_ID.lock().unwrap();
     blocks_id.push((new_block, next));
 
@@ -93,6 +93,40 @@ pub fn create_block_message_payload(new_block: String, next: bool) {
         val.reverse();
         block_message.extend(val);
     }
+    // drop(block_message);
+    // eprintln!("{}",hex::encode(&get_getheaders_message_payload()));
+    // std::process::exit(1);
+}
+
+// TODO: FONCTION DE TEST
+pub fn create_block_message_payload(new_block: String, next: bool) {
+    eprintln!("FONCTION DE TEST");
+    std::process::exit(1);
+
+    let mut blocks_id = BLOCKS_ID.lock().unwrap();
+    blocks_id.push((new_block, next));
+
+    let mut block_message = TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap();
+    *block_message = Vec::with_capacity(block_message.len()+32);
+    block_message.extend(VERSION.to_le_bytes());
+    // block_message.extend([blocks_id.len() as u8-1]);
+    // A REMETTRE
+    block_message.extend([0x01]);
+
+    let size = blocks_id.len()-1;
+    //A REMETTRE :  for i in 0..blocks_id.len() {
+    // for i in 0..1 {
+    //     let (bloc, _) = &blocks_id[size-i];
+    //     let mut val = Vec::from_hex(bloc).unwrap();
+    //     val.reverse();
+    //     block_message.extend(val);
+    // }
+    let mut tmp = Vec::from_hex("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f").unwrap();
+    tmp.reverse();
+    block_message.extend(tmp);
+
+    //A REMETTRE
+    block_message.extend(Vec::from_hex("0000000000000000000000000000000000000000000000000000000000000000").unwrap());
     // drop(block_message);
     // eprintln!("{}",hex::encode(&get_getheaders_message_payload()));
     // std::process::exit(1);

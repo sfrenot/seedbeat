@@ -520,6 +520,8 @@ fn main() {
 
     // eprintln!("{}", hex::encode(bcblocks::get_getblock_message_payload()));
     // eprintln!("{}", hex::encode(bcblocks::get_getheaders_message_payload()));
+    // std::process::exit(1);
+
     eprintln!("{:?}", known_block);
     eprintln!("{:?}", bcblocks::BLOCKS_ID.lock().unwrap());
     // std::process::exit(1);
