@@ -1,4 +1,6 @@
 use std::sync::Mutex;
+use std::sync::MutexGuard;
+
 use lazy_static::lazy_static;
 use hex::FromHex;
 use crate::bcmessage::VERSION;
@@ -98,10 +100,7 @@ pub fn create_block_message_payload(new_block: String, next: bool) {
     // std::process::exit(1);
 }
 
-pub fn is_new(block: String, previous: String ) -> (usize, String) {
-
-    let mut known_block = KNOWN_BLOCK.lock().unwrap();
-    let mut blocks_id = BLOCKS_ID.lock().unwrap();
+pub fn is_new(known_block: &mut MutexGuard<HashMap<String, BlockDesc>>,blocks_id: &mut MutexGuard<Vec<(String, bool)>>, block: String, previous: String ) -> (usize, String) {
 
     let search_block =  known_block.get(&block);
     let search_previous = known_block.get(&previous);

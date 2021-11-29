@@ -308,7 +308,9 @@ pub fn process_addr_message(payload: &Vec<u8>) -> Vec<String>{
     addr
 }
 pub fn process_headers_message(payload: Vec<u8>) -> (usize, String) {
-    
+    let mut known_block_guard = bcblocks::KNOWN_BLOCK.lock().unwrap();
+    let mut blocks_id_guard = bcblocks::BLOCKS_ID.lock().unwrap();
+
     let mut highest_index = 0;
     let mut highest_block = "".to_string();
 
@@ -320,7 +322,7 @@ pub fn process_headers_message(payload: Vec<u8>) -> (usize, String) {
         previous_block.reverse();
         let current_block = sha256d::Hash::hash(&payload[offset..offset+header_length]);
         // eprintln!("Gen -> {} --> {}", hex::encode(previous_block), current_block.to_string());
-        let (idx, block) = bcblocks::is_new(current_block.to_string(), hex::encode(previous_block));
+        let (idx, block) = bcblocks::is_new(&mut known_block_guard, &mut blocks_id_guard, current_block.to_string(), hex::encode(previous_block));
         if idx > highest_index {
             highest_index = idx;
             highest_block = block;
