@@ -78,7 +78,7 @@ pub fn get_getdata_message_payload(search_block: &str) -> Vec<u8> {
     block_message
 }
 
-pub fn _create_block_message_payload(new_block: String, next: bool) {
+pub fn create_block_message_payload(new_block: String, next: bool) {
     let mut blocks_id = BLOCKS_ID.lock().unwrap();
     blocks_id.push((new_block, next));
 
@@ -98,44 +98,9 @@ pub fn _create_block_message_payload(new_block: String, next: bool) {
     // std::process::exit(1);
 }
 
-// TODO: FONCTION DE TEST
-pub fn create_block_message_payload(new_block: String, next: bool) {
-    eprintln!("FONCTION DE TEST");
-    std::process::exit(1);
+pub fn is_new(block: String, previous: String ) -> (usize, String) {
 
-    let mut blocks_id = BLOCKS_ID.lock().unwrap();
-    blocks_id.push((new_block, next));
-
-    let mut block_message = TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap();
-    *block_message = Vec::with_capacity(block_message.len()+32);
-    block_message.extend(VERSION.to_le_bytes());
-    // block_message.extend([blocks_id.len() as u8-1]);
-    // A REMETTRE
-    block_message.extend([0x01]);
-
-    let size = blocks_id.len()-1;
-    //A REMETTRE :  for i in 0..blocks_id.len() {
-    // for i in 0..1 {
-    //     let (bloc, _) = &blocks_id[size-i];
-    //     let mut val = Vec::from_hex(bloc).unwrap();
-    //     val.reverse();
-    //     block_message.extend(val);
-    // }
-    let mut tmp = Vec::from_hex("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f").unwrap();
-    tmp.reverse();
-    block_message.extend(tmp);
-
-    //A REMETTRE
-    block_message.extend(Vec::from_hex("0000000000000000000000000000000000000000000000000000000000000000").unwrap());
-    // drop(block_message);
-    // eprintln!("{}",hex::encode(&get_getheaders_message_payload()));
-    // std::process::exit(1);
-}
-
-pub fn is_new(block: String, previous: String ) -> bool {
-    // let mut new = false;
     let mut known_block = KNOWN_BLOCK.lock().unwrap();
-
     let mut blocks_id = BLOCKS_ID.lock().unwrap();
 
     let search_block =  known_block.get(&block);
@@ -150,15 +115,15 @@ pub fn is_new(block: String, previous: String ) -> bool {
                     blocks_id.insert((previous_block.idx+1) as usize, (block.clone(), false));
 
                     let idx = previous_block.idx + 1;
-                    known_block.insert(block, BlockDesc{idx, previous});
+                    known_block.insert(block.clone(), BlockDesc{idx, previous});
                     // eprintln!("Trouvé previous, Pas trouvé block");
                     // eprintln!("{:?}", blocks_id);
                     // eprintln!("{:?}", known_block);
                     // std::process::exit(1);
-                    true
+                    (idx, block)
                 }
                 _ => {
-                    false
+                    (0, "".to_string())
                 }
             }
         }
@@ -169,42 +134,24 @@ pub fn is_new(block: String, previous: String ) -> bool {
                     let idx = found_block.idx;
                     // let key = ;
                     let val = BlockDesc{idx, previous: previous.clone()};
-                    known_block.insert(block, val);
+                    known_block.insert(block.clone(), val);
 
-                    blocks_id.insert(idx, (previous, true));
+                    blocks_id.insert(idx, (previous.clone(), true));
+                    eprintln!("Previous non {}, Block oui {}", &previous, &block);
+
                     eprintln!("{:?}", blocks_id);
                     eprintln!("{:?}", known_block);
                     std::process::exit(1);
-                    true
+                    (idx, block)
                 }
                 _ => {
-                    eprintln!("Previous {} non trouvé", &previous);
-                    // std::process::exit(1);
-                    false
+                    eprintln!("Previous non {}, Block non {}", &previous, &block);
+                    eprintln!("{:?}", blocks_id);
+                    eprintln!("{:?}", known_block);
+                    std::process::exit(1);
+                    (0, "".to_string())
                 }
             }
         }
     }
-
-    // match known_block.get(&block_name) {
-    //     None => {
-    //         blocks_id.push((block_name, ))
-    //         eprintln!("Ajout {:02x?}", block_name);
-    //         // known_block.insert(block_name.clone(), true);
-    //         // TODO : create_block_message_payload(block_name);
-    //         eprintln!("A FAIRE");
-    //         std::process::exit(1);
-    //         // res = true;
-    //     }
-    //     Some(found) => {
-    //         // res = *found;
-    //     }
-    // }
-    // // if res ==  true {
-    // //     eprintln!("{:02x?}", hex::encode(TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap().to_vec()));
-    // //     std::process::exit(1);
-    // // }
-    // eprintln!("Hash {:?}", &known_block);
-    // // res
-
 }

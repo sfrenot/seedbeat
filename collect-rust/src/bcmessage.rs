@@ -307,7 +307,11 @@ pub fn process_addr_message(payload: &Vec<u8>) -> Vec<String>{
     // eprintln!("--> Ajout {} noeuds", new_addr);
     addr
 }
-pub fn process_headers_message(payload: Vec<u8>) {
+pub fn process_headers_message(payload: Vec<u8>) -> (usize, String) {
+    
+    let mut highest_index = 0;
+    let mut highest_block = "".to_string();
+
     let (nb_headers, mut offset) = get_compact_int(&payload);
     let header_length = 80;
     for _i in 0..nb_headers {
@@ -316,9 +320,14 @@ pub fn process_headers_message(payload: Vec<u8>) {
         previous_block.reverse();
         let current_block = sha256d::Hash::hash(&payload[offset..offset+header_length]);
         // eprintln!("Gen -> {} --> {}", hex::encode(previous_block), current_block.to_string());
-        bcblocks::is_new(current_block.to_string(), hex::encode(previous_block));
+        let (idx, block) = bcblocks::is_new(current_block.to_string(), hex::encode(previous_block));
+        if idx > highest_index {
+            highest_index = idx;
+            highest_block = block;
+        }
         offset+=header_length+1
     }
+    (highest_index, highest_block)
 }
 
 //// COMMON SERVICES

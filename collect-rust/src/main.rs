@@ -270,9 +270,13 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                 // }
 
                 if command == String::from(HEADERS){
-                    bcmessage::process_headers_message(payload);
+                    let (idx, block) = bcmessage::process_headers_message(payload);
                     eprintln!("{:?}", bcblocks::BLOCKS_ID.lock().unwrap());
                     eprintln!("{:?}", bcblocks::KNOWN_BLOCK.lock().unwrap());
+
+                    eprintln!("Status : {} -> {}", idx, block);
+
+
                     std::process::exit(1);
                 }
 
