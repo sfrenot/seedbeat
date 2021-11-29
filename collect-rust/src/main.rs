@@ -287,7 +287,6 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                         eprintln!("{:02x?}", hex::encode(&bcblocks::get_getheaders_message_payload()));
                         bcblocks::create_block_message_payload();
                         eprintln!("{:02x?}", hex::encode(&bcblocks::get_getheaders_message_payload()));
-                        std::process::exit(1);
                         in_chain.send(String::from(GET_HEADERS)).unwrap();
                     } else {
                         std::process::exit(1);
@@ -545,8 +544,8 @@ fn main() {
     // eprintln!("{}", hex::encode(bcblocks::get_getheaders_message_payload()));
     // std::process::exit(1);
 
-    eprintln!("{:?}", known_block);
-    eprintln!("{:?}", bcblocks::BLOCKS_ID.lock().unwrap());
+    // eprintln!("{:?}", known_block);
+    // eprintln!("{:?}", bcblocks::BLOCKS_ID.lock().unwrap());
     // std::process::exit(1);
     drop(known_block);
 
