@@ -50,7 +50,7 @@ pub const IP_FIELD_END:usize= 28;
 pub const PORT_FIELD_END:usize= 30;
 
 // offset for version cmd
-const VERSION_END: usize =4;
+pub const VERSION_END: usize =4;
 
 const USER_AGENT: usize = 80;
 const TIMESTAMP_END:usize= 20;

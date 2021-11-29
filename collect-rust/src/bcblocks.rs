@@ -3,7 +3,7 @@ use std::sync::MutexGuard;
 
 use lazy_static::lazy_static;
 use hex::FromHex;
-use crate::bcmessage::VERSION;
+use crate::bcmessage::{VERSION, VERSION_END};
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -80,21 +80,24 @@ pub fn get_getdata_message_payload(search_block: &str) -> Vec<u8> {
     block_message
 }
 
-pub fn create_block_message_payload(new_block: String, next: bool) {
-    let mut blocks_id = BLOCKS_ID.lock().unwrap();
-    blocks_id.push((new_block, next));
-
+pub fn create_block_message_payload() {
+    let blocks_id = BLOCKS_ID.lock().unwrap();
     let mut block_message = TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap();
     *block_message = Vec::with_capacity(block_message.len()+32);
     block_message.extend(VERSION.to_le_bytes());
-    block_message.extend([blocks_id.len() as u8-1]);
+    block_message.extend([blocks_id.len() as u8-1]); // Fake value replaced later
     let size = blocks_id.len()-1;
+    let mut nb = 0;
     for i in 0..blocks_id.len() {
-        let (bloc, _) = &blocks_id[size-i];
-        let mut val = Vec::from_hex(bloc).unwrap();
-        val.reverse();
-        block_message.extend(val);
+        let (bloc, next) = &blocks_id[size-i];
+        if !next {
+            let mut val = Vec::from_hex(bloc).unwrap();
+            val.reverse();
+            block_message.extend(val);
+            nb+=1;
+        }
     }
+    block_message[VERSION_END] = nb-1; //Vector size
     // drop(block_message);
     // eprintln!("{}",hex::encode(&get_getheaders_message_payload()));
     // std::process::exit(1);
