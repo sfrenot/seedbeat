@@ -1,4 +1,5 @@
 use std::sync::Mutex;
+use std::sync::MutexGuard;
 use lazy_static::lazy_static;
 use std::time::SystemTime;
 use chrono::{DateTime, NaiveDateTime, Utc};
@@ -6,6 +7,8 @@ use sha2::{Sha256, Digest};
 use std::net::{TcpStream, IpAddr};
 use std::io::{Write, Read, Error, ErrorKind};
 use std::convert::TryInto;
+use std::collections::HashMap;
+
 use hex::FromHex;
 use crate::bcblocks;
 use bitcoin_hashes::{sha256d, Hash};
@@ -307,9 +310,7 @@ pub fn process_addr_message(payload: &Vec<u8>) -> Vec<String>{
     // eprintln!("--> Ajout {} noeuds", new_addr);
     addr
 }
-pub fn process_headers_message(payload: Vec<u8>) -> (usize, String) {
-    let mut known_block_guard = bcblocks::KNOWN_BLOCK.lock().unwrap();
-    let mut blocks_id_guard = bcblocks::BLOCKS_ID.lock().unwrap();
+pub fn process_headers_message(known_block_guard: &mut MutexGuard<HashMap<String, bcblocks::BlockDesc>>,blocks_id_guard: &mut MutexGuard<Vec<(String, bool)>>, payload: Vec<u8>) -> (usize, String) {
 
     let mut highest_index = 0;
     let mut highest_block = "".to_string();
@@ -322,7 +323,7 @@ pub fn process_headers_message(payload: Vec<u8>) -> (usize, String) {
         previous_block.reverse();
         let current_block = sha256d::Hash::hash(&payload[offset..offset+header_length]);
         // eprintln!("Gen -> {} --> {}", hex::encode(previous_block), current_block.to_string());
-        let (idx, block) = bcblocks::is_new(&mut known_block_guard, &mut blocks_id_guard, current_block.to_string(), hex::encode(previous_block));
+        let (idx, block) = bcblocks::is_new(known_block_guard, blocks_id_guard, current_block.to_string(), hex::encode(previous_block));
         if idx > highest_index {
             highest_index = idx;
             highest_block = block;

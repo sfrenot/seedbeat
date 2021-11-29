@@ -1,6 +1,6 @@
 use std::io::BufReader;
 use serde::Deserialize;
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::{LineWriter, stdout, Write};
 use lazy_static::lazy_static;
 use std::sync::Mutex;
@@ -20,6 +20,17 @@ pub struct Block {
 pub fn load_blocks() -> Vec<Block> {
   let file = File::open("./blocks.json").unwrap();
   ::serde_json::from_reader(BufReader::new(file)).unwrap()
+}
+
+pub fn store_blocks(blocks: &Vec<(String, bool)>) {
+  let mut file = LineWriter::new(File::create("./blocks-found.json").unwrap());
+  file.write_all(b"[\n");
+  for (blocks, next) in blocks {
+      file.write_all(format!("\t {{\"elem\": \"{}\", \"next\": {}}}\n", blocks, next).as_ref());
+  }
+  file.write_all(b"]");
+  drop(file);
+  fs::rename("./blocks-found.json", "./blocks.json");
 }
 
 pub fn open_logfile(arg_file: Option<&str>) {

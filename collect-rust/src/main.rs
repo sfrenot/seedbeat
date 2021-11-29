@@ -6,6 +6,7 @@ mod bcfile;
 use clap::{Arg, App};
 use std::sync::{mpsc, Arc};
 use std::thread;
+use std::sync::MutexGuard;
 use std::net::{TcpStream};
 
 use std::time::{Duration, SystemTime};
@@ -242,7 +243,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
             _ => {
                 let command = read_result.command;
                 let payload = read_result.payload;
-                // eprintln!("Command From : {} --> {}", &target_address, &command);
+                eprintln!("Command From : {} --> {}", &target_address, &command);
                 if command  == String::from(MSG_VERSION) && payload.len() > 0 {
                     let peer = target_address.clone();
                     store_version_message(peer, &payload);
@@ -270,11 +271,18 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                 // }
 
                 if command == String::from(HEADERS){
-                    let (idx, block) = bcmessage::process_headers_message(payload);
-                    eprintln!("{:?}", bcblocks::BLOCKS_ID.lock().unwrap());
-                    eprintln!("{:?}", bcblocks::KNOWN_BLOCK.lock().unwrap());
+                    let mut known_block_guard = bcblocks::KNOWN_BLOCK.lock().unwrap();
+                    let mut blocks_id_guard = bcblocks::BLOCKS_ID.lock().unwrap();
+
+                    let (idx, block) = bcmessage::process_headers_message(&mut known_block_guard, &mut blocks_id_guard, payload);
+                    // eprintln!("{:?}", bcblocks::BLOCKS_ID.lock().unwrap());
+                    // eprintln!("{:?}", bcblocks::KNOWN_BLOCK.lock().unwrap());
+                    eprintln!("{:?}", known_block_guard);
+                    eprintln!("{:?}", blocks_id_guard);
 
                     eprintln!("Status : {} -> {}", idx, block);
+
+                    bcfile::store_blocks(&blocks_id_guard);
 
 
                     std::process::exit(1);
