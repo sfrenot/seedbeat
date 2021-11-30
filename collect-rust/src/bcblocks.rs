@@ -41,8 +41,7 @@ pub fn get_getdata_message_payload(search_block: &str) -> Vec<u8> {
     block_message
 }
 
-pub fn create_block_message_payload() {
-    let blocks_id = BLOCKS_ID.lock().unwrap();
+pub fn create_block_message_payload(blocks_id: &Vec<(String, bool)>) {
     let mut block_message = TEMPLATE_GETBLOCK_PAYLOAD.lock().unwrap();
     *block_message = Vec::with_capacity(block_message.len()+32);
     block_message.extend(VERSION.to_le_bytes());

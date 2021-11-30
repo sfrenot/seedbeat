@@ -1,3 +1,4 @@
 target
 file.txt
 Cargo.lock
+blocks.json

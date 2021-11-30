@@ -18,8 +18,9 @@ pub struct Block {
 }
 
 pub fn load_blocks() -> Vec<Block> {
-  let file = File::open("./blocks.json").unwrap();
-  ::serde_json::from_reader(BufReader::new(file)).unwrap()
+    eprintln!("Début lecture fichier blocks");
+    let file = File::open("./blocks.json").unwrap();
+    ::serde_json::from_reader(BufReader::new(file)).unwrap()
 }
 
 pub fn store_blocks(blocks: &Vec<(String, bool)>) -> Vec<(String, bool)> {
