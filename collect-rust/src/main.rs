@@ -242,7 +242,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
             _ => {
                 let command = read_result.command;
                 let payload = read_result.payload;
-                eprintln!("Command From : {} --> {}", &target_address, &command);
+                // eprintln!("Command From : {} --> {}", &target_address, &command);
                 if command  == String::from(MSG_VERSION) && payload.len() > 0 {
                     let peer = target_address.clone();
                     store_version_message(peer, &payload);
