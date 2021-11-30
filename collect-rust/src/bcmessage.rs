@@ -34,7 +34,7 @@ const UNIT_32_END: usize = 5;
 const UNIT_64_END: usize = 9;
 
 // Timer
-const MESSAGE_TIMEOUT:std::time::Duration = std::time::Duration::from_secs(120);
+pub const MESSAGE_TIMEOUT:std::time::Duration = std::time::Duration::from_secs(120);
 
 // services
 const NODE_NETWORK:u64 = 1;
@@ -141,7 +141,6 @@ pub fn read_message(mut connection: &TcpStream) -> ReadResult {
     };
 
     let mut header_buffer = [0 as u8;HEADER_SIZE];
-    connection.set_read_timeout(Some(MESSAGE_TIMEOUT)).unwrap();
     return match connection.read(&mut header_buffer) {
         Ok(_) => {
             // println!("Lecture faite {:02X?}", header_buffer);
@@ -324,6 +323,13 @@ pub fn process_headers_message(known_block_guard: &mut MutexGuard<HashMap<String
         let current_block = sha256d::Hash::hash(&payload[offset..offset+header_length]);
         // eprintln!("Gen -> {} --> {}", hex::encode(previous_block), current_block.to_string());
         let (idx, block) = bcblocks::is_new(known_block_guard, blocks_id_guard, current_block.to_string(), hex::encode(previous_block));
+        if block == "FAUX" {
+            // eprintln!("nbheaders: {}, offset: {}, {:02x?}", nb_headers, offset, &payload[..150]);
+            eprintln!("nbheaders: {}, offset: {}", nb_headers, offset);
+            highest_index = 0;
+            highest_block = block.clone();
+            break;
+        }
         if idx > highest_index {
             highest_index = idx;
             highest_block = block;

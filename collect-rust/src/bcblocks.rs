@@ -111,8 +111,7 @@ pub fn is_new(known_block: &mut MutexGuard<HashMap<String, BlockDesc>>,blocks_id
                     eprintln!("Previous non {}, Block non {}", &previous, &block);
                     // eprintln!("{:?}", blocks_id);
                     // eprintln!("{:?}", known_block);
-                    std::process::exit(1);
-                    (0, "".to_string())
+                    (0, "FAUX".to_string())
                 }
             }
         }

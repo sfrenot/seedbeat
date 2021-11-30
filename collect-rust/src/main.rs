@@ -227,7 +227,7 @@ fn check_addr_messages(new_addresses: Vec<String>, address_channel: Sender<Strin
 }
 
 fn handle_incoming_message(connection:& TcpStream, target_address: String, in_chain: Sender<String>, sender: Sender<String>)  {
-
+    connection.set_read_timeout(Some(bcmessage::MESSAGE_TIMEOUT)).unwrap();
     loop {
         // eprintln!("Attente lecture sur {}", target_address);
         let read_result:ReadResult = bcmessage::read_message(&connection);
@@ -242,7 +242,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
             _ => {
                 let command = read_result.command;
                 let payload = read_result.payload;
-                // eprintln!("Command From : {} --> {}", &target_address, &command);
+                // eprintln!("Command From : {} --> {}, payload : {}", &target_address, &command, payload.len());
                 if command  == String::from(MSG_VERSION) && payload.len() > 0 {
                     let peer = target_address.clone();
                     store_version_message(peer, &payload);
@@ -255,7 +255,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                     in_chain.send(command).unwrap();
                     continue;
                 }
-                if command == String::from(MSG_ADDR){
+                if command == String::from(MSG_ADDR) && payload.len() > 0 {
                     if check_addr_messages(bcmessage::process_addr_message(&payload), sender.clone()) > ADDRESSES_RECEIVED_THRESHOLD {
                         // eprintln!("GET_BLOCKS {}", target_address);
                         // in_chain.send(String::from(GET_BLOCKS));
@@ -269,28 +269,31 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                 //     std::process::exit(1);
                 // }
 
-                if command == String::from(HEADERS){
+                if command == String::from(HEADERS) && payload.len() > 0 {
                     let mut known_block_guard = bcblocks::KNOWN_BLOCK.lock().unwrap();
                     let mut blocks_id_guard = bcblocks::BLOCKS_ID.lock().unwrap();
                     let (idx, block) = bcmessage::process_headers_message(&mut known_block_guard, &mut blocks_id_guard, payload);
-                    // eprintln!("{:?}", bcblocks::BLOCKS_ID.lock().unwrap());
-                    // eprintln!("{:?}", bcblocks::KNOWN_BLOCK.lock().unwrap());
-                    // eprintln!("{:?}", known_block_guard);
-                    // eprintln!("{:?}", blocks_id_guard);
-                    eprintln!("Status : {} -> {}", idx, block);
 
-                    let res = bcfile::store_blocks(&blocks_id_guard);
-                    if res.len() > 0 {
-                        drop(known_block_guard);
-                        drop(blocks_id_guard);
+                    // eprintln!("Status : {} -> {}", idx, block);
 
-                        eprintln!("{:02x?}", hex::encode(&bcblocks::get_getheaders_message_payload()));
-                        bcblocks::create_block_message_payload();
-                        eprintln!("{:02x?}", hex::encode(&bcblocks::get_getheaders_message_payload()));
-                        in_chain.send(String::from(GET_HEADERS)).unwrap();
-                    } else {
-                        std::process::exit(1);
+                    if idx != 0 {
+                        let res = bcfile::store_blocks(&blocks_id_guard);
+                        if res.len() > 0 {
+                            drop(known_block_guard);
+                            drop(blocks_id_guard);
+                            bcblocks::create_block_message_payload();
+                            eprintln!("new payload -> {:02x?}", hex::encode(&bcblocks::get_getheaders_message_payload()));
+                        } else {
+                            std::process::exit(1);
+                        }
                     }
+                    if block == "FAUX" {
+                        eprintln!("Sortie du noeud");
+                        in_chain.send(String::from(CONN_CLOSE)).unwrap();
+                        break;
+                    }
+                    in_chain.send(String::from(GET_HEADERS)).unwrap();
+
                 }
 
                 // if command == String::from(INV){
