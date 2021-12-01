@@ -5,6 +5,8 @@ mod bcfile;
 // extern crate clap;
 use clap::{Arg, App};
 use std::sync::{mpsc, Arc};
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 use std::thread;
 use std::net::{TcpStream};
 
@@ -24,8 +26,7 @@ use crate::bcfile::LOGGER;
 
 const CONNECTION_TIMEOUT:Duration = Duration::from_secs(10);
 const CHECK_TERMINATION:Duration = Duration::from_secs(5);
-//const NEIGHBOURS: u64 = 1000;
-const NEIGHBOURS: u64 = 1000;
+const NEIGHBOURS: u64 = 500;
 
 lazy_static! {
     static ref ADRESSES_VISITED: Mutex<HashMap<String, PeerStatus>> = Mutex::new(HashMap::new());
@@ -34,7 +35,7 @@ lazy_static! {
 const ADDRESSES_RECEIVED_THRESHOLD: usize = 5;
 const MESSAGE_CHANEL_SIZE: usize = 100000;
 
-static mut NB_ADDR: u32 = 0;
+static NB_ADDR_TO_TEST: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Debug)]
 #[derive(PartialEq)]
@@ -236,7 +237,14 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
         match read_result.error {
             Some(_error) => {
                 // eprintln!("Erreur Lecture {}: {}", _error, target_address);
-                in_chain.send(String::from(CONN_CLOSE)).unwrap();
+                // in_chain.send(String::from(CONN_CLOSE)).unwrap();
+                match in_chain.send(String::from(CONN_CLOSE)) {
+                    Err(err) => {
+                        eprintln!("Erreur incoming, end : {}", err);
+                    }
+                    _ => {}
+                }
+
                 break;
             }
             _ => {
@@ -354,7 +362,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
     // eprintln!("Fermeture {}", target_address);
 }
 
-fn handle_one_peer(connection_start_channel: Receiver<String>, addresses_to_test : Arc<Mutex<i64>>, address_channel_tx: Sender<String>, _num: u64){
+fn handle_one_peer(connection_start_channel: Receiver<String>, address_channel_tx: Sender<String>, _num: u64){
 
     loop{ //Nodes Management
         let target_address = connection_start_channel.recv().unwrap();
@@ -479,32 +487,17 @@ fn handle_one_peer(connection_start_channel: Receiver<String>, addresses_to_test
             }
         }
         // eprintln!("Fin gestion {}", target_address);
-
-        let mut guard = addresses_to_test.lock().unwrap();
-        // eprintln!("---> {} avant décompte", guard);
-        *guard += -1;
-
-        unsafe {
-            // eprintln!("---> {} avant décompte addr", NB_ADDR);
-            NB_ADDR -= 1;
-        }
+        NB_ADDR_TO_TEST.fetch_sub(1, Ordering::SeqCst);
     }
 }
 
-fn check_pool_size(addresses_to_test : Arc<Mutex<i64>>, start_time: SystemTime ){
-    // eprint!(".");
+fn check_pool_size(start_time: SystemTime ){
     loop {
         thread::sleep(CHECK_TERMINATION);
 
         let new_peers = get_new_peers_size();
-        let nb = *addresses_to_test.lock().unwrap();
-        // unsafe {
-        //     println!("-> UP {} - {} - add {}", new_peers, nb, NB_ADDR);
-        // }
-        // eprint!(".");
-        // if *addresses_to_test.lock().unwrap() < 1 || new_peers >10000{
         get_peer_status();
-        if nb < 1 {
+        if NB_ADDR_TO_TEST.load(Ordering::SeqCst) < 1 {
 
             let successful_peers = get_connected_peers();
             let time_spent = SystemTime::now().duration_since(start_time).unwrap_or_default();
@@ -551,7 +544,7 @@ fn main() {
     drop(known_block);
     drop(blocks_id);
 
-    let addresses_to_test:Arc<Mutex<i64>> = Arc::new(Mutex::new(0));
+    // let addresses_to_test:Arc<Mutex<i64>> = Arc::new(Mutex::new(0));
 
     let (address_channel_sender, address_channel_receiver) = mpsc::channel();
     let (connecting_start_channel_sender, connecting_start_channel_receiver) = chan::sync(MESSAGE_CHANEL_SIZE);
@@ -561,17 +554,17 @@ fn main() {
 
     address_channel_sender.send(start_adress).unwrap();
 
-    let counter = Arc::clone(&addresses_to_test);
+    // let counter = Arc::clone(&addresses_to_test);
     thread_handlers.push( thread::spawn(move || {
-        check_pool_size(counter, start_time );
+        check_pool_size(start_time );
     }));
 
     for i in 0..NEIGHBOURS {
-        let counter = Arc::clone(&addresses_to_test);
+        // let counter = Arc::clone(&addresses_to_test);
         let sender = address_channel_sender.clone();
         let recv = connecting_start_channel_receiver.clone();
         thread_handlers.push( thread::spawn(move || {
-          handle_one_peer(recv, counter, sender, i);
+          handle_one_peer(recv, sender, i);
         }));
     }
 
@@ -579,55 +572,6 @@ fn main() {
         let new_peer: String = address_channel_receiver.recv().unwrap();
         connecting_start_channel_sender.send(new_peer);
 
-        let mut addresses_to_test = addresses_to_test.lock().unwrap();
-        *addresses_to_test += 1;
-        unsafe {
-            NB_ADDR += 1;
-            // println!("n = {}, known peer = {}, addr = {} ", addresses_to_test, get_new_peers_size(), NB_ADDR);
-        }
+        NB_ADDR_TO_TEST.fetch_add(1, Ordering::SeqCst);
     }
 }
-
-// Test blocks checksum V0
-// let header = [
-//   0x00, 0x00, 0x80, 0x20,
-//   0x19, 0x61, 0x47, 0x2a, 0x82, 0x73, 0x1b, 0xeb, 0xe2, 0x40, 0x36, 0x53, 0xed, 0x4f, 0xc7, 0xd8, 0x87, 0x42, 0xd9, 0x4a, 0x69, 0x24, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-//   0x24, 0x0b, 0x12, 0x0b, 0x83, 0xc7, 0x8c, 0xd4, 0x96, 0x7d, 0x01, 0x77, 0xfc, 0x80, 0x38, 0xeb, 0xaf, 0xba, 0x49, 0xa2, 0xdf, 0x34, 0xbb, 0xbd, 0xba, 0x12, 0x70, 0xbd, 0xfb, 0x22, 0x0b, 0xa1,
-//   0x69, 0x08, 0x99, 0x61,
-//   0xea, 0x69, 0x0c, 0x17,
-//   0x2c, 0x79, 0x25, 0x19,
-//   0x22];
-//
-// eprintln!("{:02x?}", &header[..80]);
-// std::process::exit(1);
-
-// let mut hasher = Sha256::new();
-// hasher.input(&header);
-// let sum = hasher.result();
-// let mut hasher2 = Sha256::new();
-// hasher2.input(sum);
-// let mut result = hasher2.result();
-// result.reverse();
-// let format = hex::encode(result);
-// eprintln!("{:?}", format);
-
-// Test blocks checksum V1
-// let hash = sha256d::Hash::hash(&header);
-// eprintln!("{:?}", hash.to_string());
-
-
-// let gen:Vec<u8> = vec![0x00, 0x01, 0x02];
-// let gen2 = Vec::from_hex("000102").unwrap();
-// // block_message.extend((Vec::from_hex(search_block).unwrap()).to_be_bytes());
-// let mut tmp = Vec::hex::from_hex("0000000000000000000c1c499d6f1e87e199633a8c811f18a8e5a86f40b3fb50").unwrap();
-// tmp.reverse();
-// eprintln!("{:02x?}", tmp);
-// std::process::exit(1);
-
-// let toto = hex::encode([0x00, 0x02, 0xFF]);
-//
-// eprintln!("{:02X?}",gen);
-// eprintln!("{:02X?}",gen2);
-// dbg!("coucou");
-// eprintln!("{}", toto);
-// std::process::exit(1);
