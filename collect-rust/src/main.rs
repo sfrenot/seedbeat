@@ -27,7 +27,7 @@ pub static NB_ADDR_TO_TEST: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Debug)]
 #[derive(PartialEq)]
-enum Status {
+pub enum Status {
     // Waiting,
     Connecting,
     Connected,
@@ -41,25 +41,13 @@ struct PeerStatus  {
     pub retries: i32,
 }
 
-fn generate_peer_status(status: Status, retries: i32) -> PeerStatus{
-    let peer_status = PeerStatus {
-        status,
-        retries
-    };
-    return  peer_status;
-}
-
-fn peer_status(status: Status) -> PeerStatus{
-    return  generate_peer_status(status, 0);
-}
-
 fn is_waiting(a_peer: String) -> bool {
 
     let mut address_visited = ADRESSES_VISITED.lock().unwrap();
     // println!("Before {:?}", address_visited);
     let mut is_waiting = false;
     if !address_visited.contains_key(&a_peer) {
-        address_visited.insert(a_peer, peer_status(Status::Connecting));
+        address_visited.insert(a_peer, PeerStatus{status:Status::Connecting, retries:0});
         is_waiting = true
     }
     // } else {
@@ -77,12 +65,12 @@ fn is_waiting(a_peer: String) -> bool {
 
 pub fn fail(a_peer :String){
     let mut address_status = ADRESSES_VISITED.lock().unwrap();
-    address_status.insert(a_peer, peer_status(Status::Failed));
+    address_status.insert(a_peer, PeerStatus{status:Status::Failed, retries:0});
 }
 
 pub fn done(a_peer :String) {
     let mut address_status = ADRESSES_VISITED.lock().unwrap();
-    address_status.insert(a_peer, peer_status(Status::Done));
+    address_status.insert(a_peer, PeerStatus{status:Status::Done, retries:0});
 }
 
 fn get_connected_peers() -> u64 {
@@ -102,12 +90,10 @@ fn get_peer_status() {
     let mut other = 0;
     let address_status  = ADRESSES_VISITED.lock().unwrap();
     for (_, peer_status) in address_status.iter(){
-        if peer_status.status == Status::Done {
-            done += 1;
-        } else if peer_status.status == Status::Failed {
-            fail += 1;
-        } else {
-            other += 1;
+        match peer_status.status {
+            Status::Done => done += 1,
+            Status::Failed => fail += 1,
+            _ => other +=1,
         }
     }
     eprintln!("total: {}, Other: {}, Done: {}, Fail: {}", address_status.len(), other, done, fail);
@@ -128,7 +114,7 @@ fn get_peer_status() {
 
 pub fn register_pvm_connection(a_peer:String) {
     let mut address_status = ADRESSES_VISITED.lock().unwrap();
-    address_status.insert(a_peer, peer_status(Status::Connected));
+    address_status.insert(a_peer, PeerStatus{status:Status::Connected, retries:0});
 }
 
 fn parse_args() -> String {
@@ -186,7 +172,6 @@ fn check_pool_size(start_time: SystemTime ){
 
         get_peer_status();
         if NB_ADDR_TO_TEST.load(Ordering::Relaxed) < 1 {
-
             let successful_peers = get_connected_peers();
             let time_spent = SystemTime::now().duration_since(start_time).unwrap_or_default();
             println!("POOL Crawling ends: {:?} new peers in {:?} ", (ADRESSES_VISITED.lock().unwrap()).len(), time_spent);
