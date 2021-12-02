@@ -229,6 +229,7 @@ fn check_addr_messages(new_addresses: Vec<String>, address_channel: Sender<Strin
 
 fn handle_incoming_message(connection:& TcpStream, target_address: String, in_chain: Sender<String>, sender: Sender<String>)  {
     connection.set_read_timeout(Some(bcmessage::MESSAGE_TIMEOUT)).unwrap();
+    let mut lecture = 0; // Garde pour éviter connection infinie inutile
     loop {
         // eprintln!("Attente lecture sur {}", target_address);
         let read_result:ReadResult = bcmessage::read_message(&connection);
@@ -250,6 +251,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
             _ => {
                 let command = read_result.command;
                 let payload = read_result.payload;
+                lecture+=1;
                 // eprintln!("Command From : {} --> {}, payload : {}", &target_address, &command, payload.len());
                 if command  == String::from(MSG_VERSION) && payload.len() > 0 {
                     let peer = target_address.clone();
@@ -280,26 +282,34 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                 if command == String::from(HEADERS)  && payload.len() > 0 {
                     let mut known_block_guard = bcblocks::KNOWN_BLOCK.lock().unwrap();
                     let mut blocks_id_guard = bcblocks::BLOCKS_ID.lock().unwrap();
-                    let (idx, block) = bcmessage::process_headers_message(&mut known_block_guard, &mut blocks_id_guard, payload);
+                    // let (idx, block) = bcmessage::process_headers_message(&mut known_block_guard, &mut blocks_id_guard, payload);
 
                     // eprintln!("Status : {} -> {}", idx, block);
-
-                    if idx != 0 {
-                        let res = bcfile::store_blocks(&blocks_id_guard);
-                        if res.len() > 0 {
-                            bcblocks::create_block_message_payload(&blocks_id_guard);
-                            eprintln!("new payload -> {:02x?}", hex::encode(&bcblocks::get_getheaders_message_payload()));
-                        } else {
-                            std::process::exit(1);
+                    match bcmessage::process_headers_message(&mut known_block_guard, &mut blocks_id_guard, payload) {
+                        Ok(()) => {
+                            match bcfile::store_blocks(&blocks_id_guard) {
+                               true => {
+                                   bcblocks::create_block_message_payload(&blocks_id_guard);
+                                   eprintln!("new payload -> {:02x?}", hex::encode(&bcblocks::get_getheaders_message_payload()));
+                                   lecture = 0;
+                               },
+                               false => {
+                                   std::process::exit(1);
+                               }
+                           };
+                        },
+                        Err(err) => {
+                            match err {
+                                bcmessage::ProcessHeadersMessageError::UnkownBlocks => {
+                                    eprintln!("Sortie du noeud");
+                                    in_chain.send(String::from(CONN_CLOSE)).unwrap();
+                                    break;
+                                },
+                                _ => {}
+                            };
                         }
-                    }
-                    if block == "FAUX" {
-                        eprintln!("Sortie du noeud");
-                        in_chain.send(String::from(CONN_CLOSE)).unwrap();
-                        break;
-                    }
+                    };
                     in_chain.send(String::from(GET_HEADERS)).unwrap();
-
                 }
 
                 // if command == String::from(INV){
@@ -357,6 +367,12 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                 // }
 
             }
+        }
+        // eprintln!("-> Nouvelle lecture {} -> {}", target_address, lecture);
+        if lecture > 300 {
+            eprintln!("Sortie du noeud lecture too much");
+            in_chain.send(String::from(CONN_CLOSE)).unwrap();
+            break;
         }
     }
     // eprintln!("Fermeture {}", target_address);
@@ -487,7 +503,7 @@ fn handle_one_peer(connection_start_channel: Receiver<String>, address_channel_t
             }
         }
         // eprintln!("Fin gestion {}", target_address);
-        NB_ADDR_TO_TEST.fetch_sub(1, Ordering::SeqCst);
+        NB_ADDR_TO_TEST.fetch_sub(1, Ordering::Relaxed);
     }
 }
 
@@ -497,7 +513,7 @@ fn check_pool_size(start_time: SystemTime ){
 
         let new_peers = get_new_peers_size();
         get_peer_status();
-        if NB_ADDR_TO_TEST.load(Ordering::SeqCst) < 1 {
+        if NB_ADDR_TO_TEST.load(Ordering::Relaxed) < 1 {
 
             let successful_peers = get_connected_peers();
             let time_spent = SystemTime::now().duration_since(start_time).unwrap_or_default();
@@ -572,6 +588,6 @@ fn main() {
         let new_peer: String = address_channel_receiver.recv().unwrap();
         connecting_start_channel_sender.send(new_peer);
 
-        NB_ADDR_TO_TEST.fetch_add(1, Ordering::SeqCst);
+        NB_ADDR_TO_TEST.fetch_add(1, Ordering::Relaxed);
     }
 }

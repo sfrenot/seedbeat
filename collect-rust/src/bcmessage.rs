@@ -309,10 +309,14 @@ pub fn process_addr_message(payload: &Vec<u8>) -> Vec<String>{
     // eprintln!("--> Ajout {} noeuds", new_addr);
     addr
 }
-pub fn process_headers_message(known_block_guard: &mut MutexGuard<HashMap<String, bcblocks::BlockDesc>>,blocks_id_guard: &mut MutexGuard<Vec<(String, bool)>>, payload: Vec<u8>) -> (usize, String) {
+
+pub enum ProcessHeadersMessageError {
+    UnkownBlocks,
+    NoNewBlocks
+}
+pub fn process_headers_message(known_block_guard: &mut MutexGuard<HashMap<String, bcblocks::BlockDesc>>,blocks_id_guard: &mut MutexGuard<Vec<(String, bool)>>, payload: Vec<u8>) -> Result<(), ProcessHeadersMessageError> {
 
     let mut highest_index = 0;
-    let mut highest_block = "".to_string();
 
     let (nb_headers, mut offset) = get_compact_int(&payload);
     let header_length = 80;
@@ -322,21 +326,20 @@ pub fn process_headers_message(known_block_guard: &mut MutexGuard<HashMap<String
         previous_block.reverse();
         let current_block = sha256d::Hash::hash(&payload[offset..offset+header_length]);
         // eprintln!("Gen -> {} --> {}", hex::encode(previous_block), current_block.to_string());
-        let (idx, block) = bcblocks::is_new(known_block_guard, blocks_id_guard, current_block.to_string(), hex::encode(previous_block));
-        if block == "FAUX" {
-            // eprintln!("nbheaders: {}, offset: {}, {:02x?}", nb_headers, offset, &payload[..150]);
-            eprintln!("nbheaders: {}, offset: {}", nb_headers, offset);
-            highest_index = 0;
-            highest_block = block.clone();
-            break;
-        }
-        if idx > highest_index {
-            highest_index = idx;
-            highest_block = block;
-        }
+        match bcblocks::is_new(known_block_guard, blocks_id_guard, current_block.to_string(), hex::encode(previous_block)) {
+            Ok(idx) if idx > highest_index => {
+                highest_index = idx;
+            },
+            Ok(_) => {},
+            Err(err) => return Err(ProcessHeadersMessageError::UnkownBlocks)
+        };
         offset+=header_length+1
     }
-    (highest_index, highest_block)
+
+    match highest_index {
+        0 => Err(ProcessHeadersMessageError::NoNewBlocks),
+        _ => Ok(())
+    }
 }
 
 //// COMMON SERVICES

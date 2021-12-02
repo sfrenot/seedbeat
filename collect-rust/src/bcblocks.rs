@@ -63,7 +63,7 @@ pub fn create_block_message_payload(blocks_id: &Vec<(String, bool)>) {
     // std::process::exit(1);
 }
 
-pub fn is_new(known_block: &mut MutexGuard<HashMap<String, BlockDesc>>,blocks_id: &mut MutexGuard<Vec<(String, bool)>>, block: String, previous: String ) -> (usize, String) {
+pub fn is_new(known_block: &mut MutexGuard<HashMap<String, BlockDesc>>,blocks_id: &mut MutexGuard<Vec<(String, bool)>>, block: String, previous: String ) -> Result<usize, ()> {
 
     let search_block =  known_block.get(&block);
     let search_previous = known_block.get(&previous);
@@ -82,10 +82,10 @@ pub fn is_new(known_block: &mut MutexGuard<HashMap<String, BlockDesc>>,blocks_id
                     // eprintln!("{:?}", blocks_id);
                     // eprintln!("{:?}", known_block);
                     // std::process::exit(1);
-                    (idx, block)
+                    Ok(idx)
                 }
                 _ => {
-                    (0, "".to_string())
+                    Ok(0)
                 }
             }
         }
@@ -94,7 +94,6 @@ pub fn is_new(known_block: &mut MutexGuard<HashMap<String, BlockDesc>>,blocks_id
                 Some(found_block) => {
                     // eprintln!("Previous {} non trouvé, Block trouvé {}", &previous, &block);
                     let idx = found_block.idx;
-                    // let key = ;
                     let val = BlockDesc{idx, previous: previous.clone()};
                     known_block.insert(block.clone(), val);
 
@@ -104,13 +103,12 @@ pub fn is_new(known_block: &mut MutexGuard<HashMap<String, BlockDesc>>,blocks_id
                     // eprintln!("{:?}", blocks_id);
                     // eprintln!("{:?}", known_block);
                     std::process::exit(1);
-                    (idx, block)
                 }
                 _ => {
                     eprintln!("Previous non {}, Block non {}", &previous, &block);
                     // eprintln!("{:?}", blocks_id);
                     // eprintln!("{:?}", known_block);
-                    (0, "FAUX".to_string())
+                    Err(())
                 }
             }
         }

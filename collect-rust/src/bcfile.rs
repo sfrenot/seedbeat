@@ -23,26 +23,26 @@ pub fn load_blocks() -> Vec<Block> {
     ::serde_json::from_reader(BufReader::new(file)).unwrap()
 }
 
-pub fn store_blocks(blocks: &Vec<(String, bool)>) -> Vec<(String, bool)> {
-  let mut file = LineWriter::new(File::create("./blocks-found.json").unwrap());
-  let mut res: Vec<(String, bool)>=[].to_vec();
-  file.write_all(b"[\n").unwrap();
-  for i in 1..blocks.len() {
-      let (block, next) = &blocks[i];
-      file.write_all(format!("\t {{\"elem\": \"{}\", \"next\": {}}}", block, next).as_ref()).unwrap();
-      if i < blocks.len()-1 {
+pub fn store_blocks(blocks: &Vec<(String, bool)>) -> bool {
+    let mut file = LineWriter::new(File::create("./blocks-found.json").unwrap());
+    let mut new_blocks = false;
+    file.write_all(b"[\n").unwrap();
+    for i in 1..blocks.len() {
+        let (block, next) = &blocks[i];
+        file.write_all(format!("\t {{\"elem\": \"{}\", \"next\": {}}}", block, next).as_ref()).unwrap();
+        if i < blocks.len()-1 {
          file.write_all(b",\n").unwrap();
-     } else {
+        } else {
          file.write_all(b"\n").unwrap();
-     }
-      if !next {
-          res.push((block.clone(), next.clone()));
-      }
-  }
-  file.write_all(b"]").unwrap();
-  drop(file);
-  fs::rename("./blocks-found.json", "./blocks.json").unwrap();
-  res
+        }
+        if !new_blocks && !next {
+            new_blocks = true;
+        }
+    }
+    file.write_all(b"]").unwrap();
+    drop(file);
+    fs::rename("./blocks-found.json", "./blocks.json").unwrap();
+    new_blocks
 }
 
 pub fn open_logfile(arg_file: Option<&str>) {
