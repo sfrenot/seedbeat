@@ -32,10 +32,10 @@ pub fn load_blocks() {
     let mut previous: String = "".to_string();
     for item in blocks {
         // eprintln!("-> {}", item.elem);
-        blocks_id.push((item.elem.clone(), item.next.clone()));
+        blocks_id.push((item.elem.clone(), item.next));
         known_block.insert(item.elem.clone(), bcblocks::BlockDesc{idx, previous});
         if item.next {
-            previous = item.elem.clone();
+            previous = item.elem;
         } else {
             previous = "".to_string();
         }

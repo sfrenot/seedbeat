@@ -27,7 +27,6 @@ struct PeerStatus  {
     pub retries: i32,
 }
 
-
 fn is_waiting(a_peer: String) -> bool {
     let mut address_visited = ADRESSES_VISITED.lock().unwrap();
     // println!("Before {:?}", address_visited);
@@ -94,7 +93,7 @@ pub fn register_peer_connection(a_peer:String) {
 
 pub fn check_addr_messages(new_addresses: Vec<String>, address_channel: Sender<String>) -> usize {
     for new_peer in &new_addresses {
-        if is_waiting(new_peer.clone()) {
+        if is_waiting(new_peer.to_string()) {
 
             let mut msg:String  = String::new();
             msg.push_str(format!("PAR address: {:?}\n", new_peer).as_str());

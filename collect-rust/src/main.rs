@@ -81,7 +81,6 @@ fn main() {
     thread::spawn(move || { check_pool_size(start_time ); });
 
     for i in 0..THREADS {
-        // let counter = Arc::clone(&addresses_to_test);
         let sender = address_channel_sender.clone();
         let recv = connecting_start_channel_receiver.clone();
         thread::spawn(move || { bcnet::handle_one_peer(recv, sender, i);});
