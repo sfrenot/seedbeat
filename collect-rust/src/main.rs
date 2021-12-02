@@ -42,7 +42,6 @@ struct PeerStatus  {
 }
 
 fn is_waiting(a_peer: String) -> bool {
-
     let mut address_visited = ADRESSES_VISITED.lock().unwrap();
     // println!("Before {:?}", address_visited);
     let mut is_waiting = false;
@@ -73,18 +72,7 @@ pub fn done(a_peer :String) {
     address_status.insert(a_peer, PeerStatus{status:Status::Done, retries:0});
 }
 
-fn get_connected_peers() -> u64 {
-    let mut successful_peer = 0;
-    let address_status  = ADRESSES_VISITED.lock().unwrap();
-    for (_, peer_status) in address_status.iter(){
-        if peer_status.status == Status::Done {
-            successful_peer = successful_peer +1;
-        }
-    }
-    return successful_peer as u64;
-}
-
-fn get_peer_status() {
+fn get_peers_status() {
     let mut done = 0;
     let mut fail = 0;
     let mut other = 0;
@@ -170,12 +158,10 @@ fn check_pool_size(start_time: SystemTime ){
     loop {
         thread::sleep(CHECK_TERMINATION_TIMEOUT);
 
-        get_peer_status();
+        get_peers_status();
         if NB_ADDR_TO_TEST.load(Ordering::Relaxed) < 1 {
-            let successful_peers = get_connected_peers();
             let time_spent = SystemTime::now().duration_since(start_time).unwrap_or_default();
             println!("POOL Crawling ends: {:?} new peers in {:?} ", (ADRESSES_VISITED.lock().unwrap()).len(), time_spent);
-            println!("{:?} peers successfully connected ", successful_peers);
             process::exit(0);
         }
     }
