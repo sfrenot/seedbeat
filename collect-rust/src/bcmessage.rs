@@ -33,9 +33,6 @@ const UNIT_16_END: usize = 3;
 const UNIT_32_END: usize = 5;
 const UNIT_64_END: usize = 9;
 
-// Timer
-pub const MESSAGE_TIMEOUT:std::time::Duration = std::time::Duration::from_secs(120);
-
 // services
 const NODE_NETWORK:u64 = 1;
 const NODE_BLOOM:u64 = 4;
