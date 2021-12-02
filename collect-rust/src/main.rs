@@ -2,19 +2,16 @@ mod bcmessage;
 mod bcblocks;
 mod bcfile;
 
-// extern crate clap;
 use clap::{Arg, App};
 use std::sync::{mpsc, Arc};
 use std::sync::atomic::{AtomicUsize, Ordering};
-
 use std::thread;
-use std::net::{TcpStream};
 
 use std::time::{Duration, SystemTime};
-use std::net::SocketAddr;
+use std::net::{SocketAddr, TcpStream};
 use std::collections::HashMap;
 use std::sync::Mutex;
-use std::io::Write;
+// use std::io::Write;
 use lazy_static::lazy_static;
 use std::sync::mpsc::Sender; // Voir si chan::Receiver n'est pas préférable
 use chan::{self, Receiver};
@@ -282,7 +279,6 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                 if command == String::from(HEADERS)  && payload.len() > 0 {
                     let mut known_block_guard = bcblocks::KNOWN_BLOCK.lock().unwrap();
                     let mut blocks_id_guard = bcblocks::BLOCKS_ID.lock().unwrap();
-                    // let (idx, block) = bcmessage::process_headers_message(&mut known_block_guard, &mut blocks_id_guard, payload);
 
                     // eprintln!("Status : {} -> {}", idx, block);
                     match bcmessage::process_headers_message(&mut known_block_guard, &mut blocks_id_guard, payload) {
@@ -528,27 +524,8 @@ fn main() {
 
     let start_time: SystemTime = SystemTime::now();
     bcmessage::create_init_message_payload();
-    let blocks = bcfile::load_blocks();
-    eprintln!("Fin lecture fichier blocks");
-    let mut known_block = bcblocks::KNOWN_BLOCK.lock().unwrap();
-    let mut blocks_id = bcblocks::BLOCKS_ID.lock().unwrap();
-
-    let mut idx:usize = 1;
-    let mut previous: String = "".to_string();
-    for item in blocks {
-        // eprintln!("-> {}", item.elem);
-        blocks_id.push((item.elem.clone(), item.next.clone()));
-
-        known_block.insert(item.elem.clone(), bcblocks::BlockDesc{idx, previous});
-        if item.next {
-            previous = item.elem.clone();
-        } else {
-            previous = "".to_string();
-        }
-        idx+=1;
-    }
-
-    bcblocks::create_block_message_payload(&blocks_id);
+    bcfile::load_blocks();
+    bcblocks::create_block_message_payload(&bcblocks::BLOCKS_ID.lock().unwrap());
 
     // eprintln!("{}", hex::encode(bcblocks::get_getblock_message_payload()));
     // eprintln!("{}", hex::encode(bcblocks::get_getheaders_message_payload()));
@@ -557,10 +534,6 @@ fn main() {
     // eprintln!("{:?}", known_block);
     // eprintln!("{:?}", bcblocks::BLOCKS_ID.lock().unwrap());
     // std::process::exit(1);
-    drop(known_block);
-    drop(blocks_id);
-
-    // let addresses_to_test:Arc<Mutex<i64>> = Arc::new(Mutex::new(0));
 
     let (address_channel_sender, address_channel_receiver) = mpsc::channel();
     let (connecting_start_channel_sender, connecting_start_channel_receiver) = chan::sync(MESSAGE_CHANEL_SIZE);
@@ -570,7 +543,6 @@ fn main() {
 
     address_channel_sender.send(start_adress).unwrap();
 
-    // let counter = Arc::clone(&addresses_to_test);
     thread_handlers.push( thread::spawn(move || {
         check_pool_size(start_time );
     }));

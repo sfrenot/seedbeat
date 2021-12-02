@@ -331,7 +331,7 @@ pub fn process_headers_message(known_block_guard: &mut MutexGuard<HashMap<String
                 highest_index = idx;
             },
             Ok(_) => {},
-            Err(err) => return Err(ProcessHeadersMessageError::UnkownBlocks)
+            Err(()) => return Err(ProcessHeadersMessageError::UnkownBlocks)
         };
         offset+=header_length+1
     }
