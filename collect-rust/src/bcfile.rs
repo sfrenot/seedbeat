@@ -5,6 +5,7 @@ use std::io::{LineWriter, stdout, Write};
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 use crate::bcblocks;
+use crate::bcmessage;
 
 lazy_static! {
     pub static ref LOGGER: Mutex<LineWriter<Box<dyn Write + Send>>> = Mutex::new(LineWriter::new(Box::new(stdout())));
@@ -12,6 +13,7 @@ lazy_static! {
     pub static ref SORTIE:LineWriter<File> = LineWriter::new(File::create("./blocks.raw").unwrap());
 }
 
+/// Block storage
 #[derive(Debug, Deserialize)]
 pub struct Block {
     pub elem: String,
@@ -64,6 +66,7 @@ pub fn store_blocks(blocks: &Vec<(String, bool)>) -> bool {
     new_blocks
 }
 
+/// Addr storage
 pub fn open_logfile(arg_file: Option<&str>) {
     let file: File;
     match arg_file {
@@ -74,4 +77,24 @@ pub fn open_logfile(arg_file: Option<&str>) {
     }
     let mut logger = LOGGER.lock().unwrap();
     *logger = LineWriter::new(Box::new(file));
+}
+
+pub fn store_event(msg :&String){
+    let mut guard = LOGGER.lock().unwrap();
+    guard.write_all(msg.as_ref()).expect("error at logging");
+}
+
+pub fn store_version_message(target_address: String, payload: &Vec<u8>){
+    //TODO: supprimer le &VEc
+    let (_, _, _, _) = bcmessage::process_version_message(payload);
+    let mut msg: String  = String::new();
+    msg.push_str(format!("Seed: {} \n", target_address).as_ref());
+    // msg.push_str(format!("Seed = {}  ", target_address).as_ref());
+    // msg.push_str(format!("version = {}   ", version_number).as_str());
+    // msg.push_str(format!("user agent = {}   ", user_agent).as_str());
+    // msg.push_str(format!("time = {}  ", peer_time.format("%Y-%m-%d %H:%M:%S")).as_str());
+    // msg.push_str(format!("now = {}  ", Into::<DateTime<Utc>>::into(SystemTime::now()).format("%Y-%m-%d %H:%M:%S")).as_str());
+    // msg.push_str(format!("since = {:?}  ",SystemTime::now().duration_since(SystemTime::from(peer_time)).unwrap_or_default() ).as_str());
+    // msg.push_str(format!("services = {:?}\n", services ).as_str());
+    store_event(&msg);
 }

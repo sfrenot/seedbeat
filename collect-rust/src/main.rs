@@ -6,20 +6,18 @@ use clap::{Arg, App};
 use std::sync::{mpsc, Arc};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
+use std::process;
 
 use std::time::{Duration, SystemTime};
 use std::net::{SocketAddr, TcpStream};
 use std::collections::HashMap;
 use std::sync::Mutex;
-// use std::io::Write;
 use lazy_static::lazy_static;
 use std::sync::mpsc::Sender; // Voir si chan::Receiver n'est pas préférable
 use chan::{self, Receiver};
-use std::process;
 
 // use crate::bcmessage::{ReadResult, INV, MSG_VERSION, MSG_VERSION_ACK, MSG_GETADDR, CONN_CLOSE, MSG_ADDR, HEADERS, GET_BLOCKS, BLOCK, GET_DATA};
 use crate::bcmessage::{ReadResult, INV, MSG_VERSION, MSG_VERSION_ACK, MSG_GETADDR, CONN_CLOSE, MSG_ADDR, GET_HEADERS, HEADERS, GET_BLOCKS, BLOCK, GET_DATA};
-use crate::bcfile::LOGGER;
 
 const CONNECTION_TIMEOUT:Duration = Duration::from_secs(10);
 const CHECK_TERMINATION:Duration = Duration::from_secs(5);
@@ -80,20 +78,18 @@ fn is_waiting(a_peer: String) -> bool {
     //     }
     // }
     // println!("After {:?}, recherche : {}:{}", address_visited, test, is_waiting);
-    std::mem::drop(address_visited);
+    // std::mem::drop(address_visited);
     is_waiting
 }
 
 fn fail(a_peer :String){
     let mut address_status = ADRESSES_VISITED.lock().unwrap();
     address_status.insert(a_peer, peer_status(Status::Failed));
-    std::mem::drop(address_status);
 }
 
 fn done(a_peer :String) {
     let mut address_status = ADRESSES_VISITED.lock().unwrap();
     address_status.insert(a_peer, peer_status(Status::Done));
-    std::mem::drop(address_status);
 }
 
 fn get_connected_peers() -> u64 {
@@ -104,7 +100,6 @@ fn get_connected_peers() -> u64 {
             successful_peer = successful_peer +1;
         }
     }
-    std::mem::drop(address_status);
     return successful_peer as u64;
 }
 
@@ -123,13 +118,11 @@ fn get_peer_status() {
         }
     }
     eprintln!("total: {}, Other: {}, Done: {}, Fail: {}", address_status.len(), other, done, fail);
-    std::mem::drop(address_status);
 }
 
 fn get_new_peers_size() -> u64 {
     let address_status  = ADRESSES_VISITED.lock().unwrap();
     let size = address_status.len();
-    std::mem::drop(address_status);
     return  size as u64;
 }
 
@@ -149,7 +142,6 @@ fn get_new_peers_size() -> u64 {
 fn register_pvm_connection(a_peer:String) {
     let mut address_status = ADRESSES_VISITED.lock().unwrap();
     address_status.insert(a_peer, peer_status(Status::Connected));
-    std::mem::drop(address_status);
 }
 
 fn parse_args() -> String {
@@ -176,30 +168,7 @@ fn parse_args() -> String {
     );
 
     bcfile::open_logfile(matches.value_of("file"));
-
     String::from(arg_address)
-}
-
-fn store_event(msg :&String){
-    let mut guard = LOGGER.lock().unwrap();
-    guard.write_all(msg.as_ref()).expect("error at logging");
-    drop(guard);
-}
-
-fn store_version_message(target_address: String, payload: &Vec<u8>){
-    //TODO: supprimer le &VEc
-    let (_, _, _, _) = bcmessage::process_version_message(payload);
-    let mut msg: String  = String::new();
-    msg.push_str(format!("Seed: {} \n", target_address).as_ref());
-    // msg.push_str(format!("Seed = {}  ", target_address).as_ref());
-    // msg.push_str(format!("version = {}   ", version_number).as_str());
-    // msg.push_str(format!("user agent = {}   ", user_agent).as_str());
-    // msg.push_str(format!("time = {}  ", peer_time.format("%Y-%m-%d %H:%M:%S")).as_str());
-    // msg.push_str(format!("now = {}  ", Into::<DateTime<Utc>>::into(SystemTime::now()).format("%Y-%m-%d %H:%M:%S")).as_str());
-    // msg.push_str(format!("since = {:?}  ",SystemTime::now().duration_since(SystemTime::from(peer_time)).unwrap_or_default() ).as_str());
-    // msg.push_str(format!("services = {:?}\n", services ).as_str());
-    store_event(&msg);
-    register_pvm_connection(target_address);
 }
 
 fn check_addr_messages(new_addresses: Vec<String>, address_channel: Sender<String>) -> usize {
@@ -217,7 +186,7 @@ fn check_addr_messages(new_addresses: Vec<String>, address_channel: Sender<Strin
             // msg.push_str(format!("target address = {}\n", target_address ).as_str());
 
             // println!(" {} -> new peer {} ",target_address, new_peer);
-            store_event(&msg);
+            bcfile::store_event(&msg);
             address_channel.send(new_peer.to_string()).unwrap();
         }
     }
@@ -252,7 +221,8 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                 // eprintln!("Command From : {} --> {}, payload : {}", &target_address, &command, payload.len());
                 if command  == String::from(MSG_VERSION) && payload.len() > 0 {
                     let peer = target_address.clone();
-                    store_version_message(peer, &payload);
+                    bcfile::store_version_message(peer, &payload);
+                    register_pvm_connection(target_address.clone());
                     // eprintln!("Envoi MSG_VERSION {}", target_address);
                     in_chain.send(command).unwrap();
                     continue;
@@ -366,7 +336,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
         }
         // eprintln!("-> Nouvelle lecture {} -> {}", target_address, lecture);
         if lecture > 300 {
-            eprintln!("Sortie du noeud lecture too much");
+            eprintln!("Sortie du noeud : trop de lectures inutiles");
             in_chain.send(String::from(CONN_CLOSE)).unwrap();
             break;
         }
