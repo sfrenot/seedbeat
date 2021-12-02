@@ -2,108 +2,20 @@ mod bcmessage;
 mod bcblocks;
 mod bcfile;
 mod bcnet;
+mod bcpeers;
 
 use clap::{Arg, App};
 use std::sync::mpsc;
-use std::sync::mpsc::Sender;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::Ordering;
+
 use std::thread;
 use std::process;
 
 use std::time::{Duration, SystemTime};
-use std::collections::HashMap;
-use std::sync::Mutex;
-use lazy_static::lazy_static;
 
 const CHECK_TERMINATION_TIMEOUT:Duration = Duration::from_secs(5);
 const THREADS: u64 = 500;
-
-lazy_static! {
-    static ref ADRESSES_VISITED: Mutex<HashMap<String, PeerStatus>> = Mutex::new(HashMap::new());
-}
-
 const MESSAGE_CHANNEL_SIZE: usize = 100000;
-pub static NB_ADDR_TO_TEST: AtomicUsize = AtomicUsize::new(0);
-
-#[derive(Debug)]
-#[derive(PartialEq)]
-pub enum Status {
-    // Waiting,
-    Connecting,
-    Connected,
-    Done,
-    Failed
-}
-
-#[derive(Debug)]
-struct PeerStatus  {
-    pub status: Status,
-    pub retries: i32,
-}
-
-fn is_waiting(a_peer: String) -> bool {
-    let mut address_visited = ADRESSES_VISITED.lock().unwrap();
-    // println!("Before {:?}", address_visited);
-    let mut is_waiting = false;
-    if !address_visited.contains_key(&a_peer) {
-        address_visited.insert(a_peer, PeerStatus{status:Status::Connecting, retries:0});
-        is_waiting = true
-    }
-    // } else {
-    //     let peer = address_visited.get(&a_peer).unwrap();
-    //     if peer.status == Status::Waiting{
-    //         let retries:i32 = peer.retries;
-    //         address_visited.insert(a_peer, generate_peer_status(Status::Connecting, retries));
-    //         is_waiting = true
-    //     }
-    // }
-    // println!("After {:?}, recherche : {}:{}", address_visited, test, is_waiting);
-    // std::mem::drop(address_visited);
-    is_waiting
-}
-
-pub fn fail(a_peer :String){
-    let mut address_status = ADRESSES_VISITED.lock().unwrap();
-    address_status.insert(a_peer, PeerStatus{status:Status::Failed, retries:0});
-}
-
-pub fn done(a_peer :String) {
-    let mut address_status = ADRESSES_VISITED.lock().unwrap();
-    address_status.insert(a_peer, PeerStatus{status:Status::Done, retries:0});
-}
-
-fn get_peers_status() {
-    let mut done = 0;
-    let mut fail = 0;
-    let mut other = 0;
-    let address_status  = ADRESSES_VISITED.lock().unwrap();
-    for (_, peer_status) in address_status.iter(){
-        match peer_status.status {
-            Status::Done => done += 1,
-            Status::Failed => fail += 1,
-            _ => other +=1,
-        }
-    }
-    eprintln!("total: {}, Other: {}, Done: {}, Fail: {}", address_status.len(), other, done, fail);
-}
-
-// fn retry_address(a_peer: String)-> bool  {
-//     let mut address_status  = ADRESSES_VISITED.lock().unwrap();
-//     if address_status[&a_peer].retries > 3  {
-//         address_status.insert(a_peer, peer_status(Status::Failed));
-//         return false;
-//     }
-//     //this was different from go code
-//     let peer_status =  generate_peer_status(Status::Waiting, address_status[&a_peer].retries + 1);
-//     address_status.insert(a_peer,peer_status);
-//     std::mem::drop(address_status);
-//     return true;
-// }
-
-pub fn register_pvm_connection(a_peer:String) {
-    let mut address_status = ADRESSES_VISITED.lock().unwrap();
-    address_status.insert(a_peer, PeerStatus{status:Status::Connected, retries:0});
-}
 
 fn parse_args() -> String {
     let matches = App::new("BC crawl")
@@ -132,36 +44,14 @@ fn parse_args() -> String {
     String::from(arg_address)
 }
 
-pub fn check_addr_messages(new_addresses: Vec<String>, address_channel: Sender<String>) -> usize {
-    for new_peer in &new_addresses {
-        if is_waiting(new_peer.clone()) {
-
-            let mut msg:String  = String::new();
-            msg.push_str(format!("PAR address: {:?}\n", new_peer).as_str());
-            // msg.push_str(format!("PAR address: {:?}, ", ip_v4).as_str());
-            // msg.push_str(format!("port = {:?}\n", port).as_str());
-            // msg.push_str(format!("time = {}  ", date_time.format("%Y-%m-%d %H:%M:%S")).as_str());
-            // msg.push_str(format!("now = {}  ", Into::<DateTime<Utc>>::into(SystemTime::now()).format("%Y-%m-%d %H:%M:%S")).as_str());
-            // msg.push_str(format!("since = {:?}  ",SystemTime::now().duration_since(SystemTime::from(date_time)).unwrap_or_default() ).as_str());
-            // msg.push_str(format!("services = {:?}     ", services ).as_str());
-            // msg.push_str(format!("target address = {}\n", target_address ).as_str());
-
-            // println!(" {} -> new peer {} ",target_address, new_peer);
-            bcfile::store_event(&msg);
-            address_channel.send(new_peer.to_string()).unwrap();
-        }
-    }
-    new_addresses.len()
-}
-
 fn check_pool_size(start_time: SystemTime ){
     loop {
         thread::sleep(CHECK_TERMINATION_TIMEOUT);
 
-        get_peers_status();
-        if NB_ADDR_TO_TEST.load(Ordering::Relaxed) < 1 {
+        bcpeers::get_peers_status();
+        if bcpeers::NB_ADDR_TO_TEST.load(Ordering::Relaxed) < 1 {
             let time_spent = SystemTime::now().duration_since(start_time).unwrap_or_default();
-            println!("POOL Crawling ends: {:?} new peers in {:?} ", (ADRESSES_VISITED.lock().unwrap()).len(), time_spent);
+            println!("POOL Crawling ends in {:?} ", time_spent);
             process::exit(0);
         }
     }
@@ -200,6 +90,6 @@ fn main() {
     loop {
         let new_peer: String = address_channel_receiver.recv().unwrap();
         connecting_start_channel_sender.send(new_peer);
-        NB_ADDR_TO_TEST.fetch_add(1, Ordering::Relaxed);
+        bcpeers::NB_ADDR_TO_TEST.fetch_add(1, Ordering::Relaxed);
     }
 }

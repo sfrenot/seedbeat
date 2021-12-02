@@ -12,6 +12,7 @@ use crate::bcmessage as bcmessage;
 use bcmessage::{ReadResult, INV, MSG_VERSION, MSG_VERSION_ACK, MSG_GETADDR, CONN_CLOSE, MSG_ADDR, GET_HEADERS, HEADERS, GET_BLOCKS, BLOCK, GET_DATA};
 use crate::bcfile as bcfile;
 use crate::bcblocks as bcblocks;
+use crate::bcpeers as bcpeers;
 
 const CONNECTION_TIMEOUT:Duration = Duration::from_secs(10);
 const MESSAGE_TIMEOUT:Duration = Duration::from_secs(120);
@@ -30,7 +31,7 @@ pub fn handle_one_peer(connection_start_channel: Receiver<String>, address_chann
         if result.is_err() {
             // println!(" {} -> Fail", target_address);
             // println!(" -> Fail to connect {}: {}", target_address, result.err().unwrap());
-            crate::fail(target_address.clone());
+            bcpeers::fail(target_address.clone());
         } else {
             // println!(" {} -> Success", target_address);
             // println!("Fail to connect {}: {}", target_address, result.err().unwrap());
@@ -50,7 +51,7 @@ pub fn handle_one_peer(connection_start_channel: Receiver<String>, address_chann
                 match bcmessage::send_request(&connection, MSG_VERSION) {
                     Err(e) => {
                         eprintln!("Error sending request: {}: {}", e, target_address);
-                        crate::fail(target_address.clone());
+                        bcpeers::fail(target_address.clone());
                         break; // From connexion
                     }
                     _ => {}
@@ -59,14 +60,14 @@ pub fn handle_one_peer(connection_start_channel: Receiver<String>, address_chann
                 let received_cmd: String = in_chain_receiver.recv().unwrap();
                 if received_cmd != String::from(MSG_VERSION) {
                     // eprintln!("Version Ack not received {}, {}", received_cmd, target_address);
-                    crate::fail(target_address.clone());
+                    bcpeers::fail(target_address.clone());
                     break; // From connexion
                 }
 
                 match bcmessage::send_request(&connection, MSG_VERSION_ACK) {
                     Err(_) => {
                         eprintln!("error at sending Msg version ack {}", target_address);
-                        crate::fail(target_address.clone());
+                        bcpeers::fail(target_address.clone());
                         break; // From connexion
                     }
                     _ => {}
@@ -75,14 +76,14 @@ pub fn handle_one_peer(connection_start_channel: Receiver<String>, address_chann
                 let received_cmd = in_chain_receiver.recv().unwrap();
                 if received_cmd != String::from(MSG_VERSION_ACK) {
                     eprintln!("Version AckAck not received {}: {}", received_cmd, target_address);
-                    crate::fail(target_address.clone());
+                    bcpeers::fail(target_address.clone());
                     break; // From connexion
                 }
 
                 match bcmessage::send_request(&connection, MSG_GETADDR) {
                     Err(_) => {
                         eprintln!("error at sending getaddr: {}", target_address);
-                        crate::fail(target_address.clone());
+                        bcpeers::fail(target_address.clone());
                         break; // From connexion
                     }
                     _ => {}
@@ -103,7 +104,7 @@ pub fn handle_one_peer(connection_start_channel: Receiver<String>, address_chann
                         match bcmessage::send_request(&connection, GET_HEADERS) {
                             Err(_) => {
                                 println!("error at sending getHeaders");
-                                crate::fail(target_address.clone());
+                                bcpeers::fail(target_address.clone());
                                 break; // From connexion
                             }
                             _ => {}
@@ -114,7 +115,7 @@ pub fn handle_one_peer(connection_start_channel: Receiver<String>, address_chann
                         match bcmessage::send_request(&connection, GET_BLOCKS) {
                             Err(_) => {
                                 println!("error at sending getaddr");
-                                crate::fail(target_address.clone());
+                                bcpeers::fail(target_address.clone());
                                 break; // From connexion
                             }
                             _ => {}
@@ -124,18 +125,17 @@ pub fn handle_one_peer(connection_start_channel: Receiver<String>, address_chann
                         match bcmessage::send_request(&connection, &received_cmd) {
                             Err(_) => {
                                 println!("error at sending getData");
-                                crate::fail(target_address.clone());
+                                bcpeers::fail(target_address.clone());
                                 break; // From connexion
                             }
                             _ => {}
                         }
                     } else if received_cmd == String::from(CONN_CLOSE) {
                         // eprintln!("Fermeture {}", &target_address);
-                        crate::done(target_address.clone());
+                        bcpeers::done(target_address.clone());
                         break; // From connexion
                     } else {
                         println!("Bad message {}", received_cmd);
-                        std::mem::drop(connection);
                         std::process::exit(1);
                     }
                 }
@@ -143,7 +143,7 @@ pub fn handle_one_peer(connection_start_channel: Receiver<String>, address_chann
             }
         }
         // eprintln!("Fin gestion {}", target_address);
-        crate::NB_ADDR_TO_TEST.fetch_sub(1, Ordering::Relaxed);
+        bcpeers::NB_ADDR_TO_TEST.fetch_sub(1, Ordering::Relaxed);
     }
 }
 
@@ -175,7 +175,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                 if command  == String::from(MSG_VERSION) && payload.len() > 0 {
                     let peer = target_address.clone();
                     bcfile::store_version_message(peer, &payload);
-                    crate::register_pvm_connection(target_address.clone());
+                    bcpeers::register_peer_connection(target_address.clone());
                     // eprintln!("Envoi MSG_VERSION {}", target_address);
                     in_chain.send(command).unwrap();
                     continue;
@@ -186,7 +186,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                     continue;
                 }
                 if command == String::from(MSG_ADDR)  && payload.len() > 0 {
-                    if crate::check_addr_messages(bcmessage::process_addr_message(&payload), sender.clone()) > MIN_ADDRESSES_RECEIVED_THRESHOLD {
+                    if bcpeers::check_addr_messages(bcmessage::process_addr_message(&payload), sender.clone()) > MIN_ADDRESSES_RECEIVED_THRESHOLD {
                         // eprintln!("GET_BLOCKS {}", target_address);
                         // in_chain.send(String::from(GET_BLOCKS));
                         in_chain.send(String::from(GET_HEADERS)).unwrap();
