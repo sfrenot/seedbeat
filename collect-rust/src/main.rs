@@ -17,6 +17,54 @@ const CHECK_TERMINATION_TIMEOUT:Duration = Duration::from_secs(5);
 const THREADS: u64 = 500;
 const MESSAGE_CHANNEL_SIZE: usize = 100000;
 
+
+
+fn main() {
+    bcmessage::create_init_message_payload();
+    bcfile::load_blocks();
+    bcblocks::create_block_message_payload(&bcblocks::BLOCKS_ID.lock().unwrap());
+
+    // eprintln!("{}", hex::encode(bcblocks::get_getblock_message_payload()));
+    // eprintln!("{}", hex::encode(bcblocks::get_getheaders_message_payload()));
+    // std::process::exit(1);
+
+    // eprintln!("{:?}", known_block);
+    // eprintln!("{:?}", bcblocks::BLOCKS_ID.lock().unwrap());
+    // std::process::exit(1);
+
+    let (address_channel_sender, address_channel_receiver) = mpsc::channel();
+    let (connecting_start_channel_sender, connecting_start_channel_receiver) = chan::sync(MESSAGE_CHANNEL_SIZE);
+
+    let start_adress = parse_args();
+    address_channel_sender.send(start_adress).unwrap();
+    thread::spawn(move || { check_pool_size(SystemTime = SystemTime::now()); });
+
+    for i in 0..THREADS {
+        let sender = address_channel_sender.clone();
+        let recv = connecting_start_channel_receiver.clone();
+        thread::spawn(move || { bcnet::handle_one_peer(recv, sender, i);});
+    }
+
+    loop {
+        let new_peer: String = address_channel_receiver.recv().unwrap();
+        connecting_start_channel_sender.send(new_peer);
+        bcpeers::NB_ADDR_TO_TEST.fetch_add(1, Ordering::Relaxed);
+    }
+}
+
+fn check_pool_size(start_time: SystemTime ){
+    loop {
+        thread::sleep(CHECK_TERMINATION_TIMEOUT);
+
+        bcpeers::get_peers_status();
+        if bcpeers::NB_ADDR_TO_TEST.load(Ordering::Relaxed) < 1 {
+            let time_spent = SystemTime::now().duration_since(start_time).unwrap_or_default();
+            println!("POOL Crawling ends in {:?} ", time_spent);
+            process::exit(0);
+        }
+    }
+}
+
 fn parse_args() -> String {
     let matches = App::new("BC crawl")
         .version("1.0.0")
@@ -42,53 +90,4 @@ fn parse_args() -> String {
 
     bcfile::open_logfile(matches.value_of("file"));
     String::from(arg_address)
-}
-
-fn check_pool_size(start_time: SystemTime ){
-    loop {
-        thread::sleep(CHECK_TERMINATION_TIMEOUT);
-
-        bcpeers::get_peers_status();
-        if bcpeers::NB_ADDR_TO_TEST.load(Ordering::Relaxed) < 1 {
-            let time_spent = SystemTime::now().duration_since(start_time).unwrap_or_default();
-            println!("POOL Crawling ends in {:?} ", time_spent);
-            process::exit(0);
-        }
-    }
-}
-
-fn main() {
-
-    let start_time: SystemTime = SystemTime::now();
-    bcmessage::create_init_message_payload();
-    bcfile::load_blocks();
-    bcblocks::create_block_message_payload(&bcblocks::BLOCKS_ID.lock().unwrap());
-
-    // eprintln!("{}", hex::encode(bcblocks::get_getblock_message_payload()));
-    // eprintln!("{}", hex::encode(bcblocks::get_getheaders_message_payload()));
-    // std::process::exit(1);
-
-    // eprintln!("{:?}", known_block);
-    // eprintln!("{:?}", bcblocks::BLOCKS_ID.lock().unwrap());
-    // std::process::exit(1);
-
-    let (address_channel_sender, address_channel_receiver) = mpsc::channel();
-    let (connecting_start_channel_sender, connecting_start_channel_receiver) = chan::sync(MESSAGE_CHANNEL_SIZE);
-
-    let start_adress = parse_args();
-
-    address_channel_sender.send(start_adress).unwrap();
-    thread::spawn(move || { check_pool_size(start_time ); });
-
-    for i in 0..THREADS {
-        let sender = address_channel_sender.clone();
-        let recv = connecting_start_channel_receiver.clone();
-        thread::spawn(move || { bcnet::handle_one_peer(recv, sender, i);});
-    }
-
-    loop {
-        let new_peer: String = address_channel_receiver.recv().unwrap();
-        connecting_start_channel_sender.send(new_peer);
-        bcpeers::NB_ADDR_TO_TEST.fetch_add(1, Ordering::Relaxed);
-    }
 }
