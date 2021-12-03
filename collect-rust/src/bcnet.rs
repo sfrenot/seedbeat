@@ -71,56 +71,64 @@ pub fn handle_one_peer(connection_start_channel: Receiver<String>, address_chann
                 }
 
                 loop { // Handle block Exchanges
-                    let received_cmd:String = match in_chain_receiver.recv() {
-                        Err(e) => {
-                            println!("A CORRIGER !!!! : Erreur in Chain {}: {}", e, target_address);
-                            std::process::exit(1);
+                    match in_chain_receiver.recv().unwrap() {
+                        cmd if cmd == String::from(GET_HEADERS) => {
+                            // eprintln!("==> Envoi GET_HEADERS {} to: {}", received_cmd, target_address);
+                            match connection.write(bcmessage::build_request(GET_HEADERS).as_slice()) {
+                                Err(_) => {
+                                    println!("error at sending getHeaders");
+                                    bcpeers::fail(target_address.clone());
+                                    break; // From connexion
+                                }
+                                _ => {}
+                            };
                         },
-                        Ok(res) => {res}
+                        cmd if cmd == String::from(GET_BLOCKS) => {
+                            // eprintln!("==> Envoi GET_BLOCKS {} to: {}", received_cmd, target_address);
+                            match connection.write(bcmessage::build_request(GET_BLOCKS).as_slice()) {
+                                Err(_) => {
+                                    println!("error at sending getaddr");
+                                    bcpeers::fail(target_address.clone());
+                                    break; // From connexion
+                                }
+                                _ => {}
+                            };
+                        },
+                        cmd if cmd == String::from(GET_BLOCKS) => {
+                            // eprintln!("==> Envoi GET_BLOCKS {} to: {}", received_cmd, target_address);
+                            match connection.write(bcmessage::build_request(GET_BLOCKS).as_slice()) {
+                                Err(_) => {
+                                    println!("error at sending getaddr");
+                                    bcpeers::fail(target_address.clone());
+                                    break; // From connexion
+                                }
+                                _ => {}
+                            };
+                        },
+                        cmd if &cmd[..GET_DATA.len()] == String::from(GET_DATA) => {
+                            eprintln!("Recherche info block {}", &cmd[GET_DATA.len()+1..]);
+                            match connection.write(bcmessage::build_request(&cmd).as_slice()) {
+                                Err(_) => {
+                                    println!("error at sending getData");
+                                    bcpeers::fail(target_address.clone());
+                                    break; // From connexion
+                                }
+                                _ => {}
+                            };
+                        },
+                        cmd if cmd == String::from(CONN_CLOSE) => {
+                            // eprintln!("Fermeture {}", &target_address);
+                            bcpeers::done(target_address.clone());
+                            break; // From connexion
+                        },
+                        cmd => {
+                            println!("Bad message {}", cmd);
+                            std::process::exit(1);
+                        }
                     };
-                    // eprintln!("CMD -> {}", received_cmd);
-
-                    if received_cmd == String::from(GET_HEADERS) {
-                        // eprintln!("==> Envoi GET_HEADERS {} to: {}", received_cmd, target_address);
-                        match connection.write(bcmessage::build_request(GET_HEADERS).as_slice()) {
-                            Err(_) => {
-                                println!("error at sending getHeaders");
-                                bcpeers::fail(target_address.clone());
-                                break; // From connexion
-                            }
-                            _ => {}
-                        }
-                    } else if received_cmd == String::from(GET_BLOCKS) {
-                        // eprintln!("==> Envoi GET_BLOCKS {} to: {}", received_cmd, target_address);
-                        match connection.write(bcmessage::build_request(GET_BLOCKS).as_slice()) {
-                            Err(_) => {
-                                println!("error at sending getaddr");
-                                bcpeers::fail(target_address.clone());
-                                break; // From connexion
-                            }
-                            _ => {}
-                        }
-                    } else if &received_cmd[..GET_DATA.len()] == String::from(GET_DATA) {
-                        eprintln!("Recherche info block {}", &received_cmd[GET_DATA.len()+1..]);
-                        match connection.write(bcmessage::build_request(&received_cmd).as_slice()) {
-                            Err(_) => {
-                                println!("error at sending getData");
-                                bcpeers::fail(target_address.clone());
-                                break; // From connexion
-                            }
-                            _ => {}
-                        }
-                    } else if received_cmd == String::from(CONN_CLOSE) {
-                        // eprintln!("Fermeture {}", &target_address);
-                        bcpeers::done(target_address.clone());
-                        break; // From connexion
-                    } else {
-                        println!("Bad message {}", received_cmd);
-                        std::process::exit(1);
-                    }
-                }
+                } //loop for internal mesages
                 break;
-            }
+            } // loop for node
         }
         // eprintln!("Fin gestion {}", target_address);
         bcpeers::NB_ADDR_TO_TEST.fetch_sub(1, Ordering::Relaxed);
@@ -277,7 +285,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
     // eprintln!("Fermeture {}", target_address);
 }
 
-fn connection_hello(mut connection:&TcpStream, in_chain_receiver: &mpsc::Receiver<String>) -> Result<(), Error>{
+fn connection_hello(connection:&TcpStream, in_chain_receiver: &mpsc::Receiver<String>) -> Result<(), Error>{
     pingpong(&connection, &in_chain_receiver, MSG_VERSION)?;
     pingpong(&connection, &in_chain_receiver, MSG_VERSION_ACK)
 }
