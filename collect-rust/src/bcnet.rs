@@ -6,6 +6,9 @@ use std::sync::mpsc::Sender;
 use std::sync::atomic::Ordering;
 use std::thread;
 use std::io::Write;
+use std::io::Error;
+use std::io::ErrorKind;
+
 
 use std::net::{SocketAddr, TcpStream};
 use chan::Receiver;
@@ -27,7 +30,7 @@ pub fn handle_one_peer(connection_start_channel: Receiver<String>, address_chann
 
     loop{ //Nodes Management
         let target_address = connection_start_channel.recv().unwrap();
-        // eprintln!("Connexion {}, {}", num, target_address);
+        // eprintln!("Connexion {}, {}", _num, target_address);
         let socket: SocketAddr = target_address.parse().unwrap();
         let result = TcpStream::connect_timeout(&socket, CONNECTION_TIMEOUT);
         // eprintln!("Connecté {}, {}", num, target_address);
@@ -49,36 +52,22 @@ pub fn handle_one_peer(connection_start_channel: Receiver<String>, address_chann
             });
 
             loop { //Connection management
-                match connection.write(bcmessage::build_request(MSG_VERSION).as_slice()) {
-                    Err(e) => {
-                        eprintln!("Error sending request: {}: {}", e, target_address);
+                match pingpong(&connection, &in_chain_receiver, MSG_VERSION) {
+                    Err(_e) => {
+                        // eprintln!("Error sending request: {}: {}", _e, target_address);
                         bcpeers::fail(target_address.clone());
                         break; // From connexion
                     }
                     _ => {}
                 }
 
-                let received_cmd: String = in_chain_receiver.recv().unwrap();
-                if received_cmd != String::from(MSG_VERSION) {
-                    // eprintln!("Version Ack not received {}, {}", received_cmd, target_address);
-                    bcpeers::fail(target_address.clone());
-                    break; // From connexion
-                }
-
-                match connection.write(bcmessage::build_request(MSG_VERSION_ACK).as_slice()) {
-                    Err(_) => {
-                        eprintln!("error at sending Msg version ack {}", target_address);
+                match pingpong(&connection, &in_chain_receiver, MSG_VERSION_ACK) {
+                    Err(_e) => {
+                        // eprintln!("Error sending request: {}: {}", _e, target_address);
                         bcpeers::fail(target_address.clone());
                         break; // From connexion
                     }
                     _ => {}
-                }
-
-                let received_cmd = in_chain_receiver.recv().unwrap();
-                if received_cmd != String::from(MSG_VERSION_ACK) {
-                    eprintln!("Version AckAck not received {}: {}", received_cmd, target_address);
-                    bcpeers::fail(target_address.clone());
-                    break; // From connexion
                 }
 
                 match connection.write(bcmessage::build_request(MSG_GETADDR).as_slice()) {
@@ -110,8 +99,7 @@ pub fn handle_one_peer(connection_start_channel: Receiver<String>, address_chann
                             }
                             _ => {}
                         }
-                    } else
-                    if received_cmd == String::from(GET_BLOCKS) {
+                    } else if received_cmd == String::from(GET_BLOCKS) {
                         // eprintln!("==> Envoi GET_BLOCKS {} to: {}", received_cmd, target_address);
                         match connection.write(bcmessage::build_request(GET_BLOCKS).as_slice()) {
                             Err(_) => {
@@ -296,4 +284,12 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
         }
     }
     // eprintln!("Fermeture {}", target_address);
+}
+
+fn pingpong(mut connection:&TcpStream, in_chain_receiver: &mpsc::Receiver<String>, msg: &str) -> Result<(), Error>{
+    connection.write(bcmessage::build_request(msg).as_slice())?; //ping
+    match in_chain_receiver.recv().unwrap() {  //pong
+        res if msg == res => return Ok(()),
+        res => return Err(Error::new(ErrorKind::Other, format!("Wrong message {} <> {}", msg, res)))
+    };
 }

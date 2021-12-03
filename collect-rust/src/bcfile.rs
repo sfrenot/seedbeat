@@ -5,7 +5,7 @@ use std::io::{LineWriter, stdout, Write};
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 use crate::bcblocks;
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 
 lazy_static! {
     pub static ref LOGGER: Mutex<LineWriter<Box<dyn Write + Send>>> = Mutex::new(LineWriter::new(Box::new(stdout())));

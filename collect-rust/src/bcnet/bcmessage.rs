@@ -5,7 +5,7 @@ use std::time::SystemTime;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use sha2::{Sha256, Digest};
 use std::net::{TcpStream, IpAddr};
-use std::io::{Write, Read, Error, ErrorKind};
+use std::io::{Read, Error, ErrorKind};
 use std::convert::TryInto;
 use std::collections::HashMap;
 
