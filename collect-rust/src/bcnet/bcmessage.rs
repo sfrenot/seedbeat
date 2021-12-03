@@ -54,7 +54,8 @@ const TIMESTAMP_END:usize= 20;
 
 // payload struct
 lazy_static! {
-    static ref TEMPLATE_MESSAGE_PAYLOAD: Mutex<Vec<u8>> = Mutex::new(Vec::with_capacity(105));
+    // static ref TEMPLATE_MESSAGE_PAYLOAD: Mutex<Vec<u8>> = Mutex::new(Vec::with_capacity(105));
+    static ref TEMPLATE_MESSAGE_PAYLOAD: Mutex<Vec<u8>> = Mutex::new(create_init_message_payload());
 }
 
 const START_DATE:usize = 12;
@@ -93,7 +94,7 @@ pub struct ReadResult {
     pub error: Option<std::io::Error>
 }
 
-pub fn create_init_message_payload() {
+fn create_init_message_payload() -> Vec<u8> {
 
     let services:u64 = NODE_NETWORK | NODE_BLOOM | NODE_WITNESS | NODE_NETWORK_LIMITED;
     let date_buffer:u64 = 0;
@@ -109,7 +110,7 @@ pub fn create_init_message_payload() {
     let user_agent:&[u8] = "\x0C/bcpc:0.0.1/".as_bytes();
     let height:u32 = 708998;
 
-    let mut message_payload = TEMPLATE_MESSAGE_PAYLOAD.lock().unwrap();
+    let mut message_payload = Vec::with_capacity(105);
 
     message_payload.extend(VERSION.to_le_bytes());
     message_payload.extend(services.to_le_bytes());
@@ -123,7 +124,8 @@ pub fn create_init_message_payload() {
     message_payload.extend(user_agent);
     message_payload.extend(height.to_le_bytes());
 
-    // drop(message_payload);
+    message_payload
+
     // eprintln!("{:02x?}", hex::encode(TEMPLATE_MESSAGE_PAYLOAD.lock().unwrap().to_vec()));
     // std::process::exit(1);
 }
@@ -176,19 +178,7 @@ pub fn read_message(mut connection: &TcpStream) -> ReadResult {
     }
 }
 
-// Send request to a peer, return result with error or with bytes sent
-pub fn send_request(mut connection: & TcpStream, message_name: &str) -> std::io::Result<usize> {
-    let request:Vec<u8> = build_request(message_name);
-    // if message_name == "getblocks" {
-    //     eprintln!("-> {:02X?}", request);
-    //     std::process::exit(0);
-    // }
-    let result = connection.write(request.as_slice());
-    return result;
-}
-
-
-fn build_request(message : &str) -> Vec<u8>{
+pub fn build_request(message : &str) -> Vec<u8>{
     let mut payload_bytes: Vec<u8> = Vec::new();
     let mut message_name = message;
     if message == MSG_VERSION {

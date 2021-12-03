@@ -1,4 +1,4 @@
-mod bcmessage;
+// mod bcmessage;
 mod bcblocks;
 mod bcfile;
 mod bcnet;
@@ -18,9 +18,7 @@ const THREADS: u64 = 500;
 const MESSAGE_CHANNEL_SIZE: usize = 100000;
 
 
-
 fn main() {
-    bcmessage::create_init_message_payload();
     bcfile::load_blocks();
     bcblocks::create_block_message_payload(&bcblocks::BLOCKS_ID.lock().unwrap());
 
@@ -37,7 +35,7 @@ fn main() {
 
     let start_adress = parse_args();
     address_channel_sender.send(start_adress).unwrap();
-    thread::spawn(move || { check_pool_size(SystemTime = SystemTime::now()); });
+    thread::spawn(move || { check_pool_size(SystemTime::now()); });
 
     for i in 0..THREADS {
         let sender = address_channel_sender.clone();

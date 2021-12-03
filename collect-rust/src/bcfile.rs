@@ -5,7 +5,7 @@ use std::io::{LineWriter, stdout, Write};
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 use crate::bcblocks;
-use crate::bcmessage;
+use chrono::{DateTime, NaiveDateTime, Utc};
 
 lazy_static! {
     pub static ref LOGGER: Mutex<LineWriter<Box<dyn Write + Send>>> = Mutex::new(LineWriter::new(Box::new(stdout())));
@@ -84,9 +84,8 @@ pub fn store_event(msg :&String){
     guard.write_all(msg.as_ref()).expect("error at logging");
 }
 
-pub fn store_version_message(target_address: String, payload: &Vec<u8>){
+pub fn store_version_message(target_address: String, (_, _, _, _): (u32, Vec<u8>, DateTime<Utc>, String)){
     //TODO: supprimer le &VEc
-    let (_, _, _, _) = bcmessage::process_version_message(payload);
     let mut msg: String  = String::new();
     msg.push_str(format!("Seed: {} \n", target_address).as_ref());
     // msg.push_str(format!("Seed = {}  ", target_address).as_ref());

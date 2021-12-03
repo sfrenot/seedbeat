@@ -1,9 +1,8 @@
 use std::sync::Mutex;
 use std::sync::MutexGuard;
-
 use lazy_static::lazy_static;
 use hex::FromHex;
-use crate::bcmessage::{VERSION, VERSION_END};
+use crate::bcnet::bcmessage::{VERSION, VERSION_END};
 use std::collections::HashMap;
 
 #[derive(Debug)]
