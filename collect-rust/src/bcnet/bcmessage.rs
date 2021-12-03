@@ -75,7 +75,7 @@ const START_CHECKSUM:usize = 20;
 const END_CHECKSUM:usize = 24;
 
 // COMMANDS
-pub const MSG_VERSION:&str = "version";
+pub const MSG_VERSION:String = "version";
 pub const MSG_VERSION_ACK:&str = "verack";
 pub const MSG_GETADDR:&str = "getaddr";
 pub const MSG_ADDR:&str = "addr";
