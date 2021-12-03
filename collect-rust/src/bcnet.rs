@@ -52,21 +52,12 @@ pub fn handle_one_peer(connection_start_channel: Receiver<String>, address_chann
             });
 
             loop { //Connection management
-                match pingpong(&connection, &in_chain_receiver, MSG_VERSION) {
-                    Err(_e) => {
+                match connection_hello(&connection,&in_chain_receiver) {
+                    Err(_e) =>  {
                         // eprintln!("Error sending request: {}: {}", _e, target_address);
                         bcpeers::fail(target_address.clone());
-                        break; // From connexion
-                    }
-                    _ => {}
-                }
-
-                match pingpong(&connection, &in_chain_receiver, MSG_VERSION_ACK) {
-                    Err(_e) => {
-                        // eprintln!("Error sending request: {}: {}", _e, target_address);
-                        bcpeers::fail(target_address.clone());
-                        break; // From connexion
-                    }
+                        break;
+                    },
                     _ => {}
                 }
 
@@ -284,6 +275,11 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
         }
     }
     // eprintln!("Fermeture {}", target_address);
+}
+
+fn connection_hello(mut connection:&TcpStream, in_chain_receiver: &mpsc::Receiver<String>) -> Result<(), Error>{
+    pingpong(&connection, &in_chain_receiver, MSG_VERSION)?;
+    pingpong(&connection, &in_chain_receiver, MSG_VERSION_ACK)
 }
 
 fn pingpong(mut connection:&TcpStream, in_chain_receiver: &mpsc::Receiver<String>, msg: &str) -> Result<(), Error>{
