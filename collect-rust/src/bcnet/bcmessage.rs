@@ -56,6 +56,18 @@ const TIMESTAMP_END:usize= 20;
 lazy_static! {
     // static ref TEMPLATE_MESSAGE_PAYLOAD: Mutex<Vec<u8>> = Mutex::new(Vec::with_capacity(105));
     static ref TEMPLATE_MESSAGE_PAYLOAD: Mutex<Vec<u8>> = Mutex::new(create_init_message_payload());
+
+    pub static ref MSG_VERSION:String = String::from("version");
+    pub static ref MSG_VERSION_ACK:String = String::from("verack");
+    pub static ref MSG_GETADDR:String = String::from("getaddr");
+    pub static ref MSG_ADDR:String = String::from("addr");
+    pub static ref INV:String = String::from("inv");
+    pub static ref CONN_CLOSE:String = String::from("CONNCLOSED");
+    pub static ref GET_HEADERS:String = String::from("getheaders");
+    pub static ref HEADERS:String = String::from("headers");
+    pub static ref GET_BLOCKS:String = String::from("getblocks");
+    pub static ref GET_DATA:String = String::from("getdata");
+    pub static ref BLOCK:String = String::from("block");
 }
 
 const START_DATE:usize = 12;
@@ -73,20 +85,6 @@ const START_PAYLOAD_LENGTH :usize= 16;
 const END_PAYLOAD_LENGTH :usize= 20;
 const START_CHECKSUM:usize = 20;
 const END_CHECKSUM:usize = 24;
-
-// COMMANDS
-pub const MSG_VERSION:String = "version";
-pub const MSG_VERSION_ACK:&str = "verack";
-pub const MSG_GETADDR:&str = "getaddr";
-pub const MSG_ADDR:&str = "addr";
-pub const INV:&str = "inv";
-pub const CONN_CLOSE:&str = "CONNCLOSED";
-pub const GET_HEADERS:&str = "getheaders";
-pub const HEADERS:&str = "headers";
-
-pub const GET_BLOCKS:&str = "getblocks";
-pub const GET_DATA:&str = "getdata";
-pub const BLOCK: &str = "block";
 
 pub struct ReadResult {
     pub command: String,
@@ -181,20 +179,20 @@ pub fn read_message(mut connection: &TcpStream) -> ReadResult {
 pub fn build_request(message : &str) -> Vec<u8>{
     let mut payload_bytes: Vec<u8> = Vec::new();
     let mut message_name = message;
-    if message == MSG_VERSION {
+    if message == MSG_VERSION.to_string() {
         payload_bytes = get_payload_with_current_date();
         // eprintln!("->MSG_VERSION : {:02X?}", payload_bytes);
     // } else if message == GET_BLOCKS {
     //     payload_bytes = bcblocks::get_getblock_message_payload();
-    } else if message == GET_HEADERS {
+    } else if message == *GET_HEADERS {
         payload_bytes = bcblocks::get_getheaders_message_payload();
         //
         // eprintln!("==> GET_HEADERS : {:02X?}", payload_bytes);
         // std::process::exit(1);
-    } else if message.len() > GET_DATA.len() && &message[..GET_DATA.len()] == String::from(GET_DATA) {
+    } else if message.len() > GET_DATA.len() && &message[..GET_DATA.len()] == *GET_DATA {
 
         payload_bytes = bcblocks::get_getdata_message_payload(&message[GET_DATA.len()+1..]);
-        message_name = GET_DATA;
+        message_name = &GET_DATA;
         println!("Build for getData : {}", message_name);
 
         // eprintln!("Build for getData : {:02x?}", payload_bytes);
