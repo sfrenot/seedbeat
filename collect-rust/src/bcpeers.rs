@@ -86,9 +86,9 @@ pub fn get_peers_status() {
 //     return true;
 // }
 
-pub fn register_peer_connection(a_peer:String) {
+pub fn register_peer_connection(a_peer: &String) {
     let mut address_status = ADRESSES_VISITED.lock().unwrap();
-    address_status.insert(a_peer, PeerStatus{status:Status::Connected, retries:0});
+    address_status.insert(a_peer.to_string(), PeerStatus{status:Status::Connected, retries:0});
 }
 
 pub fn check_addr_messages(new_addresses: Vec<String>, address_channel: Sender<String>) -> usize {

@@ -84,7 +84,7 @@ pub fn store_event(msg :&String){
     guard.write_all(msg.as_ref()).expect("error at logging");
 }
 
-pub fn store_version_message(target_address: String, (_, _, _, _): (u32, Vec<u8>, DateTime<Utc>, String)){
+pub fn store_version_message(target_address: &String, (_, _, _, _): (u32, Vec<u8>, DateTime<Utc>, String)){
     //TODO: supprimer le &VEc
     let mut msg: String  = String::new();
     msg.push_str(format!("Seed: {} \n", target_address).as_ref());

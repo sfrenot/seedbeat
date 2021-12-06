@@ -62,6 +62,7 @@ pub fn handle_one_peer(connection_start_channel: Receiver<String>, address_chann
                     _ => {}
                 }
 
+
                 match connection.write(bcmessage::build_request(&MSG_GETADDR).as_slice()) {
                     Err(_) => {
                         eprintln!("error at sending getaddr: {}", target_address);
@@ -72,8 +73,9 @@ pub fn handle_one_peer(connection_start_channel: Receiver<String>, address_chann
                 }
 
                 loop { // Handle block Exchanges
-                    
-                    match connection.write(bcmessage::build_request(in_chain_receiver.recv().unwrap()).as_slice()) {
+
+                    let cmd = in_chain_receiver.recv().unwrap();
+                    match connection.write(bcmessage::build_request(&cmd).as_slice()) {
                         Err(_) => {
                             bcpeers::fail(target_address);
                             break; // From connexion
@@ -119,25 +121,16 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
         match read_result.error {
             Some(_error) => {
                 // eprintln!("Erreur Lecture {}: {}", _error, target_address);
-                // in_chain.send(String::from(CONN_CLOSE)).unwrap();
-                match in_chain.send((*CONN_CLOSE).clone()) {
-                    Err(err) => {
-                        eprintln!("Erreur incoming, end : {}", err);
-                    }
-                    _ => {}
-                }
+                in_chain.send((*CONN_CLOSE).clone()).unwrap();
                 break;
-            }
+            },
             _ => {
                 let command = read_result.command;
                 let payload = read_result.payload;
                 lecture+=1;
                 // eprintln!("Command From : {} --> {}, payload : {}", &target_address, &command, payload.len());
                 if command == *MSG_VERSION && payload.len() > 0 {
-                    let peer = target_address.clone();
-                    bcfile::store_version_message(peer, bcmessage::process_version_message(&payload));
-                    bcpeers::register_peer_connection(target_address.clone());
-                    // eprintln!("Envoi MSG_VERSION {}", target_address);
+                    handle_incoming_cmd_version(&target_address, payload);
                     in_chain.send(command).unwrap();
                     continue;
                 }
@@ -146,6 +139,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                     in_chain.send(command).unwrap();
                     continue;
                 }
+
                 if command == *MSG_ADDR && payload.len() > 0 {
                     if bcpeers::check_addr_messages(bcmessage::process_addr_message(&payload), sender.clone()) > MIN_ADDRESSES_RECEIVED_THRESHOLD {
                         // eprintln!("GET_BLOCKS {}", target_address);
@@ -258,6 +252,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
     // eprintln!("Fermeture {}", target_address);
 }
 
+// Hello initial command from main handler
 fn connection_hello(connection:&TcpStream, in_chain_receiver: &mpsc::Receiver<String>) -> Result<(), Error>{
     pingpong(&connection, &in_chain_receiver, &MSG_VERSION)?;
     pingpong(&connection, &in_chain_receiver, &MSG_VERSION_ACK)
@@ -269,4 +264,9 @@ fn pingpong(mut connection:&TcpStream, in_chain_receiver: &mpsc::Receiver<String
         res if msg == res => return Ok(()),
         res => return Err(Error::new(ErrorKind::Other, format!("Wrong message {} <> {}", msg, res)))
     };
+}
+
+fn handle_incoming_cmd_version(peer: &String, payload: Vec<u8>) {
+    bcfile::store_version_message(peer, bcmessage::process_version_message(&payload));
+    bcpeers::register_peer_connection(peer);
 }
