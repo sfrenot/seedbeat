@@ -130,7 +130,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                 lecture+=1;
                 // eprintln!("Command From : {} --> {}, payload : {}", &target_address, &command, payload.len());
                 if command == *MSG_VERSION && payload.len() > 0 {
-                    handle_incoming_cmd_version(&target_address, payload);
+                    handle_incoming_cmd_version(&target_address, &payload);
                     in_chain.send(command).unwrap();
                     continue;
                 }
@@ -140,12 +140,8 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                     continue;
                 }
 
-                if command == *MSG_ADDR && payload.len() > 0 {
-                    if bcpeers::check_addr_messages(bcmessage::process_addr_message(&payload), sender.clone()) > MIN_ADDRESSES_RECEIVED_THRESHOLD {
-                        // eprintln!("GET_BLOCKS {}", target_address);
-                        // in_chain.send(String::from(GET_BLOCKS));
-                        in_chain.send((*GET_HEADERS).clone()).unwrap();
-                    }
+                if command == *MSG_ADDR && payload.len() > 0 &&  handle_incoming_cmd_msg_addr(&payload, &sender){
+                    in_chain.send((*GET_HEADERS).clone()).unwrap();
                 }
 
                 //Testing incoming message
@@ -266,7 +262,11 @@ fn pingpong(mut connection:&TcpStream, in_chain_receiver: &mpsc::Receiver<String
     };
 }
 
-fn handle_incoming_cmd_version(peer: &String, payload: Vec<u8>) {
-    bcfile::store_version_message(peer, bcmessage::process_version_message(&payload));
+fn handle_incoming_cmd_version(peer: &String, payload: &Vec<u8>) {
+    bcfile::store_version_message(peer, bcmessage::process_version_message(payload));
     bcpeers::register_peer_connection(peer);
+}
+
+fn handle_incoming_cmd_msg_addr(payload: &Vec<u8>, sender: &Sender<String>) -> bool {
+    bcpeers::check_addr_messages(bcmessage::process_addr_message(&payload), &sender) > MIN_ADDRESSES_RECEIVED_THRESHOLD
 }

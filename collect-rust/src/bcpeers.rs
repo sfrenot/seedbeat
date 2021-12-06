@@ -91,7 +91,7 @@ pub fn register_peer_connection(a_peer: &String) {
     address_status.insert(a_peer.to_string(), PeerStatus{status:Status::Connected, retries:0});
 }
 
-pub fn check_addr_messages(new_addresses: Vec<String>, address_channel: Sender<String>) -> usize {
+pub fn check_addr_messages(new_addresses: Vec<String>, address_channel: &Sender<String>) -> usize {
     for new_peer in &new_addresses {
         if is_waiting(new_peer.to_string()) {
 
