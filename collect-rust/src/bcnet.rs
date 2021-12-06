@@ -51,7 +51,8 @@ pub fn handle_one_peer(connection_start_channel: Receiver<String>, address_chann
                 handle_incoming_message(&connection_clone, target, in_chain_sender, sender);
             });
 
-            loop { //Connection management
+            loop {
+                //Connection management
                 match connection_hello(&connection,&in_chain_receiver) {
                     Err(_e) =>  {
                         // eprintln!("Error sending request: {}: {}", _e, target_address);
@@ -71,50 +72,33 @@ pub fn handle_one_peer(connection_start_channel: Receiver<String>, address_chann
                 }
 
                 loop { // Handle block Exchanges
-                    match in_chain_receiver.recv().unwrap() {
-                        cmd if cmd == *GET_HEADERS => {
-                            // eprintln!("==> Envoi GET_HEADERS {} to: {}", received_cmd, target_address);
-                            match connection.write(bcmessage::build_request(&GET_HEADERS).as_slice()) {
-                                Err(_) => {
-                                    println!("error at sending getHeaders");
-                                    bcpeers::fail(target_address.clone());
-                                    break; // From connexion
-                                }
-                                _ => {}
-                            };
-                        },
-                        cmd if cmd == *GET_BLOCKS => {
-                            // eprintln!("==> Envoi GET_BLOCKS {} to: {}", received_cmd, target_address);
-                            match connection.write(bcmessage::build_request(&GET_BLOCKS).as_slice()) {
-                                Err(_) => {
-                                    println!("error at sending getaddr");
-                                    bcpeers::fail(target_address.clone());
-                                    break; // From connexion
-                                }
-                                _ => {}
-                            };
-                        },
-                        cmd if &cmd[..GET_DATA.len()] == *GET_DATA => {
-                            eprintln!("Recherche info block {}", &cmd[GET_DATA.len()+1..]);
-                            match connection.write(bcmessage::build_request(&cmd).as_slice()) {
-                                Err(_) => {
-                                    println!("error at sending getData");
-                                    bcpeers::fail(target_address.clone());
-                                    break; // From connexion
-                                }
-                                _ => {}
-                            };
-                        },
-                        cmd if cmd == *CONN_CLOSE => {
-                            // eprintln!("Fermeture {}", &target_address);
-                            bcpeers::done(target_address.clone());
+                    
+                    match connection.write(bcmessage::build_request(in_chain_receiver.recv().unwrap()).as_slice()) {
+                        Err(_) => {
+                            bcpeers::fail(target_address);
                             break; // From connexion
                         },
-                        cmd => {
-                            println!("Bad message {}", cmd);
-                            std::process::exit(1);
+                        _ => {
+                            if cmd == *CONN_CLOSE {
+                                bcpeers::done(target_address.clone());
+                                break;
+                            }
                         }
                     };
+
+                    //Special Case
+                    // cmd if &cmd[..GET_DATA.len()] == *GET_DATA => {
+                    //     eprintln!("Recherche info block {}", &cmd[GET_DATA.len()+1..]);
+                    //     match connection.write(bcmessage::build_request(&cmd).as_slice()) {
+                    //         Err(_) => {
+                    //             println!("error at sending getData");
+                    //             bcpeers::fail(target_address.clone());
+                    //             break; // From connexion
+                    //         }
+                    //         _ => {}
+                    //     };
+                    // }
+
                 } //loop for internal mesages
                 break;
             } // loop for node
