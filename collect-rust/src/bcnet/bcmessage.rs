@@ -295,11 +295,12 @@ pub fn process_addr_message(payload: &Vec<u8>) -> Vec<String>{
     addr
 }
 
+#[derive(Debug)]
 pub enum ProcessHeadersMessageError {
     UnkownBlocks,
     NoNewBlocks
 }
-pub fn process_headers_message(known_block_guard: &mut MutexGuard<HashMap<String, bcblocks::BlockDesc>>,blocks_id_guard: &mut MutexGuard<Vec<(String, bool)>>, payload: Vec<u8>) -> Result<(), ProcessHeadersMessageError> {
+pub fn process_headers_message(known_block_guard: &mut MutexGuard<HashMap<String, bcblocks::BlockDesc>>,blocks_id_guard: &mut MutexGuard<Vec<(String, bool)>>, payload: &Vec<u8>) -> Result<(), ProcessHeadersMessageError> {
 
     let mut highest_index = 0;
 

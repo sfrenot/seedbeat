@@ -112,7 +112,7 @@ pub fn handle_one_peer(connection_start_channel: Receiver<String>, address_chann
 
 fn handle_incoming_message(connection:& TcpStream, target_address: String, in_chain: Sender<String>, sender: Sender<String>)  {
     connection.set_read_timeout(Some(MESSAGE_TIMEOUT)).unwrap();
-    let mut lecture = 0; // Garde pour éviter connection infinie inutile
+    let mut lecture:usize = 0; // Garde pour éviter connection infinie inutile
     loop {
         // eprintln!("Attente lecture sur {}", target_address);
         let read_result:ReadResult = bcmessage::read_message(&connection);
@@ -142,6 +142,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
 
                 if command == *MSG_ADDR && payload.len() > 0 &&  handle_incoming_cmd_msg_addr(&payload, &sender){
                     in_chain.send((*GET_HEADERS).clone()).unwrap();
+                    continue;
                 }
 
                 //Testing incoming message
@@ -150,36 +151,14 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                 //     std::process::exit(1);
                 // }
 
-                if command == *HEADERS  && payload.len() > 0 {
-                    let mut known_block_guard = bcblocks::KNOWN_BLOCK.lock().unwrap();
-                    let mut blocks_id_guard = bcblocks::BLOCKS_ID.lock().unwrap();
-
-                    // eprintln!("Status : {} -> {}", idx, block);
-                    match bcmessage::process_headers_message(&mut known_block_guard, &mut blocks_id_guard, payload) {
-                        Ok(()) => {
-                            match bcfile::store_blocks(&blocks_id_guard) {
-                               true => {
-                                   bcblocks::create_block_message_payload(&blocks_id_guard);
-                                   eprintln!("new payload -> {:02x?}", hex::encode(&bcblocks::get_getheaders_message_payload()));
-                                   lecture = 0;
-                               },
-                               false => {
-                                   std::process::exit(1);
-                               }
-                           };
-                        },
-                        Err(err) => {
-                            match err {
-                                bcmessage::ProcessHeadersMessageError::UnkownBlocks => {
-                                    eprintln!("Sortie du noeud");
-                                    in_chain.send((*CONN_CLOSE).clone()).unwrap();
-                                    break;
-                                },
-                                _ => {}
-                            };
-                        }
-                    };
-                    in_chain.send((*GET_HEADERS).clone()).unwrap();
+                if command == *HEADERS  && payload.len() > 0  {
+                    if handle_incoming_cmd_msg_header(&payload, &mut lecture) {
+                        in_chain.send((*GET_HEADERS).clone()).unwrap();
+                    } else {
+                        in_chain.send((*CONN_CLOSE).clone()).unwrap();
+                        break;
+                    }
+                    continue;
                 }
 
                 // if command == String::from(INV){
@@ -269,4 +248,39 @@ fn handle_incoming_cmd_version(peer: &String, payload: &Vec<u8>) {
 
 fn handle_incoming_cmd_msg_addr(payload: &Vec<u8>, sender: &Sender<String>) -> bool {
     bcpeers::check_addr_messages(bcmessage::process_addr_message(&payload), &sender) > MIN_ADDRESSES_RECEIVED_THRESHOLD
+}
+
+fn handle_incoming_cmd_msg_header(payload: &Vec<u8>, lecture: &mut usize) -> bool {
+    let mut known_block_guard = bcblocks::KNOWN_BLOCK.lock().unwrap();
+    let mut blocks_id_guard = bcblocks::BLOCKS_ID.lock().unwrap();
+
+    // eprintln!("Status : {} -> {}", idx, block);
+    match bcmessage::process_headers_message(&mut known_block_guard, &mut blocks_id_guard, payload) {
+        Ok(()) => {
+            match bcfile::store_blocks(&blocks_id_guard) {
+               true => {
+                   bcblocks::create_block_message_payload(&blocks_id_guard);
+                   eprintln!("new payload -> {:02x?}", hex::encode(&bcblocks::get_getheaders_message_payload()));
+                   *lecture = 0;
+                   true
+               },
+               false => {
+                   std::process::exit(1);
+               }
+           }
+        },
+        Err(err) => {
+            match err {
+                bcmessage::ProcessHeadersMessageError::UnkownBlocks => {
+                    eprintln!("Sortie du noeud");
+                    false
+                },
+                _ => {
+                    // eprintln!("Erreur -> {:?}", err);
+                    // std::process::exit(1);
+                    true
+                }
+            }
+        }
+    }
 }
