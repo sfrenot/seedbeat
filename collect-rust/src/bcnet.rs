@@ -15,7 +15,7 @@ use chan::Receiver;
 
 // use crate::bcmessage as bcmessage;
 // use crate::bcmessage::{ReadResult, INV, MSG_VERSION, MSG_VERSION_ACK, MSG_GETADDR, CONN_CLOSE, MSG_ADDR, HEADERS, GET_BLOCKS, BLOCK, GET_DATA};
-use bcmessage::{ReadResult, INV, MSG_VERSION, MSG_VERSION_ACK, MSG_GETADDR, CONN_CLOSE, MSG_ADDR, GET_HEADERS, HEADERS, GET_BLOCKS, BLOCK, GET_DATA};
+use bcmessage::{INV, MSG_VERSION, MSG_VERSION_ACK, MSG_GETADDR, CONN_CLOSE, MSG_ADDR, GET_HEADERS, HEADERS, GET_BLOCKS, BLOCK, GET_DATA};
 use crate::bcfile as bcfile;
 use crate::bcblocks as bcblocks;
 use crate::bcpeers as bcpeers;
@@ -115,16 +115,16 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
     let mut lecture:usize = 0; // Garde pour éviter connection infinie inutile
     loop {
         // eprintln!("Attente lecture sur {}", target_address);
-        let read_result:ReadResult = bcmessage::read_message(&connection);
+        // let read_result:ReadResult = bcmessage::read_message(&connection);
         // println!("Lecture de {}", target_address);
 
-        match read_result.error {
-            Some(_error) => {
+        match bcmessage::read_message(&connection) {
+            Err(_error) => {
                 // eprintln!("Erreur Lecture {}: {}", _error, target_address);
                 in_chain.send((*CONN_CLOSE).clone()).unwrap();
                 break;
             },
-            _ => {
+            Ok(read_result) => {
                 let command = read_result.command;
                 let payload = read_result.payload;
                 lecture+=1;
@@ -240,6 +240,8 @@ fn pingpong(mut connection:&TcpStream, in_chain_receiver: &mpsc::Receiver<String
         res => return Err(Error::new(ErrorKind::Other, format!("Wrong message {} <> {}", msg, res)))
     };
 }
+
+// Incoming messages
 
 fn handle_incoming_cmd_version(peer: &String, payload: &Vec<u8>) {
     bcfile::store_version_message(peer, bcmessage::process_version_message(payload));

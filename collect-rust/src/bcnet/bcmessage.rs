@@ -88,8 +88,7 @@ const END_CHECKSUM:usize = 24;
 
 pub struct ReadResult {
     pub command: String,
-    pub payload: Vec<u8>,
-    pub error: Option<std::io::Error>
+    pub payload: Vec<u8>
 }
 
 fn create_init_message_payload() -> Vec<u8> {
@@ -129,50 +128,37 @@ fn create_init_message_payload() -> Vec<u8> {
 }
 
 // Read message from a peer return command, payload, err
-pub fn read_message(mut connection: &TcpStream) -> ReadResult {
-
-    let mut read_result = ReadResult {
-        command: String::new(),
-        payload: Vec::new(),
-        error: None
-    };
-
+pub fn read_message(mut connection: &TcpStream) -> Result<ReadResult, Error> {
     let mut header_buffer = [0 as u8;HEADER_SIZE];
+
     return match connection.read(&mut header_buffer) {
         Ok(_) => {
             // println!("Lecture faite {:02X?}", header_buffer);
             if header_buffer[START_MAGIC..END_MAGIC] != MAGIC[..] {
                 //println!("Error in Magic message header: {:?}", &header_buffer[START_MAGIC..END_MAGIC]);
-                read_result.error = Some(Error::new(ErrorKind::Other, "Magic error"));
-                return read_result
+                return Err(Error::new(ErrorKind::Other, "Magic error"));
             }
 
             let cmd = String::from_utf8_lossy(&header_buffer[START_CMD..END_CMD]);
-            let command = cmd.trim_matches(char::from(0));
-            read_result.command = String::from(command);
+            let command = cmd.trim_matches(char::from(0)).to_string();
 
             let payload_size = u32::from_le_bytes((&header_buffer[START_PAYLOAD_LENGTH..END_PAYLOAD_LENGTH]).try_into().unwrap());
-
-            if payload_size <= 0 { return read_result };
+            if payload_size <= 0 {
+                return Ok(ReadResult{command: command, payload: vec![0]});
+            };
 
             let mut payload_buffer = vec![0u8; payload_size as usize];
             match connection.read_exact(&mut payload_buffer) {
                 Ok(_) => {
-                    read_result.payload = payload_buffer;
-                    read_result
+                    return Ok(ReadResult{command: command, payload: payload_buffer});
                 }
                 Err(e) => {
                     eprintln!("error reading payload");
-                    read_result.error = Some(e);
-                    read_result
+                    return Err(e);
                 }
             }
         },
-        Err(e) => {
-            // eprintln!("error reading header {}", e);
-            read_result.error = Some(e);
-            return read_result
-        }
+        Err(e) => {Err(e)}
     }
 }
 
