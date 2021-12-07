@@ -86,11 +86,6 @@ const END_PAYLOAD_LENGTH :usize= 20;
 const START_CHECKSUM:usize = 20;
 const END_CHECKSUM:usize = 24;
 
-pub struct ReadResult {
-    pub command: String,
-    pub payload: Vec<u8>
-}
-
 fn create_init_message_payload() -> Vec<u8> {
 
     let services:u64 = NODE_NETWORK | NODE_BLOOM | NODE_WITNESS | NODE_NETWORK_LIMITED;
@@ -128,7 +123,7 @@ fn create_init_message_payload() -> Vec<u8> {
 }
 
 // Read message from a peer return command, payload, err
-pub fn read_message(mut connection: &TcpStream) -> Result<ReadResult, Error> {
+pub fn read_message(mut connection: &TcpStream) -> Result<(String, Vec<u8>), Error> {
     let mut header_buffer = [0 as u8;HEADER_SIZE];
 
     return match connection.read(&mut header_buffer) {
@@ -144,13 +139,13 @@ pub fn read_message(mut connection: &TcpStream) -> Result<ReadResult, Error> {
 
             let payload_size = u32::from_le_bytes((&header_buffer[START_PAYLOAD_LENGTH..END_PAYLOAD_LENGTH]).try_into().unwrap());
             if payload_size <= 0 {
-                return Ok(ReadResult{command: command, payload: vec![0]});
+                return Ok((command, vec![0]));
             };
 
             let mut payload_buffer = vec![0u8; payload_size as usize];
             match connection.read_exact(&mut payload_buffer) {
                 Ok(_) => {
-                    return Ok(ReadResult{command: command, payload: payload_buffer});
+                    return Ok((command, payload_buffer));
                 }
                 Err(e) => {
                     eprintln!("error reading payload");

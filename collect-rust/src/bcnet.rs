@@ -124,9 +124,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                 in_chain.send((*CONN_CLOSE).clone()).unwrap();
                 break;
             },
-            Ok(read_result) => {
-                let command = read_result.command;
-                let payload = read_result.payload;
+            Ok((command, payload)) => {
                 lecture+=1;
                 // eprintln!("Command From : {} --> {}, payload : {}", &target_address, &command, payload.len());
                 if command == *MSG_VERSION && payload.len() > 0 {
