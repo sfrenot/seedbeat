@@ -62,7 +62,6 @@ pub fn handle_one_peer(connection_start_channel: Receiver<String>, address_chann
                     _ => {}
                 }
 
-
                 match connection.write(bcmessage::build_request(&MSG_GETADDR).as_slice()) {
                     Err(_) => {
                         eprintln!("error at sending getaddr: {}", target_address);
@@ -110,6 +109,93 @@ pub fn handle_one_peer(connection_start_channel: Receiver<String>, address_chann
     }
 }
 
+// pub fn handle_one_peer2(connection_start_channel: Receiver<String>, address_channel_tx: Sender<String>, _num: u64){
+//     let status = &MSG_VERSION;
+//
+//     loop{ //Nodes Management
+//         let target_address = connection_start_channel.recv().unwrap();
+//         // eprintln!("Connexion {}, {}", _num, target_address);
+//         let socket: SocketAddr = target_address.parse().unwrap();
+//         let result = TcpStream::connect_timeout(&socket, CONNECTION_TIMEOUT);
+//         // eprintln!("Connecté {}, {}", num, target_address);
+//         if result.is_err() {
+//             // println!(" {} -> Fail", target_address);
+//             // println!(" -> Fail to connect {}: {}", target_address, result.err().unwrap());
+//             bcpeers::fail(target_address.clone());
+//         } else {
+//             // println!(" {} -> Success", target_address);
+//             // println!("Fail to connect {}: {}", target_address, result.err().unwrap());
+//
+//             let mut connection = result.unwrap();
+//             let (in_chain_sender, in_chain_receiver) = mpsc::channel();
+//             let target = target_address.clone();
+//             let connection_clone = connection.try_clone().unwrap();
+//             let sender = address_channel_tx.clone();
+//             thread::spawn(move || {
+//                 handle_incoming_message(&connection_clone, target, in_chain_sender, sender);
+//             });
+//
+//             loop {
+//                reach_status(next_status(status));
+//
+//
+//                 //Connection management
+//                 match connection_hello(&connection,&in_chain_receiver) {
+//                     Err(_e) =>  {
+//                         // eprintln!("Error sending request: {}: {}", _e, target_address);
+//                         bcpeers::fail(target_address.clone());
+//                         break;
+//                     },
+//                     _ => {}
+//                 }
+//
+//                 match connection.write(bcmessage::build_request(&MSG_GETADDR).as_slice()) {
+//                     Err(_) => {
+//                         eprintln!("error at sending getaddr: {}", target_address);
+//                         bcpeers::fail(target_address.clone());
+//                         break; // From connexion
+//                     }
+//                     _ => {}
+//                 }
+//
+//                 loop { // Handle block Exchanges
+//
+//                     let cmd = in_chain_receiver.recv().unwrap();
+//                     match connection.write(bcmessage::build_request(&cmd).as_slice()) {
+//                         Err(_) => {
+//                             bcpeers::fail(target_address);
+//                             break; // From connexion
+//                         },
+//                         _ => {
+//                             if cmd == *CONN_CLOSE {
+//                                 bcpeers::done(target_address.clone());
+//                                 break;
+//                             }
+//                         }
+//                     };
+//
+//                     //Special Case
+//                     // cmd if &cmd[..GET_DATA.len()] == *GET_DATA => {
+//                     //     eprintln!("Recherche info block {}", &cmd[GET_DATA.len()+1..]);
+//                     //     match connection.write(bcmessage::build_request(&cmd).as_slice()) {
+//                     //         Err(_) => {
+//                     //             println!("error at sending getData");
+//                     //             bcpeers::fail(target_address.clone());
+//                     //             break; // From connexion
+//                     //         }
+//                     //         _ => {}
+//                     //     };
+//                     // }
+//
+//                 } //loop for internal mesages
+//                 break;
+//             } // loop for node
+//         }
+//         // eprintln!("Fin gestion {}", target_address);
+//         bcpeers::NB_ADDR_TO_TEST.fetch_sub(1, Ordering::Relaxed);
+//     }
+// }
+
 fn handle_incoming_message(connection:& TcpStream, target_address: String, in_chain: Sender<String>, sender: Sender<String>)  {
     connection.set_read_timeout(Some(MESSAGE_TIMEOUT)).unwrap();
     let mut lecture:usize = 0; // Garde pour éviter connection infinie inutile
@@ -138,7 +224,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
                     continue;
                 }
 
-                if command == *MSG_ADDR && payload.len() > 0 &&  handle_incoming_cmd_msg_addr(&payload, &sender){
+                if command == *MSG_ADDR && payload.len() > 0 && handle_incoming_cmd_msg_addr(&payload, &sender){
                     in_chain.send((*GET_HEADERS).clone()).unwrap();
                     continue;
                 }
@@ -224,6 +310,19 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
     }
     // eprintln!("Fermeture {}", target_address);
 }
+
+// fn next_status(from: &String) -> &String {
+//     match from {
+//         elem if *elem == *MSG_VERSION => {&MSG_VERSION_ACK},
+//         // elem if *elem == *MSG_VERSION_ACK => {&MSG_VERSION_ACK},
+//         _ => {&CONN_CLOSE}
+//     }
+// }
+//
+// fn reach_status(from: &String, to: &String) -> Result<> {
+//
+// }
+
 
 // Hello initial command from main handler
 fn connection_hello(connection:&TcpStream, in_chain_receiver: &mpsc::Receiver<String>) -> Result<(), Error>{
