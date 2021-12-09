@@ -9,11 +9,9 @@ use std::io::Write;
 use std::io::Error;
 use std::io::ErrorKind;
 
-
 use std::net::{SocketAddr, TcpStream};
 use chan::Receiver;
 
-// use crate::bcmessage as bcmessage;
 // use crate::bcmessage::{ReadResult, INV, MSG_VERSION, MSG_VERSION_ACK, MSG_GETADDR, CONN_CLOSE, MSG_ADDR, HEADERS, GET_BLOCKS, BLOCK, GET_DATA};
 use bcmessage::{INV, MSG_VERSION, MSG_VERSION_ACK, MSG_GETADDR, CONN_CLOSE, MSG_ADDR, GET_HEADERS, HEADERS, GET_BLOCKS, BLOCK, GET_DATA};
 use crate::bcfile as bcfile;
@@ -24,91 +22,6 @@ const CONNECTION_TIMEOUT:Duration = Duration::from_secs(10);
 const MESSAGE_TIMEOUT:Duration = Duration::from_secs(120);
 const MIN_ADDRESSES_RECEIVED_THRESHOLD: usize = 5;
 const NB_MAX_READ_ON_SOCKET:usize = 300;
-
-
-// pub fn handle_one_peer(connection_start_channel: Receiver<String>, address_channel_tx: Sender<String>, _num: u64){
-//
-//     loop{ //Nodes Management
-//         let target_address = connection_start_channel.recv().unwrap();
-//         // eprintln!("Connexion {}, {}", _num, target_address);
-//         let socket: SocketAddr = target_address.parse().unwrap();
-//         let result = TcpStream::connect_timeout(&socket, CONNECTION_TIMEOUT);
-//         // eprintln!("Connecté {}, {}", num, target_address);
-//         if result.is_err() {
-//             // println!(" {} -> Fail", target_address);
-//             // println!(" -> Fail to connect {}: {}", target_address, result.err().unwrap());
-//             bcpeers::fail(target_address.clone());
-//         } else {
-//             // println!(" {} -> Success", target_address);
-//             // println!("Fail to connect {}: {}", target_address, result.err().unwrap());
-//
-//             let mut connection = result.unwrap();
-//
-//             let (in_chain_sender, in_chain_receiver) = mpsc::channel();
-//             let target = target_address.clone();
-//             let connection_clone = connection.try_clone().unwrap();
-//             let sender = address_channel_tx.clone();
-//             thread::spawn(move || {
-//                 handle_incoming_message(&connection_clone, target, in_chain_sender, sender);
-//             });
-//
-//             loop {
-//                 //Connection management
-//                 match connection_hello(&connection,&in_chain_receiver) {
-//                     Err(_e) =>  {
-//                         // eprintln!("Error sending request: {}: {}", _e, target_address);
-//                         bcpeers::fail(target_address.clone());
-//                         break;
-//                     },
-//                     _ => {}
-//                 }
-//
-//                 match connection.write(bcmessage::build_request(&MSG_GETADDR).as_slice()) {
-//                     Err(_) => {
-//                         eprintln!("error at sending getaddr: {}", target_address);
-//                         bcpeers::fail(target_address.clone());
-//                         break; // From connexion
-//                     }
-//                     _ => {}
-//                 }
-//
-//                 loop { // Handle block Exchanges
-//
-//                     let cmd = in_chain_receiver.recv().unwrap();
-//                     match connection.write(bcmessage::build_request(&cmd).as_slice()) {
-//                         Err(_) => {
-//                             bcpeers::fail(target_address);
-//                             break; // From connexion
-//                         },
-//                         _ => {
-//                             if cmd == *CONN_CLOSE {
-//                                 bcpeers::done(target_address.clone());
-//                                 break;
-//                             }
-//                         }
-//                     };
-//
-//                     //Special Case
-//                     // cmd if &cmd[..GET_DATA.len()] == *GET_DATA => {
-//                     //     eprintln!("Recherche info block {}", &cmd[GET_DATA.len()+1..]);
-//                     //     match connection.write(bcmessage::build_request(&cmd).as_slice()) {
-//                     //         Err(_) => {
-//                     //             println!("error at sending getData");
-//                     //             bcpeers::fail(target_address.clone());
-//                     //             break; // From connexion
-//                     //         }
-//                     //         _ => {}
-//                     //     };
-//                     // }
-//
-//                 } //loop for internal mesages
-//                 break;
-//             } // loop for node
-//         }
-//         // eprintln!("Fin gestion {}", target_address);
-//         bcpeers::NB_ADDR_TO_TEST.fetch_sub(1, Ordering::Relaxed);
-//     }
-// }
 
 pub fn handle_one_peer(connection_start_channel: Receiver<String>, address_channel_tx: Sender<String>, _num: u64){
 
@@ -121,12 +34,10 @@ pub fn handle_one_peer(connection_start_channel: Receiver<String>, address_chann
         let result = TcpStream::connect_timeout(&socket, CONNECTION_TIMEOUT);
         // eprintln!("Connecté {}, {}", num, target_address);
         if result.is_err() {
-            // println!(" {} -> Fail", target_address);
             // println!(" -> Fail to connect {}: {}", target_address, result.err().unwrap());
             bcpeers::fail(target_address.clone());
         } else {
             // println!(" {} -> Success", target_address);
-            // println!("Fail to connect {}: {}", target_address, result.err().unwrap());
 
             let connection = result.unwrap();
             let (in_chain_sender, in_chain_receiver) = mpsc::channel();
@@ -138,79 +49,23 @@ pub fn handle_one_peer(connection_start_channel: Receiver<String>, address_chann
             });
 
             loop {
-               eprintln!("Avant Activation {}, {}", target_address.clone(), status);
-               match activate_peer(&connection, &in_chain_receiver, &status) {
+               // eprintln!("Avant Activation {}, {}", target_address.clone(), status);
+               status = match activate_peer(&connection, &in_chain_receiver, &status) {
                    Err(e) => {
                        match e.kind() {
                            ErrorKind::Other => {
-                               eprintln!("Fin du noeud: {}: {}", e, target_address);
+                               // eprintln!("Fin du noeud: {}: {}", e, target_address);
                                bcpeers::done(target_address.clone());
-                               break;
                            },
                            _ => {
-                               eprintln!("Error sending request: {}: {}", e, target_address);
+                               // eprintln!("Error sending request: {}: {}", e, target_address);
                                bcpeers::fail(target_address.clone());
-                               break;
                            }
                        }
+                       break;
                    },
-                   Ok(new_status) => {
-                       status = &new_status;
-                       eprintln!("Après Activation {}, {}", target_address.clone(), status);
-                   }
+                   Ok(new_status) =>{ &new_status }
                }
-                //
-                //
-                // //Connection management
-                // match connection_hello(&connection,&in_chain_receiver) {
-                //     Err(_e) =>  {
-                //         // eprintln!("Error sending request: {}: {}", _e, target_address);
-                //         bcpeers::fail(target_address.clone());
-                //         break;
-                //     },
-                //     _ => {}
-                // }
-                //
-                // match connection.write(bcmessage::build_request(&MSG_GETADDR).as_slice()) {
-                //     Err(_) => {
-                //         eprintln!("error at sending getaddr: {}", target_address);
-                //         bcpeers::fail(target_address.clone());
-                //         break; // From connexion
-                //     }
-                //     _ => {}
-                // }
-                //
-                // loop { // Handle block Exchanges
-                //
-                //     let cmd = in_chain_receiver.recv().unwrap();
-                //     match connection.write(bcmessage::build_request(&cmd).as_slice()) {
-                //         Err(_) => {
-                //             bcpeers::fail(target_address);
-                //             break; // From connexion
-                //         },
-                //         _ => {
-                //             if cmd == *CONN_CLOSE {
-                //                 bcpeers::done(target_address.clone());
-                //                 break;
-                //             }
-                //         }
-                //     };
-                //
-                //     //Special Case
-                //     // cmd if &cmd[..GET_DATA.len()] == *GET_DATA => {
-                //     //     eprintln!("Recherche info block {}", &cmd[GET_DATA.len()+1..]);
-                //     //     match connection.write(bcmessage::build_request(&cmd).as_slice()) {
-                //     //         Err(_) => {
-                //     //             println!("error at sending getData");
-                //     //             bcpeers::fail(target_address.clone());
-                //     //             break; // From connexion
-                //     //         }
-                //     //         _ => {}
-                //     //     };
-                //     // }
-                //
-                // } //loop for internal mesages
-                // break;
             } // loop for node
         }
         // eprintln!("Fin gestion {}", target_address);
@@ -227,14 +82,14 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
         // println!("Lecture de {}", target_address);
 
         match bcmessage::read_message(&connection) {
-            Err(_error) => {
-                // eprintln!("Erreur Lecture {}: {}", _error, target_address);
+            Err(error) => {
+                eprintln!("Erreur Lecture {}: {}", error, target_address);
                 in_chain.send((*CONN_CLOSE).clone()).unwrap();
                 break;
             },
             Ok((command, payload)) => {
                 lecture+=1;
-                // eprintln!("Command From : {} --> {}, payload : {}", &target_address, &command, payload.len());
+                eprintln!("Command From : {} --> {}, payload : {}", &target_address, &command, payload.len());
                 if command == *MSG_VERSION && payload.len() > 0 {
                     handle_incoming_cmd_version(&target_address, &payload);
                     in_chain.send(command).unwrap();
@@ -330,7 +185,7 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
             break;
         }
     }
-    // eprintln!("Fermeture {}", target_address);
+    eprintln!("Fermeture {}", target_address);
 }
 
 fn next_status(from: &String) -> &String {
@@ -348,27 +203,12 @@ fn activate_peer<'a>(mut connection: &TcpStream, in_chain_receiver: &mpsc::Recei
     match in_chain_receiver.recv().unwrap() {  //pong
         res if res == *CONN_CLOSE => Err(Error::new(ErrorKind::Other, format!("Connexion terminée {} <> {}", current, res))),
         res if res == *current => Ok(next_status(current)),
+        res if res == *MSG_GETADDR && *current == *GET_HEADERS => Ok(current), // Remote node answers many times the same thing
         res => Err(Error::new(ErrorKind::ConnectionReset, format!("Wrong message {} <> {}", current, res)))
     }
 }
 
-
-// Hello initial command from main handler
-fn connection_hello(connection:&TcpStream, in_chain_receiver: &mpsc::Receiver<String>) -> Result<(), Error>{
-    pingpong(&connection, &in_chain_receiver, &MSG_VERSION)?;
-    pingpong(&connection, &in_chain_receiver, &MSG_VERSION_ACK)
-}
-
-fn pingpong(mut connection:&TcpStream, in_chain_receiver: &mpsc::Receiver<String>, msg: &str) -> Result<(), Error>{
-    connection.write(bcmessage::build_request(msg).as_slice())?; //ping
-    match in_chain_receiver.recv().unwrap() {  //pong
-        res if msg == res => return Ok(()),
-        res => return Err(Error::new(ErrorKind::Other, format!("Wrong message {} <> {}", msg, res)))
-    };
-}
-
 // Incoming messages
-
 fn handle_incoming_cmd_version(peer: &String, payload: &Vec<u8>) {
     bcfile::store_version_message(peer, bcmessage::process_version_message(payload));
     bcpeers::register_peer_connection(peer);

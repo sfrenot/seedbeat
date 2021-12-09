@@ -144,16 +144,11 @@ pub fn read_message(mut connection: &TcpStream) -> Result<(String, Vec<u8>), Err
 
             let mut payload_buffer = vec![0u8; payload_size as usize];
             match connection.read_exact(&mut payload_buffer) {
-                Ok(_) => {
-                    return Ok((command, payload_buffer));
-                }
-                Err(e) => {
-                    eprintln!("error reading payload");
-                    return Err(e);
-                }
+                Ok(_) => Ok((command, payload_buffer)),
+                Err(e) => Err(e)
             }
         },
-        Err(e) => {Err(e)}
+        Err(e) => Err(e)
     }
 }
 
