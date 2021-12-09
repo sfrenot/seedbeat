@@ -40,17 +40,17 @@ pub fn handle_one_peer(connection_start_channel: Receiver<String>, address_chann
             // println!(" {} -> Success", target_address);
 
             let connection = result.unwrap();
-            let (in_chain_sender, in_chain_receiver) = mpsc::channel();
-            let target = target_address.clone();
-            let connection_clone = connection.try_clone().unwrap();
-            let sender = address_channel_tx.clone();
-            thread::spawn(move || {
-                handle_incoming_message(&connection_clone, target, in_chain_sender, sender);
-            });
+            // let (in_chain_sender, in_chain_receiver) = mpsc::channel();
+            // let target = target_address.clone();
+            // let connection_clone = connection.try_clone().unwrap();
+            // let sender = address_channel_tx.clone();
+            // thread::spawn(move || {
+            //     handle_incoming_message(&connection_clone, target, in_chain_sender, sender);
+            // });
 
             loop {
                // eprintln!("Avant Activation {}, {}", target_address.clone(), status);
-               status = match activate_peer(&connection, &in_chain_receiver, &status) {
+               status = match activate_peer(&connection, &status, &address_channel_tx, &target_address) {
                    Err(e) => {
                        match e.kind() {
                            ErrorKind::Other => {
@@ -73,7 +73,122 @@ pub fn handle_one_peer(connection_start_channel: Receiver<String>, address_chann
     }
 }
 
-fn handle_incoming_message(connection:& TcpStream, target_address: String, in_chain: Sender<String>, sender: Sender<String>)  {
+// fn handle_incoming_message(connection:& TcpStream, target_address: String, in_chain: Sender<String>, sender: Sender<String>)  {
+//     connection.set_read_timeout(Some(MESSAGE_TIMEOUT)).unwrap();
+//     let mut lecture:usize = 0; // Garde pour éviter connection infinie inutile
+//     loop {
+//         // eprintln!("Attente lecture sur {}", target_address);
+//         // let read_result:ReadResult = bcmessage::read_message(&connection);
+//         // println!("Lecture de {}", target_address);
+//
+//         match bcmessage::read_message(&connection) {
+//             Err(error) => {
+//                 eprintln!("Erreur Lecture {}: {}", error, target_address);
+//                 in_chain.send((*CONN_CLOSE).clone()).unwrap();
+//                 break;
+//             },
+//             Ok((command, payload)) => {
+//                 lecture+=1;
+//                 eprintln!("Command From : {} --> {}, payload : {}", &target_address, &command, payload.len());
+//                 if command == *MSG_VERSION && payload.len() > 0 {
+//                     handle_incoming_cmd_version(&target_address, &payload);
+//                     in_chain.send(command).unwrap();
+//                     continue;
+//                 }
+//                 if command == *MSG_VERSION_ACK {
+//                     // eprintln!("Envoi MSG_VERSION_ACK {}", target_address);
+//                     in_chain.send(command).unwrap();
+//                     continue;
+//                 }
+//
+//                 if command == *MSG_ADDR && payload.len() > 0 && handle_incoming_cmd_msg_addr(&payload, &sender){
+//                     in_chain.send((*MSG_GETADDR).clone()).unwrap();
+//                     continue;
+//                 }
+//
+//                 //Testing incoming message
+//                 // if command == String::from(GET_HEADERS){
+//                 //     eprintln!("GET-HEADERS {}", hex::encode(&payload));
+//                 //     std::process::exit(1);
+//                 // }
+//
+//                 if command == *HEADERS  && payload.len() > 0  {
+//                     if handle_incoming_cmd_msg_header(&payload, &mut lecture) {
+//                         in_chain.send((*GET_HEADERS).clone()).unwrap();
+//                     } else {
+//                         in_chain.send((*CONN_CLOSE).clone()).unwrap();
+//                         break;
+//                     }
+//                     continue;
+//                 }
+//
+//                 // if command == String::from(INV){
+//                 //     //TODO: must migrate to bcmessage::process_inv_message
+//                 //     //TODO: check inv_size -> get_compact_int
+//                 //
+//                 //     let inv_size = payload[0];
+//                 //     let inv_length = 36;
+//                 //     let block_length = 32;
+//                 //     let mut offset = 0;
+//                 //     for _i in 0..inv_size {
+//                 //         if payload[offset+1] == 0x02 {
+//                 //             let mut toto:[u8; 32] = [0x00; 32] ;
+//                 //             // eprint!("BLOCK ==> ");
+//                 //             for val in 0..block_length {
+//                 //                 toto[val] = payload[offset+inv_length-val];
+//                 //             }
+//                 //             if toto[0] != 0x00 {
+//                 //                 eprintln!("Etrange {:02x?}", payload);
+//                 //                 // std::process::exit(1);
+//                 //             } else {
+//                 //                 let block_name = hex::encode(&toto);
+//                 //                 if bcblocks::is_new(block_name.clone()) {
+//                 //
+//                 //                     let get_data = format_args!("{msg}/{block}", msg=GET_DATA, block=block_name).to_string();
+//                 //                     eprintln!("Recherche du block {}", get_data);
+//                 //
+//                 //                     match in_chain.send(get_data) {
+//                 //                         Err(error) => {
+//                 //                             eprintln!("Erreur Send chan : {} ip : {}", error, &target_address);
+//                 //                         }
+//                 //                         _ => {}
+//                 //                     }
+//                 //                 }
+//                 //             }
+//                 //         }
+//                 //         offset+=inv_length;
+//                 //     }
+//                 // }
+//
+//                 // if command == String::from(BLOCK){
+//                 //     //TODO: must migrate to bcmessage
+//                 //     eprintln!("BLOCK : {:02x?}", &payload[..100]);
+//                 //
+//                 //     let hash = sha256d::Hash::hash(&payload[..80]);
+//                 //
+//                 //     let mut previous_block = [0;32];
+//                 //     previous_block.clone_from_slice(&payload[4..36]);
+//                 //     previous_block.reverse();
+//                 //
+//                 //     eprintln!("previous: {}, current: {:?}", hex::encode(&previous_block), hash.to_string());
+//                 //
+//                 //     // !!!!!!!!!!
+//                 //     std::process::exit(1);
+//                 // }
+//
+//             }
+//         }
+//         // eprintln!("-> Nouvelle lecture {} -> {}", target_address, lecture);
+//         if lecture > NB_MAX_READ_ON_SOCKET {
+//             eprintln!("Sortie du noeud : trop de lectures inutiles");
+//             in_chain.send((*CONN_CLOSE).clone()).unwrap();
+//             break;
+//         }
+//     }
+//     eprintln!("Fermeture {}", target_address);
+// }
+
+fn handle_incoming_message<'a>(connection:& TcpStream, sender: &Sender<String>, target_address: &String) -> &'a String  {
     connection.set_read_timeout(Some(MESSAGE_TIMEOUT)).unwrap();
     let mut lecture:usize = 0; // Garde pour éviter connection infinie inutile
     loop {
@@ -84,26 +199,30 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
         match bcmessage::read_message(&connection) {
             Err(error) => {
                 eprintln!("Erreur Lecture {}: {}", error, target_address);
-                in_chain.send((*CONN_CLOSE).clone()).unwrap();
-                break;
+                return &CONN_CLOSE;
+                // in_chain.send((*CONN_CLOSE).clone()).unwrap();
+                // break;
             },
             Ok((command, payload)) => {
                 lecture+=1;
                 eprintln!("Command From : {} --> {}, payload : {}", &target_address, &command, payload.len());
                 if command == *MSG_VERSION && payload.len() > 0 {
                     handle_incoming_cmd_version(&target_address, &payload);
-                    in_chain.send(command).unwrap();
-                    continue;
+                    return &MSG_VERSION;
+                    // in_chain.send(command).unwrap();
+                    // continue;
                 }
                 if command == *MSG_VERSION_ACK {
                     // eprintln!("Envoi MSG_VERSION_ACK {}", target_address);
-                    in_chain.send(command).unwrap();
-                    continue;
+                    return &MSG_VERSION_ACK;
+                    // in_chain.send(command).unwrap();
+                    // continue;
                 }
 
                 if command == *MSG_ADDR && payload.len() > 0 && handle_incoming_cmd_msg_addr(&payload, &sender){
-                    in_chain.send((*MSG_GETADDR).clone()).unwrap();
-                    continue;
+                    return &MSG_GETADDR;
+                    // in_chain.send((*MSG_GETADDR).clone()).unwrap();
+                    // continue;
                 }
 
                 //Testing incoming message
@@ -114,12 +233,14 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
 
                 if command == *HEADERS  && payload.len() > 0  {
                     if handle_incoming_cmd_msg_header(&payload, &mut lecture) {
-                        in_chain.send((*GET_HEADERS).clone()).unwrap();
+                        // in_chain.send((*GET_HEADERS).clone()).unwrap();
+                        return &GET_HEADERS;
                     } else {
-                        in_chain.send((*CONN_CLOSE).clone()).unwrap();
-                        break;
+                        return &CONN_CLOSE;
+                        // in_chain.send((*CONN_CLOSE).clone()).unwrap();
+                        // break;
                     }
-                    continue;
+                    // continue;
                 }
 
                 // if command == String::from(INV){
@@ -181,13 +302,15 @@ fn handle_incoming_message(connection:& TcpStream, target_address: String, in_ch
         // eprintln!("-> Nouvelle lecture {} -> {}", target_address, lecture);
         if lecture > NB_MAX_READ_ON_SOCKET {
             eprintln!("Sortie du noeud : trop de lectures inutiles");
-            in_chain.send((*CONN_CLOSE).clone()).unwrap();
-            break;
+            // in_chain.send((*CONN_CLOSE).clone()).unwrap();
+            // break;
+            return &CONN_CLOSE;
         }
     }
-    eprintln!("Fermeture {}", target_address);
+    // eprintln!("Fermeture {}", target_address);
 }
 
+// TODO: -> has a hashmap
 fn next_status(from: &String) -> &String {
     match from {
         elem if *elem == *MSG_VERSION => {&MSG_VERSION_ACK},
@@ -198,12 +321,15 @@ fn next_status(from: &String) -> &String {
     }
 }
 
-fn activate_peer<'a>(mut connection: &TcpStream, in_chain_receiver: &mpsc::Receiver<String>, current: &'a String) -> Result<&'a String, Error> {
-    connection.write(bcmessage::build_request(current).as_slice())?; //ping
-    match in_chain_receiver.recv().unwrap() {  //pong
-        res if res == *CONN_CLOSE => Err(Error::new(ErrorKind::Other, format!("Connexion terminée {} <> {}", current, res))),
-        res if res == *current => Ok(next_status(current)),
-        res if res == *MSG_GETADDR && *current == *GET_HEADERS => Ok(current), // Remote node answers many times the same thing
+fn activate_peer<'a>(mut connection: &TcpStream, current: &'a String, sender: &Sender<String>, target: &String) -> Result<&'a String, Error> {
+    connection.write(bcmessage::build_request(current).as_slice())?;
+
+    let res = handle_incoming_message(connection, sender, target);
+    eprintln!("-> {}", res);
+    match res {
+        res if *res == *CONN_CLOSE => Err(Error::new(ErrorKind::Other, format!("Connexion terminée {} <> {}", current, res))),
+        res if *res == *current => Ok(next_status(current)),
+        res if *res == *MSG_GETADDR && *current == *GET_HEADERS => Ok(current), // Remote node answers many times the same thing
         res => Err(Error::new(ErrorKind::ConnectionReset, format!("Wrong message {} <> {}", current, res)))
     }
 }
