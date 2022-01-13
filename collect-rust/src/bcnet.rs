@@ -64,41 +64,33 @@ fn handle_incoming_message<'a>(connection:& TcpStream, sender: &Sender<String>, 
     loop {
         // println!("Lecture de {}", target_address);
         match bcmessage::read_message(&connection) {
-            Err(_error) => {
-                // eprintln!("Erreur Lecture {}: {}", _error, target_address);
-                return &CONN_CLOSE;
-
-            },
+            Err(_error) => return &CONN_CLOSE,
             Ok((command, payload)) => {
                 lecture+=1;
-                // eprintln!("Command From : {} --> {}, payload : {}", &target_address, &command, payload.len());
-                if command == *MSG_VERSION && payload.len() > 0 {
-                    handle_incoming_cmd_version(&target_address, &payload);
-                    return &MSG_VERSION;
-                }
-                if command == *MSG_VERSION_ACK {
-                    // eprintln!("Envoi MSG_VERSION_ACK {}", target_address);
-                    return &MSG_VERSION_ACK;
-                }
-                if command == *MSG_ADDR && payload.len() > 0 && handle_incoming_cmd_msg_addr(&payload, &sender){
-                    return &MSG_GETADDR;
-                }
-
-                //Testing incoming message
-                // if command == String::from(GET_HEADERS){
-                //     eprintln!("GET-HEADERS {}", hex::encode(&payload));
-                //     std::process::exit(1);
-                // }
-
-                if command == *HEADERS  && payload.len() > 0  {
-                    if handle_incoming_cmd_msg_header(&payload, &mut lecture) {
-                        // in_chain.send((*GET_HEADERS).clone()).unwrap();
-                        return &GET_HEADERS;
-                    } else {
-                        return &CONN_CLOSE;
-
-                    }
-                }
+                //eprintln!("Command From : {} --> {}, payload : {}", &target_address, &command, payload.len());
+                match command {
+                    cmd if cmd == *MSG_VERSION && payload.len() > 0 => {
+                        handle_incoming_cmd_version(&target_address, &payload);
+                        return &MSG_VERSION;
+                    },
+                    cmd if cmd == *MSG_VERSION_ACK
+                        => return &MSG_VERSION_ACK,
+                    cmd if cmd == *MSG_ADDR && payload.len() > 0 && handle_incoming_cmd_msg_addr(&payload, &sender)
+                        => return &MSG_GETADDR,
+                    cmd if cmd == *HEADERS  && payload.len() > 0
+                        => return match handle_incoming_cmd_msg_header(&payload, &mut lecture) {
+                            true  => &GET_HEADERS,
+                            false => &CONN_CLOSE
+                        },
+                    _ => {}
+                };
+                //
+                // //Testing incoming message
+                // // if command == String::from(GET_HEADERS){
+                // //     eprintln!("GET-HEADERS {}", hex::encode(&payload));
+                // //     std::process::exit(1);
+                // // }
+                //
 
                 // if command == String::from(INV){
                 //     //TODO: must migrate to bcmessage::process_inv_message
@@ -155,8 +147,7 @@ fn handle_incoming_message<'a>(connection:& TcpStream, sender: &Sender<String>, 
                 // }
 
             }
-        }
-        // eprintln!("-> Nouvelle lecture {} -> {}", target_address, lecture);
+        };
         if lecture > NB_MAX_READ_ON_SOCKET {
             eprintln!("Sortie du noeud : trop de lectures inutiles");
             return &CONN_CLOSE;
